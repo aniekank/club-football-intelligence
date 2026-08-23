@@ -42,17 +42,24 @@ const BAND_TOKEN: Record<ZoneKind, string> = {
 };
 
 export function LeagueTable({
-  competition, standings, teams, showModel = true, highlightTeamId,
+  competition, standings, teams, showModel = true, highlightTeamId, compact = false,
 }: {
   competition: Competition;
   standings: StandingRow[];
   teams: Team[];
   showModel?: boolean;
   highlightTeamId?: string;
+  /**
+   * Sidebar variant: rank, club, played, goal difference, points. Genuinely
+   * fewer COLUMNS rather than the full table scrolling inside a narrow column —
+   * a horizontally clipped table in a sidebar reads as broken even when the
+   * scroll works, and nobody scrolls it.
+   */
+  compact?: boolean;
 }) {
   const teamById = new Map(teams.map((t) => [t.id, t]));
-  const hasXG = standings.some((r) => r.xGFor !== null);
-  const hasModel = showModel && standings.some((r) => r.titleProbability !== null);
+  const hasXG = !compact && standings.some((r) => r.xGFor !== null);
+  const hasModel = !compact && showModel && standings.some((r) => r.titleProbability !== null);
   const anyNote = standings.some((r) => r.tiebreakerNote);
 
   // Only show the bands this table actually uses, in finishing order.
@@ -65,8 +72,8 @@ export function LeagueTable({
 
   return (
     <div>
-      <div className="scroll-x">
-        <table className="w-full min-w-[42rem] border-collapse text-sm">
+      <div className={compact ? undefined : 'scroll-x'}>
+        <table className={cn('w-full border-collapse text-sm', !compact && 'min-w-[42rem]')}>
           <caption className="sr-only">
             {competition.name} table. Ranked by {competition.tiebreakers.join(', then ')}.
           </caption>
@@ -75,11 +82,11 @@ export function LeagueTable({
               <Th className="w-10 pl-3 text-left">#</Th>
               <Th className="text-left">Club</Th>
               <Th className="w-10">Pl</Th>
-              <Th className="hidden w-10 sm:table-cell">W</Th>
-              <Th className="hidden w-10 sm:table-cell">D</Th>
-              <Th className="hidden w-10 sm:table-cell">L</Th>
-              <Th className="hidden w-12 lg:table-cell">GF</Th>
-              <Th className="hidden w-12 lg:table-cell">GA</Th>
+              {compact ? null : <Th className="hidden w-10 sm:table-cell">W</Th>}
+              {compact ? null : <Th className="hidden w-10 sm:table-cell">D</Th>}
+              {compact ? null : <Th className="hidden w-10 sm:table-cell">L</Th>}
+              {compact ? null : <Th className="hidden w-12 lg:table-cell">GF</Th>}
+              {compact ? null : <Th className="hidden w-12 lg:table-cell">GA</Th>}
               <Th className="w-12">GD</Th>
               <Th className="w-12 font-bold text-ink">Pts</Th>
               {hasXG ? (
@@ -92,7 +99,7 @@ export function LeagueTable({
                   xGA
                 </Th>
               ) : null}
-              <Th className="hidden w-32 md:table-cell text-left">Form</Th>
+              {compact ? null : <Th className="hidden w-32 md:table-cell text-left">Form</Th>}
               {hasModel ? <Th className="w-20">Title</Th> : null}
               {hasModel ? <Th className="hidden w-20 lg:table-cell">Rel</Th> : null}
             </tr>
@@ -155,11 +162,11 @@ export function LeagueTable({
                   </td>
 
                   <Td>{int(row.played)}</Td>
-                  <Td className="hidden sm:table-cell">{int(row.won)}</Td>
-                  <Td className="hidden sm:table-cell">{int(row.drawn)}</Td>
-                  <Td className="hidden sm:table-cell">{int(row.lost)}</Td>
-                  <Td className="hidden lg:table-cell">{int(row.goalsFor)}</Td>
-                  <Td className="hidden lg:table-cell">{int(row.goalsAgainst)}</Td>
+                  {compact ? null : <Td className="hidden sm:table-cell">{int(row.won)}</Td>}
+                  {compact ? null : <Td className="hidden sm:table-cell">{int(row.drawn)}</Td>}
+                  {compact ? null : <Td className="hidden sm:table-cell">{int(row.lost)}</Td>}
+                  {compact ? null : <Td className="hidden lg:table-cell">{int(row.goalsFor)}</Td>}
+                  {compact ? null : <Td className="hidden lg:table-cell">{int(row.goalsAgainst)}</Td>}
                   <Td>
                     <Figure
                       tone={row.goalDifference > 0 ? 'positive' : row.goalDifference < 0 ? 'negative' : 'muted'}
@@ -174,9 +181,11 @@ export function LeagueTable({
                   {hasXG ? <Td className="hidden xl:table-cell">{num(row.xGFor, 1)}</Td> : null}
                   {hasXG ? <Td className="hidden xl:table-cell">{num(row.xGAgainst, 1)}</Td> : null}
 
-                  <td className="hidden px-1 py-2 md:table-cell">
-                    <FormRun form={row.form} />
-                  </td>
+                  {compact ? null : (
+                    <td className="hidden px-1 py-2 md:table-cell">
+                      <FormRun form={row.form} />
+                    </td>
+                  )}
 
                   {hasModel ? (
                     <td className="px-1 py-2">
@@ -211,6 +220,7 @@ export function LeagueTable({
         </div>
       ) : null}
 
+      {compact ? null : (
       <div className="space-y-1 px-3 pb-3 text-xs text-ink-muted">
         {anyNote ? (
           <p>* Level on points — separated by the tiebreaker shown on hover.</p>
@@ -229,6 +239,7 @@ export function LeagueTable({
           </p>
         ) : null}
       </div>
+      )}
     </div>
   );
 }

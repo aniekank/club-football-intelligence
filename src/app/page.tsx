@@ -190,7 +190,7 @@ function CompactTable({ snapshot }: { snapshot: NonNullable<ReturnType<typeof re
       competition={snapshot.competition}
       standings={snapshot.standings.slice(0, 8)}
       teams={snapshot.teams}
-      showModel={false}
+      compact
     />
   );
 }

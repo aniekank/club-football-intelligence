@@ -127,6 +127,19 @@ on every refresh reads as broken however defensible the sampling noise.
 | 8.6 | Every chart has a working "Show data" table | |
 | 8.7 | Charts remain readable in both themes | |
 
+**How to check 8.3 properly.** A screenshot cannot answer it: a clipped capture
+and a scrolling body look identical, and headless Chrome does not reliably paint
+scrollbars. Temporarily add `<OverflowProbe />` (from
+`src/components/dev/OverflowProbe.tsx`) to the body in `src/app/layout.tsx`, run
+`npm run dev`, and read the green strip at the foot of the page.
+`{"overflow": false}` is the passing state — the `offenders` list will still name
+the wide tables, which is correct, because they scroll inside their own
+container. Remove the component when done; it is deliberately not wired in, so
+that it is never bundled for readers.
+
+_Last measured 2026-08-23: `overflow: false` on the home, table, fixtures, team,
+match and edge pages._
+
 ### 9. Accessibility
 
 | # | Check | Pass |
