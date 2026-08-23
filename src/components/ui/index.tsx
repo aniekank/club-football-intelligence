@@ -113,10 +113,11 @@ export function LiveBadge({ minute, phase }: { minute: number; phase?: string })
 export type BadgeTone = 'neutral' | 'brand' | 'good' | 'warning' | 'serious' | 'critical' | 'info';
 
 export function Badge({
-  children, tone = 'neutral', className,
-}: { children: ReactNode; tone?: BadgeTone; className?: string }) {
+  children, tone = 'neutral', className, title,
+}: { children: ReactNode; tone?: BadgeTone; className?: string; title?: string }) {
   return (
     <span
+      title={title}
       className={cn(
         'inline-flex items-center gap-1 rounded-sm px-2 py-px text-2xs font-semibold uppercase tracking-caps',
         tone === 'neutral' && 'bg-surface-2 text-ink-secondary',

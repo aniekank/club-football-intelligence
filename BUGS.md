@@ -75,3 +75,84 @@ it forced a look that surfaced CFI-001 one line above.
 - **The live source is undocumented.** FotMob's public API needs no key today but
   has previously required an `x-mas` header and could add auth or block at any
   time. Everything sits behind the snapshot contract so a swap stays cheap.
+
+---
+
+## CFI-003 — Fake betting edges from markets that had not opened
+**Status:** fixed · **Found:** 2026-08-23, by the live odds probe
+**Severity:** high — the most dangerous class of wrong number this product can emit
+
+**Symptom.** The Betting Edge showed "+52.2% EV, strong value" on several
+fixtures. Real edges against a sharp book are one to two percent.
+
+**Root cause.** Two independent problems compounding.
+
+First, the odds feed serves placeholder pricing for fixtures whose market has
+not opened. Observed live: Newcastle 1.08 / Bournemouth 1.06 / Draw 1.06 — an
+overround of 280%. De-vigging that produces meaningless "fair" probabilities,
+and comparing a model against meaningless probabilities manufactures enormous
+fake edges.
+
+Second, and more fundamental: one matchweek into a season the model's ratings
+are almost entirely last season's regressed prior, which compresses the spread
+between clubs. A compressed model under-separates good teams from bad and so
+"finds value" on essentially every underdog — systematically, and in the
+direction most likely to lose money.
+
+**Fix.** Three gates, all before an edge is produced rather than filtered from
+the display afterwards:
+1. `isUsableMarket()` rejects any book whose overround falls outside 100.5%-125%.
+2. `assessReadiness()` withholds the entire edge column until the median club has
+   played 6 matches, and says on the page exactly why.
+3. An `implausible` strength tier: EV above 20% is reported as "check model", not
+   as value. Major-league markets are efficient; a model claiming +40% against
+   Pinnacle has found a bug in itself.
+
+**Test.** `src/analytics/betting.test.ts` → "rejects the placeholder pricing the
+live feed actually serves" uses the exact observed prices; "tiers a huge EV as
+implausible rather than strong" pins the ceiling; "withholds edges until the
+season has evidence" covers the readiness gate.
+
+**Lesson.** For a product that touches money, a plausibility gate on the INPUT is
+worth more than any amount of care in the maths downstream. The de-vig was
+correct throughout; it was being fed garbage.
+
+---
+
+## CFI-004 — Kickoff times rendered in the server's timezone
+**Status:** fixed · **Found:** 2026-08-23, by reading a screenshot
+**Severity:** medium — a wrong time that looks right
+
+**Symptom.** Liverpool v Nottingham Forest, an 11:30 UTC kickoff, rendered as
+"07:30" — the host machine's US-Eastern time, served to every visitor.
+
+**Root cause.** `Intl.DateTimeFormat` on the server uses the SERVER's timezone.
+Every date and time in the app was formatted during server rendering.
+
+**Fix.** `<LocalTime>` renders UTC with an explicit "UTC" marker on the server and
+swaps to the viewer's timezone on mount. Deterministic SSR output, no hydration
+mismatch, and a no-JavaScript reader still gets a correct time rather than a
+confidently wrong one.
+
+**Lesson.** The kickoff time is one of the few facts a reader will act on. This
+is the parent product's LocalTime lesson arriving on schedule.
+
+---
+
+## CFI-005 — Club-name normaliser mangled names containing a legal-form prefix
+**Status:** fixed · **Found:** 2026-08-23, by the odds-join probe
+**Severity:** medium — silent, and silent is the worst kind
+
+**Symptom.** "Aston Villa" normalised to `tonvilla`, so its fixtures never joined
+to their odds and simply vanished from the Betting Edge. No error, no log.
+
+**Root cause.** The normaliser stripped legal-form prefixes (`fc`, `afc`, `as`…)
+with a regex over the CONCATENATED name, so `^as` matched the "as" inside
+"astonvilla".
+
+**Fix.** Tokenise first, then drop whole tokens that are legal-form noise, and
+never drop the only token.
+
+**Lesson.** A join that fails silently is worse than one that throws. The probe
+that printed missed joins is what surfaced this; without it the fixtures would
+just have been absent.

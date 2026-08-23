@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { Crest, Figure, LiveBadge, Badge } from '@/components/ui';
-import { formatTime, num } from '@/lib/format';
+import { num } from '@/lib/format';
+import { LocalTime } from '@/components/ui/LocalTime';
 import type { Match, Team } from '@/domain/types';
 
 /**
@@ -83,7 +84,7 @@ export function MatchCard({
             </Figure>
           ) : (
             <Figure tone="secondary" className="text-base leading-none">
-              {formatTime(match.kickoff)}
+              <LocalTime iso={match.kickoff} />
             </Figure>
           )}
 

@@ -7,7 +7,8 @@ import {
   Card, CardHeader, Crest, Figure, LiveBadge, Badge, EmptyState, EstimateMark,
 } from '@/components/ui';
 import { resolveActive } from '@/server/active';
-import { formatFullDate, formatTime, num, int, pct } from '@/lib/format';
+import { num, int, pct } from '@/lib/format';
+import { LocalTime } from '@/components/ui/LocalTime';
 import { predictMatch } from '@/analytics/poisson';
 import type { Match, MatchTeamStats, Team } from '@/domain/types';
 
@@ -81,7 +82,7 @@ function MatchDetail({
               {competitionName} · {match.roundLabel}
             </p>
             <p className="text-xs text-ink-muted">
-              {formatFullDate(match.kickoff)} · {formatTime(match.kickoff)}
+              <LocalTime iso={match.kickoff} mode="datetime" />
               {match.venue ? ` · ${match.venue}` : ''}
             </p>
           </div>
@@ -106,7 +107,7 @@ function MatchDetail({
               </Badge>
             ) : (
               <Figure className="text-3xl font-semibold leading-none text-ink-secondary">
-                {formatTime(match.kickoff)}
+                <LocalTime iso={match.kickoff} />
               </Figure>
             )}
             {match.status === 'FINISHED' ? (
