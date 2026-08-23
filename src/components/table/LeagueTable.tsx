@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { Figure, FormRun, TeamLabel, EstimateMark } from '@/components/ui';
 import { int, num, pct, signed } from '@/lib/format';
@@ -127,12 +128,17 @@ export function LeagueTable({
                   <td className="min-w-0 py-2 pr-2">
                     <div className="flex items-center gap-2">
                       {team ? (
-                        <TeamLabel
-                          name={team.shortName}
-                          code={team.code}
-                          crestUrl={team.crestUrl}
-                          nameClassName="font-medium"
-                        />
+                        <Link
+                          href={`/teams/${team.id}?competition=${competition.id}`}
+                          className="min-w-0 rounded-sm underline-offset-2 hover:underline"
+                        >
+                          <TeamLabel
+                            name={team.shortName}
+                            code={team.code}
+                            crestUrl={team.crestUrl}
+                            nameClassName="font-medium"
+                          />
+                        </Link>
                       ) : (
                         // Never crash on a lookup miss — render the id.
                         <span className="text-ink-muted">{row.teamId}</span>
