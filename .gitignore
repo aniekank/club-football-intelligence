@@ -7,3 +7,4 @@ out/
 .DS_Store
 /src/data/cache/*.json
 !/src/data/cache/.gitkeep
+.snapshot-cache/

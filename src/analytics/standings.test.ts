@@ -80,7 +80,10 @@ describe('the same results, two different champions', () => {
     expect(rows[1]!.points).toBe(9);
     expect(rows[0]!.goalDifference).toBe(6);
     expect(rows[1]!.goalDifference).toBe(4);
-    expect(rows[0]!.tiebreakerNote).toBe('Ahead on goal difference');
+    // No footnote: goal difference is the tiebreak every reader already
+    // assumes, and annotating it would put an asterisk on most of the table
+    // one matchweek into a season, burying the cases that need explaining.
+    expect(rows[0]!.tiebreakerNote).toBeNull();
   });
 
   it('gives the LaLiga title to the winner of the head-to-head', () => {
@@ -119,7 +122,7 @@ describe('head-to-head only applies once the mini-league is complete', () => {
     expect(rows[0]!.points).toBe(6);
     expect(rows[1]!.points).toBe(6);
     expect(order(rows).slice(0, 2)).toEqual(['A', 'B']);
-    expect(rows[0]!.tiebreakerNote).toBe('Ahead on goal difference');
+    expect(rows[0]!.tiebreakerNote).toBeNull(); // goal difference goes unannotated
   });
 
   it('switches to head-to-head once the reverse fixture is played', () => {
@@ -286,5 +289,72 @@ describe('home and away splits', () => {
     expect(a.awayRecord).toMatchObject({ played: 2, drawn: 1, lost: 1, points: 1 });
     // Most recent LAST, so the badge row reads left-to-right in time order.
     expect(a.form).toEqual(['W', 'D', 'L']);
+  });
+});
+
+describe('tiebreaker footnotes are signal, not noise', () => {
+  it('annotates head-to-head and away goals but never goal difference', () => {
+    seq = 0;
+    // Head-to-head: worth explaining, because the reader can see the table and
+    // cannot see why the club with the worse goal difference is above.
+    const h2h = table(
+      [
+        match('A', 'B', 1, 0), match('B', 'A', 3, 0),
+        match('A', 'C', 5, 0), match('C', 'A', 0, 3),
+        match('B', 'C', 1, 0), match('C', 'B', 0, 1),
+      ],
+      ['A', 'B', 'C'],
+      LA_LIGA,
+    );
+    expect(h2h[0]!.tiebreakerNote).toBe('Ahead on head-to-head');
+
+    // Goal difference: needs no explanation, so carries none.
+    seq = 0;
+    const gd = table(
+      [
+        match('A', 'B', 1, 0), match('B', 'A', 3, 0),
+        match('A', 'C', 5, 0), match('C', 'A', 0, 3),
+        match('B', 'C', 1, 0), match('C', 'B', 0, 1),
+      ],
+      ['A', 'B', 'C'],
+      PREMIER_LEAGUE,
+    );
+    expect(gd[0]!.tiebreakerNote).toBeNull();
+  });
+
+  it('annotates an unresolved tie only where it decides something', () => {
+    /**
+     * The regression this rule exists for: one matchweek in, every club is
+     * level on points, so a naive "level on points" trigger asterisked all
+     * twenty rows and the footnote became wallpaper.
+     *
+     * An unresolved tie is genuinely worth flagging when it straddles a zone
+     * boundary — 4th versus 5th decides a Champions League place — and worth
+     * nothing when it is ten mid-table clubs in an arbitrary order.
+     */
+    seq = 0;
+    const ids = Array.from({ length: 20 }, (_, i) => `t${i}`);
+    const opening = ids.slice(0, 10).map((id, i) => match(id, ids[i + 10] as string, i % 3, 0));
+    const rows = table(opening, ids, PREMIER_LEAGUE);
+
+    const annotated = rows.filter((r) => r.tiebreakerNote !== null);
+    // Far fewer than the whole table...
+    expect(annotated.length).toBeLessThan(rows.length / 2);
+
+    // ...and every annotation sits on a genuine boundary: the row above or
+    // below is in a different zone.
+    for (const row of annotated) {
+      const above = rows[row.rank - 2];
+      const below = rows[row.rank];
+      const onBoundary =
+        (above !== undefined && above.zone !== row.zone) ||
+        (below !== undefined && below.zone !== row.zone);
+      expect(onBoundary).toBe(true);
+    }
+
+    // The big block of level mid-table clubs, in no zone at all, is silent.
+    const midTable = rows.filter((r) => r.zone === null && r.points === 1);
+    expect(midTable.length).toBeGreaterThan(4);
+    expect(midTable.filter((r) => r.tiebreakerNote !== null).length).toBeLessThanOrEqual(1);
   });
 });

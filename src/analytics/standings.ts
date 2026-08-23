@@ -346,22 +346,48 @@ export function computeStandings(input: ComputeStandingsInput): StandingRow[] {
     teamIds, competition.tiebreakers, tallies, matches, competition, notes,
   );
 
+  // Zones are needed BEFORE notes are decided, because whether an unresolved tie
+  // is worth annotating depends on whether it straddles a boundary.
+  const zoneByRank = new Map<number, ReturnType<typeof zoneForRank>>();
+  for (let r = 1; r <= ordered.length; r++) zoneByRank.set(r, zoneForRank(competition, r));
+
   return ordered.map((teamId, i) => {
     const t = tallyOf(tallies, teamId);
     const rank = i + 1;
-    const zone = zoneForRank(competition, rank);
+    const zone = zoneByRank.get(rank) ?? null;
     const form = t.form
       .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
       .slice(-formLength)
       .map((f) => f.letter);
 
-    // Only footnote a tiebreaker when a NEIGHBOUR is level on points — the note
-    // is meaningless otherwise, and noise on every row would bury the real ones.
+    // Footnote only tiebreaks a reader would not already assume.
+    //
+    // Two conditions, both needed. A neighbour must be level on points (or the
+    // note describes nothing), AND the separating criterion must be something
+    // other than goal difference — which every football reader takes as read.
+    // Without the second condition, one matchweek into a season every club in
+    // the division is level on points and the whole table sprouts asterisks,
+    // which buries the head-to-head and away-goals cases that genuinely need
+    // explaining.
     const above = ordered[i - 1];
     const below = ordered[i + 1];
     const levelWithNeighbour =
       (above !== undefined && tallyOf(tallies, above).points === t.points) ||
       (below !== undefined && tallyOf(tallies, below).points === t.points);
+    const note = notes.get(teamId) ?? null;
+
+    // "Level on all tiebreakers" is honest but only worth saying when the tie
+    // has consequences. Ten mid-table clubs sharing a rank order that nobody
+    // will ever care about does not need twenty asterisks; 4th versus 5th does.
+    const straddlesZoneBoundary =
+      (above !== undefined && zoneByRank.get(rank - 1)?.kind !== zoneByRank.get(rank)?.kind) ||
+      (below !== undefined && zoneByRank.get(rank + 1)?.kind !== zoneByRank.get(rank)?.kind);
+
+    const noteIsInformative =
+      note !== null &&
+      note !== 'Ahead on goal difference' &&
+      note !== 'Ahead on goals scored' &&
+      (note !== 'Level on all tiebreakers' || straddlesZoneBoundary);
 
     return {
       seasonId,
@@ -388,7 +414,7 @@ export function computeStandings(input: ComputeStandingsInput): StandingRow[] {
       titleProbability: null,
       top4Probability: null,
       relegationProbability: null,
-      tiebreakerNote: levelWithNeighbour ? (notes.get(teamId) ?? null) : null,
+      tiebreakerNote: levelWithNeighbour && noteIsInformative ? note : null,
     };
   });
 }

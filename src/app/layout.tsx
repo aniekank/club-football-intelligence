@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Fraunces, Archivo, JetBrains_Mono } from 'next/font/google';
+import { themeScript } from '@/components/layout/ThemeToggle';
 import './globals.css';
 
 /**
@@ -63,6 +64,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${fraunces.variable} ${archivo.variable} ${jetbrains.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Applies the stored theme before first paint — without it every
+            navigation flashes the OS theme before snapping to the chosen one. */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
         <a href="#main" className="sr-only-focusable absolute left-4 top-4 z-toast rounded-md bg-brand px-4 py-2 text-sm font-semibold text-brand-ink">
           Skip to content
