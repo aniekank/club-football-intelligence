@@ -300,15 +300,20 @@ export const snapshotSchema = z
     // Capability honesty: claiming xG while no match carries any is exactly the
     // mismatch that produced the parent product's "shows 0" bug class.
     if (snap.meta.capabilities.hasXG && snap.matches.length > 0) {
-      const anyXG = snap.matches.some((m) =>
-        Object.values(m.teamStats).some(
-          (s) => (s as { xG?: number | null }).xG !== null && (s as { xG?: number | null }).xG !== undefined,
-        ),
-      );
+      // xG may legitimately arrive at either grain: per-match (from the shot
+      // stream) or as season totals on the table. A completed season loaded
+      // outside the match-detail window has only the latter, and that is still
+      // a snapshot that genuinely has xG.
+      const anyXG =
+        snap.matches.some((m) =>
+          Object.values(m.teamStats).some(
+            (s) => (s as { xG?: number | null }).xG !== null && (s as { xG?: number | null }).xG !== undefined,
+          ),
+        ) || snap.standings.some((r) => r.xGFor !== null);
       if (!anyXG) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'meta.capabilities.hasXG is true but no match carries an xG value',
+          message: 'meta.capabilities.hasXG is true but neither matches nor standings carry any xG',
         });
       }
     }
