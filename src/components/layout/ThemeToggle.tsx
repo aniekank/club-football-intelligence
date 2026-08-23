@@ -54,4 +54,13 @@ export function ThemeToggle() {
  * the OS theme and then snaps to the chosen one — a visible flash on every
  * navigation, and the single most common way a theme toggle feels cheap.
  */
-export const themeScript = `(function(){try{var t=localStorage.getItem('cfi-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();`;
+export const themeScript = `(function(){try{` +
+  // ?theme=light|dark forces a theme for this view and persists it. Exists so a
+  // headless browser (and a human doing QA) can pin the appearance without
+  // reaching into localStorage — verifying both palettes should not require
+  // trusting that they work.
+  `var q=new URLSearchParams(location.search).get('theme');` +
+  `if(q==='light'||q==='dark'){localStorage.setItem('cfi-theme',q);}` +
+  `var t=localStorage.getItem('cfi-theme');` +
+  `if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}` +
+  `}catch(e){}})();`;
