@@ -248,6 +248,16 @@ export const snapshotSchema = z
     playerStats: z.array(z.object({ playerId: z.string() }).passthrough()),
     matches: z.array(matchSchema),
     standings: z.array(standingRowSchema),
+    priorRatings: z.array(
+      z.object({
+        teamId: z.string().min(1),
+        // A ratio, not a probability. Bounded generously but not unbounded — a
+        // ratio of 12 means the derivation divided by something near zero.
+        attackRatio: z.number().min(0.1).max(5),
+        defenseRatio: z.number().min(0.1).max(5),
+        promoted: z.boolean(),
+      }),
+    ),
     generatedAt: iso,
     meta: z.object({
       source: z.string(),

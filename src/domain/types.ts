@@ -563,6 +563,26 @@ export interface DatasetMeta {
  * bundle of them). Swapping editions swaps this object wholesale; indexes are
  * keyed to its identity so every module self-heals on the swap.
  */
+/**
+ * Previous-season strength, as ratios to that season's league average
+ * (1.0 = exactly average; attack above 1 means outscoring the league, defence
+ * above 1 means CONCEDING more than the league).
+ *
+ * This is what stops the model being blind in August. A purely results-driven
+ * rating after one matchweek ranks whoever won 4-0 above Liverpool, because it
+ * has no way to know Liverpool are Liverpool. The prior is what the shrinkage
+ * pulls toward, so an early-season forecast starts from last season's evidence
+ * and migrates to this season's as the fixtures accumulate.
+ */
+export interface PriorRating {
+  teamId: ID;
+  attackRatio: number;
+  defenseRatio: number;
+  /** True when the club has no previous top-flight season — a promoted side
+   *  gets a below-average prior rather than being treated as average. */
+  promoted: boolean;
+}
+
 export interface DatasetSnapshot {
   /** The edition being viewed. */
   competition: Competition;
@@ -576,6 +596,9 @@ export interface DatasetSnapshot {
   playerStats: PlayerStats[];
   matches: Match[];
   standings: StandingRow[];
+  /** Empty when no previous season was available (a new competition, or the
+   *  fetch failed) — the model then shrinks toward league average instead. */
+  priorRatings: PriorRating[];
   generatedAt: ISODate;
   meta: DatasetMeta;
 }

@@ -34,7 +34,7 @@ function makeSnapshot(teams: Team[], matches: Match[]): DatasetSnapshot {
       totalMatchweeks: 38, currentMatchweek: 1, isCurrent: true, championTeamId: null,
     },
     relatedCompetitions: [], memberships: [], teams, players: [], playerStats: [],
-    matches, standings: [],
+    matches, standings: [], priorRatings: [],
     generatedAt: new Date().toISOString(),
     meta: {
       source: 'test', sourceLabel: 'Test',

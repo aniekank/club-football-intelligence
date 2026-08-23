@@ -1,9 +1,10 @@
 import { fetchJson, mapLimit } from '../http';
 import { computeStandings } from '@/analytics/standings';
 import { getCompetition } from '@/domain/competitions';
+import { derivePriors, type PriorSeasonRow } from '@/analytics/ratings';
 import type {
   Competition, DatasetCapabilities, DatasetSnapshot, ID, Match, MatchTeamStats,
-  Season, Shot, ShotBodyPart, ShotOutcome, ShotSituation, StandingRow, Team, Zone, ZoneKind,
+  PriorRating, Season, Shot, ShotBodyPart, ShotOutcome, ShotSituation, StandingRow, Team, Zone, ZoneKind,
 } from '@/domain/types';
 
 /**
@@ -457,6 +458,8 @@ export interface LoadOptions {
   maxDetailRequests?: number;
   /** Concurrent detail requests. */
   concurrency?: number;
+  /** Skip the previous-season fetch (tests, or a competition with no history). */
+  skipPriors?: boolean;
 }
 
 /**
@@ -470,7 +473,35 @@ export async function loadCompetition(
   const fotmobId = FOTMOB_LEAGUES[competitionId];
   if (!fotmobId) throw new Error(`no FotMob league id for "${competitionId}"`);
   const league = await fetchLeague(fotmobId);
-  return buildSnapshot(competitionId, league, opts);
+
+  // One extra request buys a sane August forecast. A failure here is not fatal:
+  // the model simply shrinks toward league average instead of last season.
+  let previousSeason: FmLeagueResponse | undefined;
+  if (!opts.skipPriors) {
+    const seasons = league.allAvailableSeasons ?? [];
+    const current = league.details?.selectedSeason;
+    const previous = seasons.find((s) => s !== current);
+    if (previous) {
+      try {
+        previousSeason = await fetchLeagueSeason(fotmobId, previous);
+      } catch {
+        previousSeason = undefined;
+      }
+    }
+  }
+
+  return buildSnapshot(competitionId, league, { ...opts, previousSeason });
+}
+
+/** A specific season of a competition, for the previous-season prior. */
+export async function fetchLeagueSeason(
+  fotmobId: number,
+  season: string,
+): Promise<FmLeagueResponse> {
+  return fetchJson<FmLeagueResponse>(
+    `${BASE}/leagues?id=${fotmobId}&season=${encodeURIComponent(season)}`,
+    { label: `fotmob leagues:${fotmobId} season:${season}` },
+  );
 }
 
 /**
@@ -482,13 +513,17 @@ export async function loadCompetition(
 export async function buildSnapshot(
   competitionId: string,
   league: FmLeagueResponse,
-  opts: LoadOptions & { fetchDetails?: (id: string) => Promise<FmMatchDetails> } = {},
+  opts: LoadOptions & {
+    fetchDetails?: (id: string) => Promise<FmMatchDetails>;
+    previousSeason?: FmLeagueResponse;
+  } = {},
 ): Promise<DatasetSnapshot> {
   const {
     detailWindowDays = 21,
     maxDetailRequests = 40,
     concurrency = 4,
     fetchDetails = fetchMatchDetails,
+    previousSeason,
   } = opts;
 
   const competition = getCompetition(competitionId);
@@ -691,6 +726,30 @@ export async function buildSnapshot(
     modeledMetrics: ['fieldTilt', 'isBigChance'],
   };
 
+  // ── Previous-season prior ────────────────────────────────────────────────
+  // Without this the model is blind in August: after one matchweek a purely
+  // results-driven rating ranks whoever won 4-0 above Liverpool, because it has
+  // no way to know Liverpool are Liverpool.
+  let priorRatings: PriorRating[] = [];
+  if (previousSeason) {
+    const prevRows = previousSeason.table?.[0]?.data?.table?.all ?? [];
+    const prevXg = previousSeason.table?.[0]?.data?.table?.xg ?? [];
+    const xgById = new Map(prevXg.map((r) => [String(r.id), r]));
+    const prevSeasonRows: PriorSeasonRow[] = prevRows.map((r) => {
+      const [gf, ga] = (r.scoresStr ?? '0-0').split('-').map((v) => Number(v.trim()));
+      const xg = xgById.get(String(r.id));
+      return {
+        teamId: String(r.id),
+        played: r.played,
+        goalsFor: Number.isFinite(gf) ? (gf as number) : 0,
+        goalsAgainst: Number.isFinite(ga) ? (ga as number) : 0,
+        xGFor: xg?.xg ?? null,
+        xGAgainst: xg?.xgConceded ?? null,
+      };
+    });
+    priorRatings = derivePriors(prevSeasonRows, teams.map((t) => t.id));
+  }
+
   return {
     competition: effectiveCompetition,
     season,
@@ -707,6 +766,7 @@ export async function buildSnapshot(
     playerStats: [],
     matches,
     standings,
+    priorRatings,
     generatedAt: new Date().toISOString(),
     meta: {
       source: 'fotmob',
