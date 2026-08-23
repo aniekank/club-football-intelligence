@@ -1,0 +1,54 @@
+# Render deployment for Club Football Intelligence.
+#
+# Like its predecessor this is a STATEFUL single-process server: the dataset
+# snapshot lives in memory on globalThis and a background refresh loop starts on
+# boot. That makes it one persistent web service, never serverless functions.
+#
+# Phase 0 contract: auto-deploy on commit, /api/health reports the live commit
+# hash, and staging is promoted to prod only after behaviour checks pass.
+services:
+  - type: web
+    name: club-football-intelligence
+    runtime: node
+    plan: starter          # always warm, so the snapshot survives between visits
+    region: oregon
+    branch: main
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22.11.0"
+      - key: DATA_SOURCE
+        value: fotmob
+      # Render injects the deployed commit automatically; /api/health echoes it
+      # so we can prove which build is actually live (Phase 0).
+      - key: RENDER_GIT_COMMIT
+        sync: false
+      - key: ODDS_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+  - type: web
+    name: club-football-intelligence-staging
+    runtime: node
+    plan: starter
+    region: oregon
+    branch: staging
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22.11.0"
+      - key: DATA_SOURCE
+        value: fotmob
+      - key: RENDER_GIT_COMMIT
+        sync: false
+      - key: ODDS_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false

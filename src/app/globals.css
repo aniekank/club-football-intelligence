@@ -1,0 +1,159 @@
+@import '../styles/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    /* Anchor links and scroll-into-view clear the sticky header. */
+    scroll-padding-top: calc(var(--header-height) + var(--space-4));
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--surface-canvas);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Grotesk numerals default to tabular so columns never jitter as scores
+       tick. Prose opts back out with `.figures-proportional`. */
+    font-variant-numeric: tabular-nums;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Headings carry the display serif. Sizes stay with the utilities so a
+     heading can be re-scaled without losing its voice. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tight);
+    line-height: var(--leading-tight);
+    text-wrap: balance;
+  }
+
+  h4,
+  h5,
+  h6 {
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tight);
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Every figure is mono + tabular: scores, xG, odds, percentages. This is the
+     single most load-bearing typographic decision in the product — it is what
+     makes dense numeric tables scan like a terminal instead of a spreadsheet. */
+  .figure {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'zero' 1; /* slashed zero — 0 vs O at a glance */
+    letter-spacing: var(--tracking-tight);
+  }
+
+  .figures-proportional {
+    font-variant-numeric: proportional-nums;
+  }
+
+  /* The small-caps eyebrow: section kickers, column groups, competition names */
+  .eyebrow {
+    font-size: var(--text-2xs);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: var(--radius-sm);
+  }
+
+  /* Keyboard users get the ring; pointer users don't. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background: var(--brand);
+    color: var(--brand-ink);
+  }
+
+  /* Thin, recessive scrollbars — the data should be the loudest thing. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: var(--radius-pill);
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  /* Loading skeleton. The shimmer is a token-driven gradient sweep; under
+     reduced motion the duration collapses and it reads as a static block. */
+  .skeleton {
+    background-image: linear-gradient(
+      90deg,
+      var(--surface-2) 25%,
+      var(--surface-3) 37%,
+      var(--surface-2) 63%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+    border-radius: var(--radius-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton {
+      animation: none;
+      background-image: none;
+      background-color: var(--surface-2);
+    }
+  }
+
+  /* Horizontal-scroll container for wide tables and charts. The page body must
+     never scroll sideways; the offending element owns its own overflow. */
+  .scroll-x {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@layer utilities {
+  /* Screen-reader-only, but focusable (skip links). */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+}

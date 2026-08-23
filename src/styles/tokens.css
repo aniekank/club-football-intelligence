@@ -1,0 +1,400 @@
+/* ============================================================================
+   Club Football Intelligence — design tokens
+   ----------------------------------------------------------------------------
+   The single source of truth for colour, type, space, radius, elevation and
+   motion. NOTHING in the app hard-codes a hex, a px size or a duration; every
+   component consumes these custom properties (usually via the Tailwind theme in
+   tailwind.config.ts, which maps 1:1 onto the names below).
+
+   Dark-first. `:root` carries the DARK palette because that is the product's
+   primary appearance; the light palette is a deliberate re-step for a white
+   surface, not an automatic inversion. The two overrides below exist so the
+   viewer's explicit choice always wins over the OS setting, in both directions.
+
+   The categorical series ramp is machine-validated — see docs/DESIGN-SYSTEM.md
+   for the validator output and the 3-series all-pairs cap.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* ── Surfaces ───────────────────────────────────────────────────────────
+     A deep blue-black rather than a neutral slate: it reads as "floodlit pitch
+     at night" and keeps the accent hues from going muddy.                    */
+  --surface-canvas: #0a0d12; /* page background */
+  --surface-1: #12171f;      /* cards, chart surface — the validated surface */
+  --surface-2: #1a212b;      /* raised: popovers, sticky headers, hover rows */
+  --surface-3: #232c38;      /* highest: modals, tooltips */
+  --surface-inset: #080b0f;  /* wells, code, table zebra */
+
+  /* ── Hairlines & ink ──────────────────────────────────────────────────── */
+  --border-subtle: #1e2733;
+  --border-default: #2a3441;
+  --border-strong: #3a4757;
+
+  --text-primary: #f2f5f8;
+  --text-secondary: #a7b2c0;
+  --text-muted: #6b7887;
+  --text-inverse: #0a0d12;
+
+  /* ── Brand ──────────────────────────────────────────────────────────────
+     Electric lime is the signal colour: live states, primary actions, the
+     "now" marker. It is deliberately NOT in the categorical series ramp, so a
+     series can never impersonate a live indicator.                           */
+  --brand: #c8f751;
+  --brand-hover: #d6fa7b;
+  --brand-press: #b2e02f;
+  --brand-ink: #0a0d12;      /* text ON brand fills */
+  --brand-faint: #1e2a12;    /* tinted backgrounds */
+
+  /* ── Categorical series (validated, dark steps) ─────────────────────────
+     Fixed order, never cycled. Adjacent-pair safe for bars/lines/stacks at all
+     8; scatter/bubble/choropleth cap at the first 3 (see DESIGN-SYSTEM.md).  */
+  --series-1: #3f91e6; /* blue    */
+  --series-2: #e05f41; /* coral   */
+  --series-3: #14a98b; /* teal    */
+  --series-4: #b98514; /* amber   */
+  --series-5: #de6098; /* pink    */
+  --series-6: #0b8c46; /* green   */
+  --series-7: #8c7de8; /* violet  */
+  --series-8: #de5f5f; /* red     */
+
+  /* ── Sequential ramp (one hue, light→dark) ──────────────────────────────
+     For continuous magnitude: shot-map density, heat, possession share.
+     On DARK the near-surface end is the DARK end, so step 700 is the floor.  */
+  --seq-100: #cfe4fa;
+  --seq-200: #a5cbf4;
+  --seq-300: #7bb1ee;
+  --seq-400: #5298e8;
+  --seq-500: #3f91e6;
+  --seq-600: #2a6cb4;
+  --seq-700: #1c4a7d;
+
+  /* ── Diverging (blue ↔ coral, neutral gray midpoint) ────────────────────
+     The signature football diverging metric is goals − xG: overperformance vs
+     underperformance. Warm = over, cool = under, gray = bang on model.       */
+  --div-neg-3: #1c4a7d;
+  --div-neg-2: #2a6cb4;
+  --div-neg-1: #7bb1ee;
+  --div-mid: #38414d;
+  --div-pos-1: #f0a189;
+  --div-pos-2: #e05f41;
+  --div-pos-3: #a83c24;
+
+  /* ── Status (reserved — never reused as a series) ───────────────────────
+     Always shipped with an icon + label; colour never carries state alone.   */
+  --status-good: #35c05a;
+  --status-warning: #e9b23c;
+  --status-serious: #ef8b52;
+  --status-critical: #e8524f;
+  --status-good-faint: #0f2a18;
+  --status-warning-faint: #2b2310;
+  --status-serious-faint: #2e1d12;
+  --status-critical-faint: #2e1414;
+
+  /* ── League-table qualification bands ───────────────────────────────────
+     Left-edge rails on the standings table. Paired with a legend and a text
+     label in the row's status column — never colour alone.                   */
+  --band-champion: #c8f751;
+  --band-ucl: #3f91e6;
+  --band-uel: #e05f41;
+  --band-conference: #14a98b;
+  --band-relegation-playoff: #e9b23c;
+  --band-relegation: #e8524f;
+  --band-none: transparent;
+
+  /* ── Per-competition accents ────────────────────────────────────────────
+     Brand-ADJACENT hues, not trademarked assets: enough to make a competition
+     feel like itself without shipping anyone's logo colours verbatim.        */
+  --comp-epl: #a855c7;
+  --comp-laliga: #ee6a3a;
+  --comp-seriea: #3d93dd;
+  --comp-bundesliga: #e0474f;
+  --comp-ligue1: #d8b45c;
+  --comp-ucl: #5b86e5;
+  --comp-uel: #f08a2e;
+  --comp-default: #c8f751;
+
+  /* ── Typography ─────────────────────────────────────────────────────────
+     Display serif for editorial voice, grotesk for UI, mono for every figure.
+     Wired to next/font in src/app/layout.tsx; the stacks below are the real
+     fallbacks used before the webfont lands (and if it never does).          */
+  --font-display: var(--font-fraunces), 'Iowan Old Style', 'Palatino Linotype',
+    'Source Serif Pro', Georgia, serif;
+  --font-sans: var(--font-archivo), -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, 'SF Mono', SFMono-Regular,
+    'Cascadia Mono', Menlo, Consolas, monospace;
+
+  /* Modular scale, ratio 1.200, rounded to the 8pt grid where it lands close.
+     Sizes are rem so the whole product respects the user's root font size.   */
+  --text-2xs: 0.6875rem; /* 11px — table micro-labels, axis ticks */
+  --text-xs: 0.75rem;    /* 12px — captions, metadata */
+  --text-sm: 0.875rem;   /* 14px — dense table body, secondary UI */
+  --text-base: 1rem;     /* 16px — body */
+  --text-lg: 1.125rem;   /* 18px — lead paragraphs */
+  --text-xl: 1.375rem;   /* 22px — card titles */
+  --text-2xl: 1.75rem;   /* 28px — section headings */
+  --text-3xl: 2.25rem;   /* 36px — page titles */
+  --text-4xl: 3rem;      /* 48px — hero numbers */
+  --text-5xl: 4rem;      /* 64px — scoreline hero */
+
+  --leading-tight: 1.1;
+  --leading-snug: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  --tracking-tighter: -0.03em; /* display sizes only */
+  --tracking-tight: -0.015em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.02em;
+  --tracking-caps: 0.08em;     /* the small-caps eyebrow treatment */
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* ── Space — strict 8pt grid, with 4px half-steps for dense table work ─── */
+  --space-0: 0;
+  --space-1: 0.25rem; /*  4px */
+  --space-2: 0.5rem;  /*  8px */
+  --space-3: 0.75rem; /* 12px */
+  --space-4: 1rem;    /* 16px */
+  --space-5: 1.5rem;  /* 24px */
+  --space-6: 2rem;    /* 32px */
+  --space-7: 2.5rem;  /* 40px */
+  --space-8: 3rem;    /* 48px */
+  --space-9: 4rem;    /* 64px */
+  --space-10: 6rem;   /* 96px */
+
+  /* ── Radius ─────────────────────────────────────────────────────────────
+     Slightly generous on cards, near-square on data cells so tables stay
+     crisp and columns line up optically.                                     */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-pill: 999px;
+
+  /* ── Elevation ──────────────────────────────────────────────────────────
+     On dark, elevation is carried mostly by SURFACE lightness and a hairline;
+     shadows stay subtle because a black shadow on near-black is invisible.   */
+  --shadow-none: none;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 2px 8px rgb(0 0 0 / 0.45), 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.35);
+  --shadow-xl: 0 16px 48px rgb(0 0 0 / 0.55), 0 4px 12px rgb(0 0 0 / 0.4);
+  --shadow-focus: 0 0 0 2px var(--surface-canvas), 0 0 0 4px var(--brand);
+  --glow-brand: 0 0 0 1px rgb(200 247 81 / 0.25), 0 0 20px rgb(200 247 81 / 0.15);
+
+  /* ── Motion ─────────────────────────────────────────────────────────────
+     Purposeful only. Durations are short enough to feel instant; the easings
+     are asymmetric so things enter with authority and leave quietly.         */
+  --duration-instant: 80ms;
+  --duration-fast: 140ms;
+  --duration-normal: 220ms;
+  --duration-slow: 380ms;
+  --duration-deliberate: 600ms;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0, 1);
+  --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Layout ─────────────────────────────────────────────────────────── */
+  --container-max: 1440px;
+  --container-prose: 68ch;
+  --header-height: 3.5rem;
+  --z-sticky: 100;
+  --z-header: 200;
+  --z-popover: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+}
+
+/* ── LIGHT ──────────────────────────────────────────────────────────────────
+   Re-stepped for a white surface, not an inversion: every series hue is a
+   DARKER step of the same ramp so it clears 3:1 on white. Validated
+   independently — see docs/DESIGN-SYSTEM.md.
+   Declared under both scopes so the toggle beats the OS setting either way. */
+
+@media (prefers-color-scheme: light) {
+  :root:where(:not([data-theme='dark'])) {
+    color-scheme: light;
+
+    --surface-canvas: #f4f4f1;
+    --surface-1: #ffffff;
+    --surface-2: #fbfbf9;
+    --surface-3: #ffffff;
+    --surface-inset: #ecece8;
+
+    --border-subtle: #e5e5e0;
+    --border-default: #d5d5ce;
+    --border-strong: #b6b6ad;
+
+    --text-primary: #101418;
+    --text-secondary: #4d5560;
+    --text-muted: #78808c;
+    --text-inverse: #ffffff;
+
+    --brand: #6f9410;
+    --brand-hover: #5d7d0c;
+    --brand-press: #4c6708;
+    --brand-ink: #ffffff;
+    --brand-faint: #f0f7dc;
+
+    --series-1: #1f6fcc;
+    --series-2: #d24e2c;
+    --series-3: #0e8a70;
+    --series-4: #96690a;
+    --series-5: #c43c78;
+    --series-6: #07733a;
+    --series-7: #6a57d4;
+    --series-8: #c63f3f;
+
+    --seq-100: #e4effb;
+    --seq-200: #c2ddf7;
+    --seq-300: #93c1f0;
+    --seq-400: #5fa0e6;
+    --seq-500: #2f80d6;
+    --seq-600: #1f6fcc;
+    --seq-700: #14508f;
+
+    --div-neg-3: #14508f;
+    --div-neg-2: #1f6fcc;
+    --div-neg-1: #93c1f0;
+    --div-mid: #e2e2dd;
+    --div-pos-1: #f0a189;
+    --div-pos-2: #d24e2c;
+    --div-pos-3: #9c3419;
+
+    --status-good: #12882f;
+    --status-warning: #9a6a05;
+    --status-serious: #c25617;
+    --status-critical: #c4302d;
+    --status-good-faint: #e6f5ea;
+    --status-warning-faint: #fbf2dc;
+    --status-serious-faint: #fdeee4;
+    --status-critical-faint: #fbe9e8;
+
+    --band-champion: #6f9410;
+    --band-ucl: #1f6fcc;
+    --band-uel: #d24e2c;
+    --band-conference: #0e8a70;
+    --band-relegation-playoff: #9a6a05;
+    --band-relegation: #c4302d;
+
+    --comp-epl: #7b2f9e;
+    --comp-laliga: #cc4b1c;
+    --comp-seriea: #1a6fba;
+    --comp-bundesliga: #bf2630;
+    --comp-ligue1: #8a6d1e;
+    --comp-ucl: #2f5cc4;
+    --comp-uel: #c2620d;
+    --comp-default: #6f9410;
+
+    --shadow-sm: 0 1px 2px rgb(16 20 24 / 0.06);
+    --shadow-md: 0 2px 8px rgb(16 20 24 / 0.08), 0 1px 2px rgb(16 20 24 / 0.04);
+    --shadow-lg: 0 8px 24px rgb(16 20 24 / 0.1), 0 2px 6px rgb(16 20 24 / 0.05);
+    --shadow-xl: 0 16px 48px rgb(16 20 24 / 0.12), 0 4px 12px rgb(16 20 24 / 0.06);
+    --glow-brand: 0 0 0 1px rgb(111 148 16 / 0.3);
+  }
+}
+
+/* The explicit light choice — must win even when the OS says dark. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --surface-canvas: #f4f4f1;
+  --surface-1: #ffffff;
+  --surface-2: #fbfbf9;
+  --surface-3: #ffffff;
+  --surface-inset: #ecece8;
+
+  --border-subtle: #e5e5e0;
+  --border-default: #d5d5ce;
+  --border-strong: #b6b6ad;
+
+  --text-primary: #101418;
+  --text-secondary: #4d5560;
+  --text-muted: #78808c;
+  --text-inverse: #ffffff;
+
+  --brand: #6f9410;
+  --brand-hover: #5d7d0c;
+  --brand-press: #4c6708;
+  --brand-ink: #ffffff;
+  --brand-faint: #f0f7dc;
+
+  --series-1: #1f6fcc;
+  --series-2: #d24e2c;
+  --series-3: #0e8a70;
+  --series-4: #96690a;
+  --series-5: #c43c78;
+  --series-6: #07733a;
+  --series-7: #6a57d4;
+  --series-8: #c63f3f;
+
+  --seq-100: #e4effb;
+  --seq-200: #c2ddf7;
+  --seq-300: #93c1f0;
+  --seq-400: #5fa0e6;
+  --seq-500: #2f80d6;
+  --seq-600: #1f6fcc;
+  --seq-700: #14508f;
+
+  --div-neg-3: #14508f;
+  --div-neg-2: #1f6fcc;
+  --div-neg-1: #93c1f0;
+  --div-mid: #e2e2dd;
+  --div-pos-1: #f0a189;
+  --div-pos-2: #d24e2c;
+  --div-pos-3: #9c3419;
+
+  --status-good: #12882f;
+  --status-warning: #9a6a05;
+  --status-serious: #c25617;
+  --status-critical: #c4302d;
+  --status-good-faint: #e6f5ea;
+  --status-warning-faint: #fbf2dc;
+  --status-serious-faint: #fdeee4;
+  --status-critical-faint: #fbe9e8;
+
+  --band-champion: #6f9410;
+  --band-ucl: #1f6fcc;
+  --band-uel: #d24e2c;
+  --band-conference: #0e8a70;
+  --band-relegation-playoff: #9a6a05;
+  --band-relegation: #c4302d;
+
+  --comp-epl: #7b2f9e;
+  --comp-laliga: #cc4b1c;
+  --comp-seriea: #1a6fba;
+  --comp-bundesliga: #bf2630;
+  --comp-ligue1: #8a6d1e;
+  --comp-ucl: #2f5cc4;
+  --comp-uel: #c2620d;
+  --comp-default: #6f9410;
+
+  --shadow-sm: 0 1px 2px rgb(16 20 24 / 0.06);
+  --shadow-md: 0 2px 8px rgb(16 20 24 / 0.08), 0 1px 2px rgb(16 20 24 / 0.04);
+  --shadow-lg: 0 8px 24px rgb(16 20 24 / 0.1), 0 2px 6px rgb(16 20 24 / 0.05);
+  --shadow-xl: 0 16px 48px rgb(16 20 24 / 0.12), 0 4px 12px rgb(16 20 24 / 0.06);
+  --glow-brand: 0 0 0 1px rgb(111 148 16 / 0.3);
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────────
+   Collapse durations to ~0 at the TOKEN level, so every animation in the app
+   honours the preference without each component remembering to check.       */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-instant: 1ms;
+    --duration-fast: 1ms;
+    --duration-normal: 1ms;
+    --duration-slow: 1ms;
+    --duration-deliberate: 1ms;
+  }
+}
