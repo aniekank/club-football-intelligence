@@ -27,13 +27,19 @@ export default function TablePage({
             title={competition.name}
             description={
               snapshot
-                ? `Matchweek ${snapshot.season.currentMatchweek ?? 0} of ${snapshot.season.totalMatchweeks ?? '—'}`
+                ? snapshot.season.isCurrent
+                  ? `Matchweek ${snapshot.season.currentMatchweek ?? 0} of ${snapshot.season.totalMatchweeks ?? '—'}`
+                  : `Final table · ${snapshot.season.totalMatchweeks ?? 0} matchweeks`
                 : undefined
             }
             action={
               snapshot ? (
                 <Badge tone={snapshot.meta.degraded ? 'warning' : 'neutral'}>
-                  {snapshot.meta.degraded ? 'Stale' : relativeTime(snapshot.meta.fetchedAt)}
+                  {snapshot.meta.degraded
+                    ? 'Stale'
+                    : snapshot.season.isCurrent
+                      ? relativeTime(snapshot.meta.fetchedAt)
+                      : 'Final'}
                 </Badge>
               ) : null
             }

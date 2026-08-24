@@ -522,6 +522,42 @@ export interface SeasonForecast {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Narrative layer
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * The kinds of story a LEAGUE tells.
+ *
+ * Deliberately different from the tournament set. A cup's stories are about
+ * survival — who goes through, who goes home. A league's are about accumulation
+ * and position: a title race measured in points and games left, a relegation
+ * fight measured in the gap to safety, a side outrunning its expected goals and
+ * the regression that implies.
+ */
+export type InsightKind =
+  | 'prediction'      // where the season is heading
+  | 'milestone'       // something settled — a title won, a relegation confirmed
+  | 'overperformer'   // ahead of the underlying numbers
+  | 'underperformer'  // behind them
+  | 'form'            // a run worth naming
+  | 'breakout'        // a club or player exceeding their station
+  | 'wall'            // a fight to avoid something
+  | 'tactical';
+
+export interface Insight {
+  id: ID;
+  kind: InsightKind;
+  severity: 'low' | 'medium' | 'high';
+  title: string;
+  body: string;
+  entityType: 'team' | 'player' | 'match' | 'competition';
+  entityId: ID | null;
+  /** The arithmetic behind the claim, so a reader can check it in place. */
+  metrics: { label: string; value: string }[];
+  createdAt: ISODate;
+}
+
+// ─────────────────────────────────────────────────────────────
 // Capability flags & the snapshot
 // ─────────────────────────────────────────────────────────────
 

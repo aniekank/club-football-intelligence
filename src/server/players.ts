@@ -16,8 +16,22 @@ import type { DatasetSnapshot, ID, Player, PlayerStats, Position, Team } from '@
  * pool size travels with the result for the UI to disclose.
  */
 
-/** Minutes a player needs before they enter the peer pool. */
+/** Absolute minimum minutes before a player is comparable at all. */
 export const PEER_MINUTES_FLOOR = 45;
+
+/**
+ * The minutes floor, scaled to how much season there is.
+ *
+ * A fixed 45 minutes is right in August and absurd in May. Over a completed
+ * season it let a player with one substitute appearance top the xG-per-90 board
+ * — observed live: Alexandre Pato at 1.28, from a handful of minutes. Scaling to
+ * a share of the busiest player's minutes keeps the bar meaningful at both ends
+ * of a season without needing to know the date.
+ */
+export function minutesFloor(snapshot: DatasetSnapshot): number {
+  const max = snapshot.playerStats.reduce((m, s) => Math.max(m, s.minutes), 0);
+  return Math.max(PEER_MINUTES_FLOOR, Math.round(max * 0.15));
+}
 
 /** Peers needed before a percentile is worth quoting at all. */
 export const MIN_PEERS = 8;
@@ -85,8 +99,9 @@ function buildPeerTables(snapshot: DatasetSnapshot): PeerTables {
   const rows = new Map<Position, Record<string, number>[]>();
   const counts = new Map<Position, number>();
 
+  const floor = minutesFloor(snapshot);
   for (const stats of snapshot.playerStats) {
-    if (stats.minutes < PEER_MINUTES_FLOOR) continue;
+    if (stats.minutes < floor) continue;
     const player = playerById.get(stats.playerId);
     if (!player) continue;
     const list = rows.get(player.position) ?? [];
@@ -212,6 +227,7 @@ export function leaderboard(
   opts: { per90?: boolean; limit?: number; position?: Position } = {},
 ): LeaderboardRow[] {
   const { per90 = false, limit = 20, position } = opts;
+  const floor = minutesFloor(snapshot);
   const playerById = new Map(snapshot.players.map((p) => [p.id, p]));
   const teamById = new Map(snapshot.teams.map((t) => [t.id, t]));
 
@@ -220,7 +236,7 @@ export function leaderboard(
     const player = playerById.get(stats.playerId);
     if (!player) continue;
     if (position && player.position !== position) continue;
-    if (per90 && stats.minutes < PEER_MINUTES_FLOOR) continue;
+    if (per90 && stats.minutes < floor) continue;
 
     const value = per90
       ? computePer90(stats)[metric] ?? 0

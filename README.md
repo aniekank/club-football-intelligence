@@ -28,7 +28,7 @@ cp .env.example .env
 |---|---|
 | `npm run dev` | development server |
 | `npm run build && npm start` | production build |
-| `npm test` | 105 tests, hermetic, no network |
+| `npm test` | 117 tests, hermetic, no network |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npx tsx scripts/probe-fotmob.mts epl` | load a competition live and check conformance |
 | `npx tsx scripts/probe-forecast.mts epl` | run the full engine against live data |
@@ -54,6 +54,7 @@ adding a feed means writing one adapter that satisfies the contract and passes
 | `src/domain/` | types, competition registry, zod conformance |
 | `src/analytics/` | standings, goal model, ratings, season Monte Carlo, betting maths |
 | `src/data/` | adapters, HTTP, snapshot store, bootstrap |
+| `src/ai/` | entity resolver, narrative engine, natural-language ask |
 | `src/components/` | tokens-driven UI and hand-built SVG charts |
 | `src/app/` | routes |
 
@@ -94,6 +95,23 @@ four break here, and the breaks are load-bearing:
 - **Squads mutate.** Player–club affiliation is an interval, not a field.
 - **Editions, not just competitions.** The same competition has several seasons;
   live ones stream, completed ones load instantly from a committed cache.
+
+## Narratives and ask
+
+Both are DETERMINISTIC, not generative. Every sentence is assembled from numbers
+already in the snapshot, so each is checkable, reproducible between requests, and
+incapable of inventing a fact. Insight cards carry their own arithmetic; ask
+answers ship the rows they were read from.
+
+When a question is not understood, it says so and lists what it can do. Guessing
+at an intent and answering confidently is worse than no answer — and the three
+tests named "refusing rather than guessing" pin the accidents that made that
+concrete: a stray possessive `s` resolving Swansea, `"per 90"` resolving Per
+Mertesacker, `"eiffel tower"` resolving Kevin Toner.
+
+Fuzzy matching is kept for the search box, where a typo should still find
+Haaland, and switched off inside a sentence, where every ordinary word is a
+chance to match something by accident.
 
 ## Editions
 

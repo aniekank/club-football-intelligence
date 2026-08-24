@@ -13,7 +13,7 @@ Two tiers:
 
 ---
 
-## Automated coverage (105 tests)
+## Automated coverage (117 tests)
 
 | Area | File | What it pins |
 |---|---|---|
@@ -25,6 +25,7 @@ Two tiers:
 | Snapshot store | `src/data/store.test.ts` | Index invalidation on swap, safe misses, stale-live guard |
 | Player views | `src/server/players.test.ts` | Per-90 vs ratio handling, mid-rank percentile ties, missing-metric omission, leaderboard minutes floor |
 | Historical editions | `src/data/providers/statsbomb.test.ts` | Real 2015/16 tables reproduced exactly, champion, code collisions, full-season coverage, goals-vs-xG sanity |
+| Ask & resolver | `src/ai/ask.test.ts` | Real answers over 2015/16, refusal instead of guessing, search-box typo tolerance, cameo exclusion |
 
 **The single most important automated test** is
 `standings.test.ts → "the same results, two different champions"`. It runs one
@@ -153,14 +154,25 @@ match and edge pages._
 | 9.5 | A historical edition shows no forecast columns — nothing is left to simulate | |
 | 9.6 | Player names read as nicknames ("Sergio Agüero"), not registered names | |
 
-### 10. Accessibility
+### 10. Narratives and ask
 
 | # | Check | Pass |
 |---|---|---|
-| 10.1 | A screen reader announces form as one summary, not duplicated letters | |
-| 10.2 | Every chart has a meaningful `aria-label` with real numbers | |
-| 10.3 | Crests are decorative; club names are text | |
-| 10.4 | Colour is never the only carrier of meaning — check the table bands and edge tiers | |
+| 10.1 | Every insight card's metrics support the sentence above them | |
+| 10.2 | A completed season's briefing names the champion, not a "race" | |
+| 10.3 | The briefing mentions live matches in OTHER competitions | |
+| 10.4 | An unanswerable question says so and suggests alternatives — it never guesses | |
+| 10.5 | Every ask answer shows the rows it came from | |
+| 10.6 | A typo in the SEARCH box still resolves ("Leicster" → Leicester) | |
+
+### 11. Accessibility
+
+| # | Check | Pass |
+|---|---|---|
+| 11.1 | A screen reader announces form as one summary, not duplicated letters | |
+| 11.2 | Every chart has a meaningful `aria-label` with real numbers | |
+| 11.3 | Crests are decorative; club names are text | |
+| 11.4 | Colour is never the only carrier of meaning — check the table bands and edge tiers | |
 
 ---
 

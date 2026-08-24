@@ -3,7 +3,9 @@ import { AppShell } from '@/components/layout/AppShell';
 import { MatchCard } from '@/components/match/MatchCard';
 import { LeagueTable } from '@/components/table/LeagueTable';
 import { SeasonProjection } from '@/components/charts/SeasonProjection';
-import { Card, CardHeader, Skeleton, EmptyState, Badge, StatTile, Figure } from '@/components/ui';
+import { Card, CardHeader, Skeleton, EmptyState, Badge, StatTile } from '@/components/ui';
+import { InsightCard } from '@/components/ai/InsightCard';
+import { generateInsights, generateBriefing } from '@/ai/narratives';
 import { resolveActive, liveAcrossCompetitions } from '@/server/active';
 import { formatDate, dayKey, pct, relativeTime, num } from '@/lib/format';
 import type { Match } from '@/domain/types';
@@ -17,6 +19,26 @@ export default function HomePage({
 }) {
   const { competition, snapshot, available, forecast, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
   const live = liveAcrossCompetitions();
+
+  // The briefing is aware of every loaded competition, not just the active one —
+  // in club football several run at once, and a week scoped to one of them
+  // misses most of what happened.
+  const liveElsewhere = Object.entries(
+    live.reduce<Record<string, number>>((acc, l) => {
+      const name = l.snapshot.competition.name;
+      if (name !== competition.name) acc[name] = (acc[name] ?? 0) + 1;
+      return acc;
+    }, {}),
+  ).map(([competitionName, count]) => ({ competitionName, count }));
+
+  const narrativeCtx = snapshot
+    ? { snapshot, forecasts: forecast?.forecasts ?? [] }
+    : null;
+  const insights = narrativeCtx ? generateInsights(narrativeCtx) : [];
+  const briefing = narrativeCtx ? generateBriefing(narrativeCtx, liveElsewhere) : null;
+  const seasonSuffix = searchParams.season
+    ? `?competition=${competition.id}&season=${searchParams.season}`
+    : `?competition=${competition.id}`;
 
   return (
     <AppShell
@@ -54,6 +76,53 @@ export default function HomePage({
           </section>
         ) : null}
 
+        {/* The briefing: what a reader would want told to them before they
+            start reading numbers. */}
+        {briefing ? (
+          <section className="mb-6">
+            <Card>
+              <div className="p-5">
+                <p className="eyebrow">Today</p>
+                <h2 className="mt-1 font-display text-2xl leading-tight">{briefing.headline}</h2>
+                <p className="mt-2 max-w-prose text-ink-secondary">{briefing.body}</p>
+                {briefing.bullets.length ? (
+                  <ul className="mt-3 grid gap-1 sm:grid-cols-2">
+                    {briefing.bullets.map((b) => (
+                      <li key={b} className="flex gap-2 text-sm text-ink-secondary">
+                        <span aria-hidden="true" className="mt-2 h-1 w-1 shrink-0 rounded-full bg-comp" />
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            </Card>
+          </section>
+        ) : null}
+
+        {insights.length ? (
+          <section className="mb-6">
+            <div className="mb-2 flex items-baseline justify-between">
+              <h2 className="eyebrow">Storylines</h2>
+              <Link
+                href={`/ask${seasonSuffix}`}
+                className="text-xs font-medium text-ink-secondary underline-offset-2 hover:text-ink hover:underline"
+              >
+                Ask a question
+              </Link>
+            </div>
+            <div className="grid items-stretch gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {insights.slice(0, 6).map((i) => (
+                <InsightCard
+                  key={i.id}
+                  insight={i}
+                  href={i.entityType === 'team' && i.entityId ? `/teams/${i.entityId}${seasonSuffix}` : undefined}
+                />
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {!snapshot ? (
           <LoadingState />
         ) : (
@@ -69,7 +138,12 @@ export default function HomePage({
                   title={competition.name}
                   action={
                     <Badge tone={snapshot.meta.degraded ? 'warning' : 'neutral'}>
-                      {relativeTime(snapshot.meta.fetchedAt)}
+                      {/* "12 months ago" describes when a completed season was
+                          INGESTED, which tells a reader nothing. The season
+                          label is the fact that matters. */}
+                      {snapshot.season.isCurrent
+                        ? relativeTime(snapshot.meta.fetchedAt)
+                        : `${snapshot.season.label} · complete`}
                     </Badge>
                   }
                 />
@@ -129,15 +203,29 @@ export default function HomePage({
   );
 }
 
-/** Fixtures grouped by day: recent results first, then what is coming. */
+/**
+ * Fixtures grouped by day.
+ *
+ * A LIVE edition shows a window around now — last week, next fortnight. A
+ * COMPLETED one has no "now" to centre on, so it shows the final matchweek
+ * instead. Applying the live window to a finished season produces an empty card
+ * that says "nothing scheduled" about a season with 380 played matches, which
+ * reads as a broken page rather than a finished one.
+ */
 function FixtureFeed({ snapshot }: { snapshot: NonNullable<ReturnType<typeof resolveActive>['snapshot']> }) {
   const now = Date.now();
-  const relevant = snapshot.matches
-    .filter((m) => {
-      const t = Date.parse(m.kickoff);
-      return t > now - 8 * 86_400_000 && t < now + 14 * 86_400_000;
-    })
-    .sort((a, b) => a.kickoff.localeCompare(b.kickoff));
+  const isHistorical = !snapshot.season.isCurrent;
+
+  const relevant = isHistorical
+    ? snapshot.matches
+        .filter((m) => m.matchweek === snapshot.season.totalMatchweeks)
+        .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
+    : snapshot.matches
+        .filter((m) => {
+          const t = Date.parse(m.kickoff);
+          return t > now - 8 * 86_400_000 && t < now + 14 * 86_400_000;
+        })
+        .sort((a, b) => a.kickoff.localeCompare(b.kickoff));
 
   if (!relevant.length) {
     return (
@@ -160,9 +248,13 @@ function FixtureFeed({ snapshot }: { snapshot: NonNullable<ReturnType<typeof res
   return (
     <Card>
       <CardHeader
-        eyebrow="Fixtures & results"
+        eyebrow={isHistorical ? 'Final matchweek' : 'Fixtures & results'}
         title={snapshot.competition.name}
-        description="The last week and the fortnight ahead."
+        description={
+          isHistorical
+            ? `How ${snapshot.season.label} finished.`
+            : 'The last week and the fortnight ahead.'
+        }
       />
       <div className="space-y-5 p-4">
         {[...byDay].map(([day, matches]) => (

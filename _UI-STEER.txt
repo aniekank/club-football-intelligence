@@ -1,0 +1,9 @@
+⚠️ IMPORTANT ADDITION before you build any UI — the interface is the ONE thing we do NOT inherit from World Cup Intelligence. Keep the engine/data layer, but rebuild the presentation layer as a considerable step-change over WCI (WCI's UI is the floor, not the ceiling). Top-tier sports-media bar (FotMob / The Athletic / Opta-grade):
+- Design system FIRST (tokens: type scale, 8pt spacing, radius/elevation/shadow, theme-aware color; dark-first).
+- Distinct identity — do NOT reskin WCI. Per-competition accent theming (PL, La Liga, Serie A, UCL), club colors/crests where license-safe.
+- Typography as a feature: premium display + clean grotesk + mono (Google Fonts, real fallbacks).
+- Best-in-class themed data-viz (xG timeline, momentum, shot maps, form, title-race Monte-Carlo fan charts) — NOT default Recharts. Load the `dataviz` skill.
+- Purposeful motion: view transitions, skeletons, animated odds/xG ticks; honor prefers-reduced-motion.
+- Polish signature surfaces: live match view, match card, league table (promo/relegation/qualification color bands), team/player pages, Betting Edge.
+- Refactor the UI layer; replace any WCI component below the new bar.
+Acceptance: a fan should feel this is NOTICEABLY more beautiful than WCI. If it looks like WCI with new data, it fails.

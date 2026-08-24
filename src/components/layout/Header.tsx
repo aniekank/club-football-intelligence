@@ -40,6 +40,7 @@ export function Header({
           <NavLink href="/fixtures">Fixtures</NavLink>
           <NavLink href="/players">Players</NavLink>
           <NavLink href="/edge">Betting Edge</NavLink>
+          <NavLink href="/ask">Ask</NavLink>
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
