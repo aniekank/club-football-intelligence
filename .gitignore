@@ -5,6 +5,10 @@ out/
 .env.local
 *.tsbuildinfo
 .DS_Store
+# Runtime caches are ignored, but the pre-built historical editions ARE the
+# product: they are immutable, expensive to rebuild (380 event files each), and
+# the whole reason the app can serve a full season instantly and offline.
 /src/data/cache/*.json
 !/src/data/cache/.gitkeep
+!/src/data/cache/statsbomb-*.json
 .snapshot-cache/

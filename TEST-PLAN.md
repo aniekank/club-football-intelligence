@@ -13,7 +13,7 @@ Two tiers:
 
 ---
 
-## Automated coverage (93 tests)
+## Automated coverage (105 tests)
 
 | Area | File | What it pins |
 |---|---|---|
@@ -24,6 +24,7 @@ Two tiers:
 | Data adapter | `src/data/providers/fotmob.test.ts` | Round classification, conformance, capability honesty, code collisions |
 | Snapshot store | `src/data/store.test.ts` | Index invalidation on swap, safe misses, stale-live guard |
 | Player views | `src/server/players.test.ts` | Per-90 vs ratio handling, mid-rank percentile ties, missing-metric omission, leaderboard minutes floor |
+| Historical editions | `src/data/providers/statsbomb.test.ts` | Real 2015/16 tables reproduced exactly, champion, code collisions, full-season coverage, goals-vs-xG sanity |
 
 **The single most important automated test** is
 `standings.test.ts → "the same results, two different champions"`. It runs one
@@ -141,14 +142,25 @@ that it is never bundled for readers.
 _Last measured 2026-08-23: `overflow: false` on the home, table, fixtures, team,
 match and edge pages._
 
-### 9. Accessibility
+### 9. Editions
 
 | # | Check | Pass |
 |---|---|---|
-| 9.1 | A screen reader announces form as one summary, not duplicated letters | |
-| 9.2 | Every chart has a meaningful `aria-label` with real numbers | |
-| 9.3 | Crests are decorative; club names are text | |
-| 9.4 | Colour is never the only carrier of meaning — check the table bands and edge tiers | |
+| 9.1 | The season picker appears only on competitions with more than one edition | |
+| 9.2 | `?season=2015-2016` on EPL shows Leicester top on 81 points | |
+| 9.3 | Switching season from a player or match page lands on the section root, not a 404 | |
+| 9.4 | A historical edition shows "Full season" coverage; the live one shows the window | |
+| 9.5 | A historical edition shows no forecast columns — nothing is left to simulate | |
+| 9.6 | Player names read as nicknames ("Sergio Agüero"), not registered names | |
+
+### 10. Accessibility
+
+| # | Check | Pass |
+|---|---|---|
+| 10.1 | A screen reader announces form as one summary, not duplicated letters | |
+| 10.2 | Every chart has a meaningful `aria-label` with real numbers | |
+| 10.3 | Crests are decorative; club names are text | |
+| 10.4 | Colour is never the only carrier of meaning — check the table bands and edge tiers | |
 
 ---
 

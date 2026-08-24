@@ -15,13 +15,18 @@ export const metadata = { title: 'Betting Edge' };
 export default async function EdgePage({
   searchParams,
 }: {
-  searchParams: { competition?: string };
+  searchParams: { competition?: string; season?: string };
 }) {
-  const { competition, snapshot, available } = resolveActive(searchParams.competition);
+  const { competition, snapshot, available, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
   const view = snapshot ? await buildEdgeView(snapshot) : null;
 
   return (
-    <AppShell competitions={available} activeId={competition.id}>
+    <AppShell
+      competitions={available}
+      activeId={competition.id}
+      editions={editions}
+      activeEditionKey={edition?.key}
+    >
       <div className="mx-auto max-w-container space-y-6 px-4 py-6">
         <header className="max-w-prose">
           <p className="eyebrow">Model vs market</p>

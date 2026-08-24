@@ -28,11 +28,12 @@ cp .env.example .env
 |---|---|
 | `npm run dev` | development server |
 | `npm run build && npm start` | production build |
-| `npm test` | 93 tests, hermetic, no network |
+| `npm test` | 105 tests, hermetic, no network |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npx tsx scripts/probe-fotmob.mts epl` | load a competition live and check conformance |
 | `npx tsx scripts/probe-forecast.mts epl` | run the full engine against live data |
 | `npx tsx scripts/probe-odds.mts epl` | check the odds join (costs 3 credits) |
+| `node scripts/fetch-statsbomb.mjs 2 27 epl` | rebuild a historical edition (slow, offline) |
 
 ## How it fits together
 
@@ -91,6 +92,25 @@ four break here, and the breaks are load-bearing:
 - **Seasons, not brackets.** The Monte Carlo plays out remaining fixtures 8,000
   times, reconciled against results already played.
 - **Squads mutate.** Player–club affiliation is an interval, not a field.
+- **Editions, not just competitions.** The same competition has several seasons;
+  live ones stream, completed ones load instantly from a committed cache.
+
+## Editions
+
+An *edition* is one competition in one season. Live editions stream from FotMob
+and refresh; historical ones are built offline from StatsBomb open data and
+committed, because a season is 380 matches at ~3MB of event data each.
+
+| Edition | Source | Coverage |
+|---|---|---|
+| Top-5 leagues + UCL, current | FotMob | live, detail for a recent window |
+| Premier League 2015/16 | StatsBomb | complete — 380 matches, 9,908 shots |
+| LaLiga 2015/16 | StatsBomb | complete — 380 matches, 9,168 shots |
+
+The historical editions are the only place a per-90 rate rests on a whole
+season, and their tests assert against known football history: Leicester finish
+on 81 points, Suárez wins the Pichichi on 40. If the standings engine or the xG
+fold ever breaks, those stop being true.
 
 ## The data situation, honestly
 

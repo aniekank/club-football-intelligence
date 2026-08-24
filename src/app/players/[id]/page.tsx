@@ -22,16 +22,21 @@ export default function PlayerPage({
   params, searchParams,
 }: {
   params: { id: string };
-  searchParams: { competition?: string };
+  searchParams: { competition?: string; season?: string };
 }) {
-  const { competition, snapshot, available } = resolveActive(searchParams.competition);
+  const { competition, snapshot, available, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
   const view = snapshot ? buildPlayerView(snapshot, params.id) : undefined;
   if (snapshot && !view) notFound();
 
   const coverage = snapshot?.meta.playerStatsCoverage;
 
   return (
-    <AppShell competitions={available} activeId={competition.id}>
+    <AppShell
+      competitions={available}
+      activeId={competition.id}
+      editions={editions}
+      activeEditionKey={edition?.key}
+    >
       <div className="mx-auto max-w-container space-y-6 px-4 py-6">
         {!view ? (
           <EmptyState title="Loading player" />

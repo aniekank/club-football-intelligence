@@ -9,12 +9,17 @@ export const dynamic = 'force-dynamic';
 export default function TablePage({
   searchParams,
 }: {
-  searchParams: { competition?: string };
+  searchParams: { competition?: string; season?: string };
 }) {
-  const { competition, snapshot, available } = resolveActive(searchParams.competition);
+  const { competition, snapshot, available, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
 
   return (
-    <AppShell competitions={available} activeId={competition.id}>
+    <AppShell
+      competitions={available}
+      activeId={competition.id}
+      editions={editions}
+      activeEditionKey={edition?.key}
+    >
       <div className="mx-auto max-w-container px-4 py-6">
         <Card>
           <CardHeader

@@ -13,13 +13,18 @@ export const dynamic = 'force-dynamic';
 export default function HomePage({
   searchParams,
 }: {
-  searchParams: { competition?: string };
+  searchParams: { competition?: string; season?: string };
 }) {
-  const { competition, snapshot, available, forecast } = resolveActive(searchParams.competition);
+  const { competition, snapshot, available, forecast, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
   const live = liveAcrossCompetitions();
 
   return (
-    <AppShell competitions={available} activeId={competition.id}>
+    <AppShell
+      competitions={available}
+      activeId={competition.id}
+      editions={editions}
+      activeEditionKey={edition?.key}
+    >
       <div className="mx-auto max-w-container px-4 py-6">
         {snapshot?.meta.degraded ? (
           <div className="mb-4 rounded-md border border-status-warning/30 bg-status-warning-faint px-4 py-3 text-sm">

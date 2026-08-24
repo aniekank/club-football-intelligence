@@ -17,9 +17,9 @@ export default function TeamPage({
   params, searchParams,
 }: {
   params: { id: string };
-  searchParams: { competition?: string };
+  searchParams: { competition?: string; season?: string };
 }) {
-  const { competition, snapshot, available, forecast } = resolveActive(searchParams.competition);
+  const { competition, snapshot, available, forecast, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
   const team = snapshot?.teams.find((t) => t.id === params.id);
   if (snapshot && !team) notFound();
 
@@ -40,7 +40,12 @@ export default function TeamPage({
   const zone = standing ? zoneForRank(competition, standing.rank) : null;
 
   return (
-    <AppShell competitions={available} activeId={competition.id}>
+    <AppShell
+      competitions={available}
+      activeId={competition.id}
+      editions={editions}
+      activeEditionKey={edition?.key}
+    >
       <div className="mx-auto max-w-container space-y-6 px-4 py-6">
         {!snapshot || !team ? (
           <EmptyState title="Loading club" />

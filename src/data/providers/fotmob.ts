@@ -239,7 +239,15 @@ const PITCH_LENGTH = 105;
 const PITCH_WIDTH = 68;
 const clamp01to100 = (v: number) => Math.max(0, Math.min(100, v));
 
-function assignCodes(names: string[]): Map<string, string> {
+/**
+ * Assign distinct three-letter codes.
+ *
+ * Exported because every adapter needs it and a second copy would drift: the
+ * StatsBomb loader initially used a naive slice and rendered both Manchester
+ * clubs as "MAN". Curated codes are claimed first so a derived code can never
+ * steal a canonical one.
+ */
+export function assignCodes(names: string[]): Map<string, string> {
   const used = new Set<string>();
   const out = new Map<string, string>();
   // Curated first, so a derived code can never steal a canonical one.

@@ -4,7 +4,10 @@ import { rateTeams } from '@/analytics/ratings';
 import { simulateSeason } from '@/analytics/season';
 import { checkSnapshot } from '@/domain/schema';
 import { COMPETITIONS } from '@/domain/competitions';
-import { BOOT_COMPETITIONS, snapshotKey, setForecast } from './editions';
+import {
+  BOOT_COMPETITIONS, snapshotKey, setForecast, historicalEditions, type Edition,
+} from './editions';
+import { buildFromEdition, type StatsBombEdition } from './providers/statsbomb';
 import type { DatasetSnapshot } from '@/domain/types';
 
 /**
@@ -215,6 +218,51 @@ export async function loadOne(competitionId: string): Promise<boolean> {
 }
 
 /**
+ * Load a historical edition from its committed cache.
+ *
+ * Instant and offline. A completed season is immutable, so there is nothing to
+ * refresh and no vendor that can withdraw it — which is exactly why the
+ * expensive ingest happens once, offline, and the result lives in the repo.
+ */
+export async function loadHistorical(edition: Edition): Promise<boolean> {
+  const status = loadStatus();
+  status.competitions[edition.key] = { state: 'pending' };
+  try {
+    const node = await nodeFs();
+    if (!node || !edition.cacheFile) throw new Error('no cache file');
+    const file = node.path.join(process.cwd(), 'src', 'data', 'cache', edition.cacheFile);
+    const raw = JSON.parse(await node.fs.readFile(file, 'utf8')) as StatsBombEdition;
+
+    const snapshot = buildFromEdition(raw);
+    const check = checkSnapshot(snapshot);
+    if (!check.ok) {
+      throw new Error(`conformance failed: ${check.errors.slice(0, 3).join('; ')}`);
+    }
+
+    const { teams, leagueAvgGoals } = rateTeams(snapshot);
+    // A completed season has nothing left to simulate, so the Monte Carlo is
+    // skipped entirely: every probability is already a fact. Running it would
+    // burn half a second to rediscover the actual champion.
+    const enriched: DatasetSnapshot = { ...snapshot, teams };
+    setSnapshot(enriched, edition.key);
+    setForecast(edition.key, {
+      forecasts: [], runs: 0, remainingFixtures: 0,
+    } as ReturnType<typeof simulateSeason>);
+    status.competitions[edition.key] = {
+      state: 'ready', fetchedAt: snapshot.meta.fetchedAt,
+    };
+    void leagueAvgGoals;
+    return true;
+  } catch (err) {
+    status.competitions[edition.key] = {
+      state: 'failed',
+      error: err instanceof Error ? err.message : String(err),
+    };
+    return false;
+  }
+}
+
+/**
  * Boot. Loads the first competition, activates it so the site is usable as
  * early as possible, then fills in the rest behind it.
  */
@@ -227,6 +275,12 @@ export async function bootstrap(): Promise<void> {
   if (first) {
     await loadOne(first);
     activateSnapshot(snapshotKey(first));
+  }
+
+  // Historical editions cost nothing upstream — they are local reads — so they
+  // land before the remaining live competitions rather than behind them.
+  for (const edition of historicalEditions()) {
+    await loadHistorical(edition);
   }
 
   // Sequential, not parallel: six competitions arriving at once is a burst the

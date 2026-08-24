@@ -2,8 +2,10 @@ import Link from 'next/link';
 import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemeToggle } from './ThemeToggle';
 import { CompetitionSwitcher } from './CompetitionSwitcher';
+import { SeasonPicker } from './SeasonPicker';
 import { LiveDot } from '@/components/ui';
 import type { Competition } from '@/domain/types';
+import type { Edition } from '@/data/editions';
 
 /**
  * The application shell's top bar.
@@ -14,11 +16,13 @@ import type { Competition } from '@/domain/types';
  * living in a menu.
  */
 export function Header({
-  competitions, activeId, liveCount,
+  competitions, activeId, liveCount, editions, activeEditionKey,
 }: {
   competitions: Competition[];
   activeId: string | null;
   liveCount: number;
+  editions?: Edition[];
+  activeEditionKey?: string;
 }) {
   return (
     <header className="sticky top-0 z-header border-b border-border-subtle bg-canvas/85 backdrop-blur-md">
@@ -53,8 +57,15 @@ export function Header({
       </div>
 
       <div className="border-t border-border-subtle/60">
-        <div className="mx-auto max-w-container px-4">
-          <CompetitionSwitcher competitions={competitions} activeId={activeId} />
+        <div className="mx-auto flex max-w-container items-center gap-4 px-4">
+          <div className="min-w-0 flex-1">
+            <CompetitionSwitcher competitions={competitions} activeId={activeId} />
+          </div>
+          {editions && editions.length > 1 ? (
+            <div className="shrink-0 py-1">
+              <SeasonPicker editions={editions} activeKey={activeEditionKey} />
+            </div>
+          ) : null}
         </div>
       </div>
     </header>

@@ -26,14 +26,19 @@ const BOARDS: { metric: string; per90?: boolean; title: string; digits: number }
 export default function PlayersPage({
   searchParams,
 }: {
-  searchParams: { competition?: string };
+  searchParams: { competition?: string; season?: string };
 }) {
-  const { competition, snapshot, available } = resolveActive(searchParams.competition);
+  const { competition, snapshot, available, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
   const coverage = snapshot?.meta.playerStatsCoverage;
   const hasPlayers = Boolean(snapshot?.meta.capabilities.hasPlayerStats);
 
   return (
-    <AppShell competitions={available} activeId={competition.id}>
+    <AppShell
+      competitions={available}
+      activeId={competition.id}
+      editions={editions}
+      activeEditionKey={edition?.key}
+    >
       <div className="mx-auto max-w-container space-y-6 px-4 py-6">
         <header className="max-w-prose">
           <p className="eyebrow">{competition.name}</p>
