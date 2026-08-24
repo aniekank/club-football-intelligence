@@ -1,4 +1,5 @@
 import { LeagueTable } from '@/components/table/LeagueTable';
+import Link from 'next/link';
 import { Card, CardHeader, EmptyState, Skeleton, Badge } from '@/components/ui';
 import { AppShell } from '@/components/layout/AppShell';
 import { resolveActive } from '@/server/active';
@@ -16,10 +17,29 @@ export const dynamic = 'force-dynamic';
 export default function TablePage({
   searchParams,
 }: {
-  searchParams: { competition?: string; season?: string; sort?: string; dir?: string };
+  searchParams: { competition?: string; season?: string; sort?: string; dir?: string; cols?: string };
 }) {
   const { competition, snapshot, available, editions, edition, forecast } = resolveActive(searchParams.competition, searchParams.season);
   const suffix = entitySuffix(competition.id, searchParams.season);
+
+  /**
+   * Table depth lives in the URL, not in component state.
+   *
+   * It survives a reload, it is shareable — "here is the full breakdown" is a
+   * link — and it works with JavaScript off, which a client-side toggle would
+   * not. The default is `essential`: a fifteen-column table is a data dump, and
+   * the reader who wants the breakdown can say so in one click.
+   */
+  const detail = searchParams.cols === 'full' ? 'full' as const : 'essential' as const;
+  const depthHref = (next: 'essential' | 'full') => {
+    const q = new URLSearchParams();
+    q.set('competition', competition.id);
+    if (searchParams.season) q.set('season', searchParams.season);
+    if (searchParams.sort) q.set('sort', searchParams.sort);
+    if (searchParams.dir) q.set('dir', searchParams.dir);
+    if (next === 'full') q.set('cols', 'full');
+    return `/table?${q.toString()}`;
+  };
 
   /**
    * The briefing is generated per COMPETITION, which is what makes it take the
@@ -62,6 +82,15 @@ export default function TablePage({
             }
             action={
               snapshot ? (
+                <span className="flex items-center gap-2">
+                  {/* A link, not a button: the depth is in the URL, so this
+                      works with JavaScript off and can be shared as-is. */}
+                  <Link
+                    href={depthHref(detail === 'full' ? 'essential' : 'full')}
+                    className="rounded-sm border border-border-subtle px-2 py-1 text-2xs font-semibold uppercase tracking-caps text-ink-muted transition-colors duration-fast ease-standard hover:border-border hover:text-ink"
+                  >
+                    {detail === 'full' ? 'Fewer columns' : 'Full breakdown'}
+                  </Link>
                 <Badge tone={snapshot.meta.degradedKind === 'stale-cache' ? 'warning' : 'neutral'}>
                   {snapshot.meta.degradedKind === 'stale-cache'
                     ? 'Stale'
@@ -69,6 +98,7 @@ export default function TablePage({
                       ? relativeTime(snapshot.meta.fetchedAt)
                       : 'Final'}
                 </Badge>
+                </span>
               ) : null
             }
           />
@@ -113,6 +143,7 @@ export default function TablePage({
                         suffix={suffix}
                         showModel={false}
                         sortable
+                        detail={detail}
                         sort={searchParams.sort}
                         dir={searchParams.dir}
                       />
@@ -132,6 +163,7 @@ export default function TablePage({
                 teams={snapshot.teams}
                 suffix={suffix}
                 sortable
+                detail={detail}
                 sort={searchParams.sort}
                 dir={searchParams.dir}
               />

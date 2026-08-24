@@ -45,7 +45,7 @@ const BAND_TOKEN: Record<ZoneKind, string> = {
 
 export function LeagueTable({
   competition, standings, teams, showModel = true, highlightTeamId, compact = false,
-  sort, dir, sortable = false, suffix,
+  sort, dir, sortable = false, suffix, detail = 'essential',
 }: {
   competition: Competition;
   /**
@@ -62,6 +62,18 @@ export function LeagueTable({
   sort?: string;
   dir?: string;
   sortable?: boolean;
+  /**
+   * How much of the table to show.
+   *
+   * A full league table is fifteen columns, and fifteen columns is a data dump
+   * rather than a standing. `essential` is what the question "how is my club
+   * doing" actually needs — rank, played, goal difference, points, form and the
+   * projection — and `full` adds the breakdown for a reader who came for it.
+   *
+   * The split is not the same as `compact`: compact is a SIZE (the sidebar
+   * variant), this is a DEPTH, and the two are independent.
+   */
+  detail?: 'essential' | 'full';
   /**
    * Sidebar variant: rank, club, played, goal difference, points. Genuinely
    * fewer COLUMNS rather than the full table scrolling inside a narrow column —
@@ -103,6 +115,8 @@ export function LeagueTable({
   const Col = ColFactory(sortable && !compact);
   const hasXG = !compact && standings.some((r) => r.xGFor !== null);
   const hasModel = !compact && showModel && standings.some((r) => r.titleProbability !== null);
+  /** Results breakdown and expected goals — shown only when asked for. */
+  const deep = !compact && detail === 'full';
 
   /**
    * Only show a model column the competition can actually have.
@@ -146,7 +160,17 @@ export function LeagueTable({
       <div className={compact ? undefined : 'scroll-x lg:overflow-visible'}>
         <table
           className={cn(
-            'w-full border-collapse text-sm',
+            'border-collapse text-sm',
+            /*
+              Full width at fifteen columns, CAPPED at eight.
+              
+              Stretching a lean table across 1400px does not make it lean, it
+              makes it sparse: the browser scales every column proportionally,
+              so a rank sits alone in a 190px cell and a club name floats a
+              screen away from its points. A capped table keeps the row reading
+              as one object, which is the whole reason for cutting the columns.
+            */
+            deep ? 'w-full' : 'w-full max-w-[68rem]',
             // Only the full table: the compact sidebar variant is 8 rows and
             // never outruns its own header.
             !compact && 'table-sticky-head min-w-[42rem]',
@@ -158,19 +182,25 @@ export function LeagueTable({
           <thead>
             <tr className="border-b border-border text-2xs uppercase tracking-caps text-ink-muted">
               <Th className="w-10 pl-3 text-left">#</Th>
-              <Th className="text-left">Club</Th>
+              {/* Club carries a width so the slack DISTRIBUTES.
+                  Left flexible it is the only column without one, so it absorbs
+                  every spare pixel — which was invisible at fifteen columns and
+                  left a 700px gulf between the club name and its points once
+                  the table was cut to eight. With every column sized, the
+                  browser scales them proportionally instead. */}
+              <Th className="w-[18rem] text-left">Club</Th>
               <Col k="played" label="Pl" className="w-10" />
-              {compact ? null : <Col k="wins" label="W" className="hidden w-10 sm:table-cell" />}
-              {compact ? null : <Th className="hidden w-10 sm:table-cell">D</Th>}
-              {compact ? null : <Th className="hidden w-10 sm:table-cell">L</Th>}
-              {compact ? null : <Th className="hidden w-[3rem] lg:table-cell">GF</Th>}
-              {compact ? null : <Th className="hidden w-[3rem] lg:table-cell">GA</Th>}
+              {deep ? <Col k="wins" label="W" className="hidden w-10 sm:table-cell" /> : null}
+              {deep ? <Th className="hidden w-10 sm:table-cell">D</Th> : null}
+              {deep ? <Th className="hidden w-10 sm:table-cell">L</Th> : null}
+              {deep ? <Th className="hidden w-[3rem] lg:table-cell">GF</Th> : null}
+              {deep ? <Th className="hidden w-[3rem] lg:table-cell">GA</Th> : null}
               <Col k="goalDifference" label="GD" className="w-[3rem]" />
               <Col k="points" label="Pts" className="w-[3rem] font-bold text-ink" />
-              {hasXG ? (
+              {hasXG && deep ? (
                 <Col k="xGFor" label="xG" className="hidden w-[4rem] xl:table-cell" title="Expected goals for" />
               ) : null}
-              {hasXG ? (
+              {hasXG && deep ? (
                 <Col k="xGAgainst" label="xGA" better={false} className="hidden w-[4rem] xl:table-cell" title="Expected goals against" />
               ) : null}
               {compact ? null : <Th className="hidden w-[8rem] md:table-cell text-left">Form</Th>}
@@ -246,11 +276,11 @@ export function LeagueTable({
                   </td>
 
                   <Td>{int(row.played)}</Td>
-                  {compact ? null : <Td className="hidden sm:table-cell">{int(row.won)}</Td>}
-                  {compact ? null : <Td className="hidden sm:table-cell">{int(row.drawn)}</Td>}
-                  {compact ? null : <Td className="hidden sm:table-cell">{int(row.lost)}</Td>}
-                  {compact ? null : <Td className="hidden lg:table-cell">{int(row.goalsFor)}</Td>}
-                  {compact ? null : <Td className="hidden lg:table-cell">{int(row.goalsAgainst)}</Td>}
+                  {deep ? <Td className="hidden sm:table-cell">{int(row.won)}</Td> : null}
+                  {deep ? <Td className="hidden sm:table-cell">{int(row.drawn)}</Td> : null}
+                  {deep ? <Td className="hidden sm:table-cell">{int(row.lost)}</Td> : null}
+                  {deep ? <Td className="hidden lg:table-cell">{int(row.goalsFor)}</Td> : null}
+                  {deep ? <Td className="hidden lg:table-cell">{int(row.goalsAgainst)}</Td> : null}
                   <Td>
                     <Figure
                       tone={row.goalDifference > 0 ? 'positive' : row.goalDifference < 0 ? 'negative' : 'muted'}
@@ -262,8 +292,8 @@ export function LeagueTable({
                     <Figure className="font-bold">{int(row.points)}</Figure>
                   </td>
 
-                  {hasXG ? <Td className="hidden xl:table-cell">{num(row.xGFor, 1)}</Td> : null}
-                  {hasXG ? <Td className="hidden xl:table-cell">{num(row.xGAgainst, 1)}</Td> : null}
+                  {hasXG && deep ? <Td className="hidden xl:table-cell">{num(row.xGFor, 1)}</Td> : null}
+                  {hasXG && deep ? <Td className="hidden xl:table-cell">{num(row.xGAgainst, 1)}</Td> : null}
 
                   {compact ? null : (
                     <td className="hidden px-1 py-2 md:table-cell">

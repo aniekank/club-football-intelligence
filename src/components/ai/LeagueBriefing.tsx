@@ -1,4 +1,5 @@
 import { Card, CardHeader, EmptyState } from '@/components/ui';
+import { Disclosure } from '@/components/ui/Disclosure';
 import { Spotlight } from './Spotlight';
 import { InsightCard } from './InsightCard';
 import { insightHref } from '@/lib/entityLink';
@@ -95,10 +96,28 @@ export function LeagueBriefing({
         </Card>
       ) : null}
 
+      {/*
+        The supporting sections are CLOSED by default.
+        
+        The spotlight above is the lead and gets the page; these are the
+        evidence behind it, and stacking three open grids under it was the
+        difference between a briefing and a data dump. Each summary carries its
+        own count and leading item, so the reader decides whether to open it
+        without having to open it first.
+      */}
       {sections.map((s) => (
-        <Card key={s.title}>
-          <CardHeader eyebrow="Briefing" title={s.title} description={s.blurb} />
-          <div className="grid gap-3 p-4 md:grid-cols-2 lg:grid-cols-3">
+        <Disclosure
+          key={s.title}
+          title={s.title}
+          hint={
+            <span className="flex items-center gap-2">
+              <span className="figure">{s.items.length}</span>
+              <span className="hidden truncate sm:inline">{s.items[0]?.title}</span>
+            </span>
+          }
+        >
+          <p className="mb-3 max-w-prose text-sm text-ink-secondary">{s.blurb}</p>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {s.items.map((i, n) => (
               <div
                 key={i.id}
@@ -109,7 +128,7 @@ export function LeagueBriefing({
               </div>
             ))}
           </div>
-        </Card>
+        </Disclosure>
       ))}
     </div>
   );
