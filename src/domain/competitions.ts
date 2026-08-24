@@ -1,4 +1,4 @@
-import type { Competition, Zone } from './types';
+import type { TiebreakerCriterion, Competition, Zone } from './types';
 
 /**
  * The competition registry.
@@ -359,6 +359,185 @@ export const LIGA_MX: Competition = {
   titleDecidedByPlayoff: true,
 };
 
+/**
+ * The wider league set.
+ *
+ * ── What the registry must get right, and what it need not ─────────────────
+ * ZONES are a fallback here. For a plain league the adapter prefers the feed's
+ * own qualification legend, which tracks that season's real European allocation
+ * far better than anything static — so these carry a sane default and the live
+ * data corrects it. TIEBREAKERS are the opposite: nothing upstream supplies
+ * them, they decide who finishes above whom, and they differ by country. They
+ * are the reason this is a hand-written table rather than a loop.
+ *
+ * The differences that actually bite:
+ *   • Brazil ranks WINS before goal difference, like MLS and unlike Europe.
+ *   • Portugal, Turkey, Italy, Spain, Poland and Greece resolve level clubs on
+ *     HEAD-TO-HEAD before goal difference; England, Germany and France do not.
+ *   • Belgium ranks wins before head-to-head.
+ *
+ * ── What is deliberately NOT modelled ──────────────────────────────────────
+ * Belgium, Austria, Denmark, Poland and Greece split into a championship round
+ * and HALVE or carry points at the split. The site shows the league's table as
+ * the feed reports it, which is correct at any moment, but the model does not
+ * simulate the split — so those carry `titleDecidedByPlayoff`, which already
+ * stops the product calling a leader "champions" and drops the title column to
+ * "1st". Australia's finals series is the same case.
+ */
+function league(spec: {
+  id: string;
+  name: string;
+  shortName: string;
+  country: string;
+  countryCode: string;
+  tiebreakers: TiebreakerCriterion[];
+  headToHeadChain?: TiebreakerCriterion[];
+  /** Clubs relegated, for the fallback bands only. */
+  relegated?: number;
+  size: number;
+  titleDecidedByPlayoff?: boolean;
+}): Competition {
+  const {
+    id, name, shortName, country, countryCode, tiebreakers, headToHeadChain,
+    relegated = 3, size, titleDecidedByPlayoff,
+  } = spec;
+  return {
+    id,
+    name,
+    shortName,
+    format: 'league',
+    tier: 'domestic-league',
+    country,
+    countryCode,
+    accentKey: id,
+    tiebreakers,
+    ...(headToHeadChain ? { headToHeadChain } : {}),
+    // Fallback only — overridden by the feed's legend in practice.
+    zones: relegated > 0
+      ? [{
+          kind: 'relegation' as const,
+          fromRank: size - relegated + 1,
+          toRank: size,
+          label: 'Relegation',
+          shortLabel: 'REL',
+        }]
+      : [],
+    pointsForWin: 3,
+    pointsForDraw: 1,
+    ...(titleDecidedByPlayoff ? { titleDecidedByPlayoff } : {}),
+  };
+}
+
+/** England below the top flight — the most heavily traded lower tiers anywhere. */
+const ENGLISH = ['points', 'goal-difference', 'goals-for'] as TiebreakerCriterion[];
+const H2H_FIRST = ['points', 'head-to-head', 'goal-difference', 'goals-for'] as TiebreakerCriterion[];
+const H2H_CHAIN = ['points', 'goal-difference', 'goals-for'] as TiebreakerCriterion[];
+
+export const CHAMPIONSHIP = league({
+  id: 'championship', name: 'Championship', shortName: 'CHA',
+  country: 'England', countryCode: 'ENG', tiebreakers: ENGLISH, size: 24,
+});
+export const LEAGUE_ONE = league({
+  id: 'league-one', name: 'League One', shortName: 'L1E',
+  country: 'England', countryCode: 'ENG', tiebreakers: ENGLISH, size: 24, relegated: 4,
+});
+export const LEAGUE_TWO = league({
+  id: 'league-two', name: 'League Two', shortName: 'L2E',
+  country: 'England', countryCode: 'ENG', tiebreakers: ENGLISH, size: 24, relegated: 2,
+});
+export const SCOTTISH_PREM = league({
+  id: 'scotprem', name: 'Scottish Premiership', shortName: 'SPL',
+  country: 'Scotland', countryCode: 'SCO', tiebreakers: ENGLISH, size: 12, relegated: 1,
+});
+export const EREDIVISIE = league({
+  id: 'eredivisie', name: 'Eredivisie', shortName: 'ERE',
+  country: 'Netherlands', countryCode: 'NED', tiebreakers: ENGLISH, size: 18, relegated: 2,
+});
+export const PRIMEIRA_LIGA = league({
+  id: 'primeira', name: 'Liga Portugal', shortName: 'POR',
+  country: 'Portugal', countryCode: 'POR',
+  tiebreakers: H2H_FIRST, headToHeadChain: H2H_CHAIN, size: 18, relegated: 2,
+});
+export const SUPER_LIG = league({
+  id: 'superlig', name: 'Süper Lig', shortName: 'TUR',
+  country: 'Turkey', countryCode: 'TUR',
+  tiebreakers: H2H_FIRST, headToHeadChain: H2H_CHAIN, size: 18, relegated: 4,
+});
+export const BELGIAN_PRO = league({
+  id: 'belgianpro', name: 'Belgian Pro League', shortName: 'BEL',
+  country: 'Belgium', countryCode: 'BEL',
+  // Wins before head-to-head, which is Belgium's own order.
+  tiebreakers: ['points', 'wins', 'head-to-head', 'goal-difference', 'goals-for'],
+  headToHeadChain: H2H_CHAIN, size: 16, relegated: 1, titleDecidedByPlayoff: true,
+});
+export const BRASILEIRAO = league({
+  id: 'brasileirao', name: 'Brasileirão Série A', shortName: 'BRA',
+  country: 'Brazil', countryCode: 'BRA',
+  // Wins BEFORE goal difference — the CBF order, and the opposite of Europe.
+  tiebreakers: ['points', 'wins', 'goal-difference', 'goals-for', 'head-to-head', 'disciplinary'],
+  headToHeadChain: H2H_CHAIN, size: 20, relegated: 4,
+});
+export const BUNDESLIGA_2 = league({
+  id: 'bundesliga2', name: '2. Bundesliga', shortName: 'BL2',
+  country: 'Germany', countryCode: 'GER', tiebreakers: ENGLISH, size: 18,
+});
+export const SERIE_B = league({
+  id: 'serieb', name: 'Serie B', shortName: 'SEB',
+  country: 'Italy', countryCode: 'ITA',
+  tiebreakers: H2H_FIRST, headToHeadChain: H2H_CHAIN, size: 20, relegated: 4,
+});
+export const LIGUE_2 = league({
+  id: 'ligue2', name: 'Ligue 2', shortName: 'L2F',
+  country: 'France', countryCode: 'FRA', tiebreakers: ENGLISH, size: 18,
+});
+export const LALIGA_2 = league({
+  id: 'laliga2', name: 'LaLiga 2', shortName: 'LL2',
+  country: 'Spain', countryCode: 'ESP',
+  tiebreakers: H2H_FIRST, headToHeadChain: H2H_CHAIN, size: 22, relegated: 4,
+});
+export const SUPERLIGAEN = league({
+  id: 'superligaen', name: 'Superligaen', shortName: 'DEN',
+  country: 'Denmark', countryCode: 'DEN', tiebreakers: ENGLISH, size: 12,
+  relegated: 2, titleDecidedByPlayoff: true,
+});
+export const ELITESERIEN = league({
+  id: 'eliteserien', name: 'Eliteserien', shortName: 'NOR',
+  country: 'Norway', countryCode: 'NOR', tiebreakers: ENGLISH, size: 16, relegated: 2,
+});
+export const ALLSVENSKAN = league({
+  id: 'allsvenskan', name: 'Allsvenskan', shortName: 'SWE',
+  country: 'Sweden', countryCode: 'SWE', tiebreakers: ENGLISH, size: 16, relegated: 2,
+});
+export const SWISS_SUPER = league({
+  id: 'swiss', name: 'Swiss Super League', shortName: 'SUI',
+  country: 'Switzerland', countryCode: 'SUI', tiebreakers: ENGLISH, size: 12, relegated: 1,
+});
+export const AUSTRIAN_BUNDESLIGA = league({
+  id: 'austria', name: 'Austrian Bundesliga', shortName: 'AUT',
+  country: 'Austria', countryCode: 'AUT', tiebreakers: ENGLISH, size: 12,
+  relegated: 1, titleDecidedByPlayoff: true,
+});
+export const EKSTRAKLASA = league({
+  id: 'ekstraklasa', name: 'Ekstraklasa', shortName: 'POL',
+  country: 'Poland', countryCode: 'POL',
+  tiebreakers: H2H_FIRST, headToHeadChain: H2H_CHAIN, size: 18, relegated: 3,
+});
+export const GREEK_SUPER = league({
+  id: 'greece', name: 'Super League 1', shortName: 'GRE',
+  country: 'Greece', countryCode: 'GRE',
+  tiebreakers: H2H_FIRST, headToHeadChain: H2H_CHAIN, size: 14,
+  relegated: 2, titleDecidedByPlayoff: true,
+});
+export const SAUDI_PRO = league({
+  id: 'saudi', name: 'Saudi Pro League', shortName: 'KSA',
+  country: 'Saudi Arabia', countryCode: 'KSA', tiebreakers: ENGLISH, size: 18, relegated: 3,
+});
+export const A_LEAGUE = league({
+  id: 'aleague', name: 'A-League Men', shortName: 'AUS',
+  country: 'Australia', countryCode: 'AUS', tiebreakers: ENGLISH, size: 12,
+  relegated: 0, titleDecidedByPlayoff: true,
+});
+
 export const COMPETITIONS: Competition[] = [
   PREMIER_LEAGUE,
   LA_LIGA,
@@ -374,6 +553,28 @@ export const COMPETITIONS: Competition[] = [
   AFC_CHAMPIONS_ELITE,
   MLS,
   LIGA_MX,
+  CHAMPIONSHIP,
+  LEAGUE_ONE,
+  LEAGUE_TWO,
+  SCOTTISH_PREM,
+  EREDIVISIE,
+  PRIMEIRA_LIGA,
+  SUPER_LIG,
+  BELGIAN_PRO,
+  BRASILEIRAO,
+  BUNDESLIGA_2,
+  SERIE_B,
+  LIGUE_2,
+  LALIGA_2,
+  SUPERLIGAEN,
+  ELITESERIEN,
+  ALLSVENSKAN,
+  SWISS_SUPER,
+  AUSTRIAN_BUNDESLIGA,
+  EKSTRAKLASA,
+  GREEK_SUPER,
+  SAUDI_PRO,
+  A_LEAGUE,
 ];
 
 const BY_ID = new Map(COMPETITIONS.map((c) => [c.id, c]));

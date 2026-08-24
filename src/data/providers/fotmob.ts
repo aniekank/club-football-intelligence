@@ -60,6 +60,31 @@ export const FOTMOB_LEAGUES: Record<string, number> = {
   afc: 525,
   mls: 130,
   ligamx: 230,
+  // Wider coverage. Every one of these was probed for xG before inclusion —
+  // Argentina, Czechia, Croatia, Ukraine and K League carry none, and a league
+  // without xG is a materially thinner product here, so they are left out.
+  championship: 48,
+  'league-one': 108,
+  'league-two': 109,
+  scotprem: 64,
+  eredivisie: 57,
+  primeira: 61,
+  superlig: 71,
+  belgianpro: 40,
+  brasileirao: 268,
+  bundesliga2: 146,
+  serieb: 86,
+  ligue2: 110,
+  laliga2: 140,
+  superligaen: 46,
+  eliteserien: 59,
+  allsvenskan: 67,
+  swiss: 69,
+  austria: 38,
+  ekstraklasa: 196,
+  greece: 135,
+  saudi: 536,
+  aleague: 113,
 };
 
 /**
@@ -782,9 +807,39 @@ export async function buildSnapshot(
   // upstream order — that is the whole point of the per-competition rules. The
   // upstream table still contributes what we cannot derive: points deductions
   // and the season's real qualification bands.
+  /**
+   * Points deductions, with the sign derived rather than assumed.
+   *
+   * The engine's contract is that a deduction is a POSITIVE magnitude to
+   * subtract. FotMob ships the opposite convention — an already-signed negative
+   * number — so passing it straight through subtracted a negative and ADDED
+   * points. Southampton, docked four and bottom of the Championship on -1, came
+   * out top of our table on 7. The table looked entirely ordinary.
+   *
+   * Rather than hard-code either convention, the adjustment is derived from the
+   * feed's OWN arithmetic: whatever `pts` it publishes, minus the points its
+   * own W/D/L imply. That is self-consistent by construction and survives the
+   * vendor changing their mind. The `deduction` field is only a fallback for
+   * when the feed omits the numbers to derive from.
+   */
   const deductions: Record<ID, number> = {};
   for (const r of rows) {
-    if (r.deduction) deductions[String(r.id)] = r.deduction;
+    const id = String(r.id);
+    const canDerive =
+      typeof r.pts === 'number' &&
+      typeof r.wins === 'number' &&
+      typeof r.draws === 'number';
+
+    if (canDerive) {
+      const implied = r.wins! * competition.pointsForWin + r.draws! * competition.pointsForDraw;
+      const adjustment = r.pts! - implied;
+      // Negative adjustment = docked. Stored as the magnitude the engine wants.
+      if (adjustment !== 0) deductions[id] = -adjustment;
+      continue;
+    }
+
+    // Fallback: trust the field, normalising its sign to a magnitude.
+    if (r.deduction) deductions[id] = Math.abs(r.deduction);
   }
 
   const effectiveCompetition: Competition = {

@@ -23,6 +23,8 @@
 
 export type FlagKind =
   | 'ENG' | 'ESP' | 'ITA' | 'GER' | 'FRA' | 'USA' | 'MEX'
+  | 'SCO' | 'NED' | 'POR' | 'TUR' | 'BEL' | 'BRA'
+  | 'DEN' | 'NOR' | 'SWE' | 'SUI' | 'AUT' | 'POL' | 'GRE' | 'KSA' | 'AUS'
   | 'UEFA' | 'FIFA' | 'CONMEBOL' | 'CONCACAF' | 'AFC';
 
 /** Competition id → the mark that identifies it. */
@@ -34,6 +36,28 @@ export const FLAG_FOR: Record<string, FlagKind> = {
   ligue1: 'FRA',
   mls: 'USA',
   ligamx: 'MEX',
+  championship: 'ENG',
+  'league-one': 'ENG',
+  'league-two': 'ENG',
+  scotprem: 'SCO',
+  eredivisie: 'NED',
+  primeira: 'POR',
+  superlig: 'TUR',
+  belgianpro: 'BEL',
+  brasileirao: 'BRA',
+  bundesliga2: 'GER',
+  serieb: 'ITA',
+  ligue2: 'FRA',
+  laliga2: 'ESP',
+  superligaen: 'DEN',
+  eliteserien: 'NOR',
+  allsvenskan: 'SWE',
+  swiss: 'SUI',
+  austria: 'AUT',
+  ekstraklasa: 'POL',
+  greece: 'GRE',
+  saudi: 'KSA',
+  aleague: 'AUS',
   ucl: 'UEFA',
   uel: 'UEFA',
   uecl: 'UEFA',
@@ -107,6 +131,145 @@ function Marks({ kind }: { kind: FlagKind }) {
           {/* Abstracted arms. Without this Mexico and Italy are the same mark. */}
           <circle cx="16" cy="16" r="4.2" fill="#8c6239" />
           <circle cx="16" cy="16" r="2.2" fill="#fff" />
+        </>
+      );
+    case 'SCO':
+      return (
+        <>
+          <rect width="32" height="32" fill="#0065bf" />
+          <path d="M0 0l32 32M32 0L0 32" stroke="#fff" strokeWidth="6" />
+        </>
+      );
+    case 'NED':
+      return (
+        <>
+          <rect width="32" height="32" fill="#fff" />
+          <rect width="32" height="10.67" fill="#ae1c28" />
+          <rect y="21.33" width="32" height="10.67" fill="#21468b" />
+        </>
+      );
+    case 'POR':
+      return (
+        <>
+          <rect width="32" height="32" fill="#da291c" />
+          <rect width="13" height="32" fill="#046a38" />
+          <circle cx="13" cy="16" r="4.6" fill="#ffe900" />
+          <circle cx="13" cy="16" r="2.6" fill="#da291c" />
+        </>
+      );
+    case 'TUR':
+      return (
+        <>
+          <rect width="32" height="32" fill="#e30a17" />
+          <circle cx="14" cy="16" r="6.2" fill="#fff" />
+          <circle cx="16.6" cy="16" r="5" fill="#e30a17" />
+          <path d="M22.6 16l4.6-1.6-2.9 3.9v-4.6l2.9 3.9z" fill="#fff" />
+        </>
+      );
+    case 'BEL':
+      return (
+        <>
+          <rect width="32" height="32" fill="#fdda24" />
+          <rect width="10.67" height="32" fill="#000" />
+          <rect x="21.33" width="10.67" height="32" fill="#ef3340" />
+        </>
+      );
+    case 'BRA':
+      return (
+        <>
+          <rect width="32" height="32" fill="#009b3a" />
+          <path d="M16 4.5L29.5 16 16 27.5 2.5 16z" fill="#fedf00" />
+          <circle cx="16" cy="16" r="5.4" fill="#002776" />
+          <path d="M10.9 14.2a11 11 0 0 1 10.4 2.2" stroke="#fff" strokeWidth="1.5" fill="none" />
+        </>
+      );
+    /*
+      Denmark and Switzerland are the SAME MARK at this size — a white cross on
+      red — and would be two indistinguishable entries in one rail. They are
+      separated the way the real flags are: Denmark's cross is offset toward the
+      hoist on a wide field, Switzerland's is centred, thicker, and its flag is
+      square, so it is drawn inset on its own panel. Asserted in Flag.test.tsx.
+    */
+    case 'DEN':
+      return (
+        <>
+          <rect width="32" height="32" fill="#c8102e" />
+          <path d="M0 13.5h32v5H0z" fill="#fff" />
+          <path d="M9.5 0h5v32h-5z" fill="#fff" />
+        </>
+      );
+    case 'SUI':
+      return (
+        <>
+          <rect width="32" height="32" fill="#d52b1e" />
+          <rect x="13.4" y="7.5" width="5.2" height="17" fill="#fff" />
+          <rect x="7.5" y="13.4" width="17" height="5.2" fill="#fff" />
+        </>
+      );
+    case 'NOR':
+      return (
+        <>
+          <rect width="32" height="32" fill="#ba0c2f" />
+          <path d="M0 12h32v8H0z" fill="#fff" />
+          <path d="M8 0h8v32H8z" fill="#fff" />
+          <path d="M0 14h32v4H0z" fill="#00205b" />
+          <path d="M10 0h4v32h-4z" fill="#00205b" />
+        </>
+      );
+    case 'SWE':
+      return (
+        <>
+          <rect width="32" height="32" fill="#006aa7" />
+          <path d="M0 13.5h32v5H0z" fill="#fecc00" />
+          <path d="M9.5 0h5v32h-5z" fill="#fecc00" />
+        </>
+      );
+    case 'AUT':
+      return (
+        <>
+          <rect width="32" height="32" fill="#fff" />
+          <rect width="32" height="10.67" fill="#ed2939" />
+          <rect y="21.33" width="32" height="10.67" fill="#ed2939" />
+        </>
+      );
+    case 'POL':
+      return (
+        <>
+          <rect width="32" height="32" fill="#fff" />
+          <rect y="16" width="32" height="16" fill="#dc143c" />
+        </>
+      );
+    case 'GRE':
+      return (
+        <>
+          <rect width="32" height="32" fill="#fff" />
+          {[0, 2, 4, 6, 8].map((i) => (
+            <rect key={i} y={(i * 32) / 9} width="32" height={32 / 9} fill="#0d5eaf" />
+          ))}
+          <rect width={(32 * 5) / 9} height={(32 * 5) / 9} fill="#0d5eaf" />
+          <path d="M8.9 0v17.8M0 8.9h17.8" stroke="#fff" strokeWidth="3.5" />
+        </>
+      );
+    case 'KSA':
+      return (
+        <>
+          <rect width="32" height="32" fill="#165d31" />
+          <rect x="6" y="20" width="20" height="2.2" fill="#fff" />
+          <path d="M7 13h14v2.4H7z" fill="#fff" />
+          <circle cx="23" cy="14.2" r="1.6" fill="#fff" />
+        </>
+      );
+    case 'AUS':
+      return (
+        <>
+          <rect width="32" height="32" fill="#00008b" />
+          <path d="M0 0h14v10H0z" fill="#0a2f7a" />
+          <path d="M0 0l14 10M14 0L0 10" stroke="#fff" strokeWidth="1.6" />
+          <path d="M7 0v10M0 5h14" stroke="#fff" strokeWidth="2.4" />
+          <circle cx="7" cy="22" r="2.4" fill="#fff" />
+          <circle cx="21" cy="12" r="1.3" fill="#fff" />
+          <circle cx="25" cy="20" r="1.3" fill="#fff" />
+          <circle cx="20" cy="25" r="1.3" fill="#fff" />
         </>
       );
     case 'UEFA':

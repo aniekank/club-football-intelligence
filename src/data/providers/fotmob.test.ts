@@ -111,7 +111,10 @@ describe('domestic league mapping', () => {
       table: {
         all: [
           { ...tableRow(10, 'Alpha', 1) },
-          { ...tableRow(20, 'Beta', 2), deduction: 6 },
+          // A REAL FotMob deduction row: the feed signs it negative and its
+          // `pts` already reflects it. Beta won once and lost once (3 from
+          // results) and is docked 6, so the feed publishes -3.
+          { ...tableRow(20, 'Beta', 2), wins: 1, draws: 0, pts: -3, deduction: -6 },
           { ...tableRow(30, 'Gamma', 3) },
           { ...tableRow(40, 'Delta', 4) },
         ],
@@ -150,6 +153,24 @@ describe('domestic league mapping', () => {
     const beta = snap.standings.find((r) => r.teamId === '20')!;
     // Beta won once (3 pts) and lost once, minus a 6-point deduction.
     expect(beta.points).toBe(-3);
+  });
+
+  it('does not turn a deduction into a bonus', async () => {
+    /**
+     * REGRESSION (found live, Championship): FotMob signs deductions NEGATIVE
+     * and the engine's contract is a positive magnitude to subtract, so passing
+     * the value straight through subtracted a negative. Southampton, docked
+     * four points and bottom of the Championship on -1, came out top of our
+     * table on 7 — above three clubs with two wins each — and the table looked
+     * completely ordinary.
+     */
+    const snap = await buildSnapshot('epl', league, { maxDetailRequests: 0 });
+    const beta = snap.standings.find((r) => r.teamId === '20')!;
+    const alpha = snap.standings.find((r) => r.teamId === '10')!;
+    // The docked club must be BELOW a club it would otherwise be level with.
+    expect(beta.points).toBeLessThan(alpha.points);
+    // And must never out-rank on the strength of its own punishment.
+    expect(beta.rank).toBeGreaterThan(alpha.rank);
   });
 
   it("prefers the source's qualification legend over the static registry", async () => {

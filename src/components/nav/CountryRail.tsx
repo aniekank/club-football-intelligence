@@ -17,15 +17,48 @@ import type { Competition } from '@/domain/types';
  * muscle-memory action — the same circular vocabulary, arranged so each country
  * keeps a fixed home.
  *
- * ── Why country and not competition ────────────────────────────────────────
- * A domestic league IS its country to a reader; nobody thinks of the Premier
- * League and England as separate things. Continental competitions have no
- * country and so are deliberately not here — they sit in their own bar, because
- * putting a UEFA badge in a row of national flags states a false equivalence.
+ * ── One entry per COUNTRY, not per league ──────────────────────────────────
+ * With twenty-seven leagues a flat list is not navigable, and England alone now
+ * has four tiers. So the rail is countries — which is also how a reader thinks
+ * about it; nobody holds "the Premier League" and "England" as separate ideas —
+ * and the divisions within a country appear in their own strip once you are
+ * there. Two shallow choices instead of one list of twenty-seven.
+ *
+ * Selecting a country lands on its highest tier, unless you are already inside
+ * that country, in which case the rail leaves your division alone.
+ *
+ * Continental competitions have no country and are deliberately absent — a UEFA
+ * badge in a row of national flags states a false equivalence.
  *
  * At `lg` and up it is a fixed left rail. Below that it becomes a horizontal
  * scroller, because a 430px viewport has no left margin to give away.
  */
+/**
+ * Rail order: roughly by how much attention a country's football gets, which is
+ * a presentation judgement and so lives here rather than in the registry.
+ */
+const COUNTRY_ORDER = [
+  'England', 'Spain', 'Italy', 'Germany', 'France',
+  'Turkey', 'Netherlands', 'Portugal', 'Belgium', 'Scotland',
+  'Brazil', 'United States', 'Mexico',
+  'Sweden', 'Norway', 'Denmark', 'Switzerland', 'Austria', 'Poland', 'Greece',
+  'Saudi Arabia', 'Australia',
+];
+
+export function groupByCountry(competitions: Competition[]) {
+  const byCountry = new Map<string, Competition[]>();
+  for (const c of competitions) {
+    const list = byCountry.get(c.country) ?? [];
+    list.push(c);
+    byCountry.set(c.country, list);
+  }
+  return [...byCountry.entries()].sort(([a], [b]) => {
+    const ia = COUNTRY_ORDER.indexOf(a);
+    const ib = COUNTRY_ORDER.indexOf(b);
+    return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib) || a.localeCompare(b);
+  });
+}
+
 export function CountryRail({
   competitions, activeId,
 }: {
@@ -34,6 +67,9 @@ export function CountryRail({
 }) {
   const hrefFor = useCompetitionHref();
   if (!competitions.length) return null;
+
+  const countries = groupByCountry(competitions);
+  const activeCountry = competitions.find((c) => c.id === activeId)?.country ?? null;
 
   return (
     <nav
@@ -45,14 +81,20 @@ export function CountryRail({
         'lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-2 lg:py-4',
       )}
     >
-      {competitions.map((c) => {
-        const active = c.id === activeId;
+      {countries.map(([country, leagues]) => {
+        const active = country === activeCountry;
+        // Already in this country? Keep the division you are on. Otherwise the
+        // top tier, which is what "England" means to almost everyone.
+        const target = active ? (activeId ?? leagues[0]!.id) : leagues[0]!.id;
+        const c = leagues.find((l) => l.id === target) ?? leagues[0]!;
         return (
           <Link
-            key={c.id}
-            href={hrefFor(c.id)}
+            key={country}
+            href={hrefFor(target)}
             aria-current={active ? 'page' : undefined}
-            title={`${c.country} — ${c.name}`}
+            title={leagues.length > 1
+              ? `${country} — ${leagues.length} divisions`
+              : `${country} — ${c.name}`}
             style={{ ['--comp-active' as string]: `var(--comp-${c.accentKey})` }}
             className={cn(
               'group relative flex shrink-0 flex-col items-center gap-1 rounded-md px-2 py-2',
@@ -87,7 +129,7 @@ export function CountryRail({
                 active ? 'text-ink' : 'text-ink-muted group-hover:text-ink-secondary',
               )}
             >
-              {c.shortName}
+              {c.countryCode}
             </span>
           </Link>
         );

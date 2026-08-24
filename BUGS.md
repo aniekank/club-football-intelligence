@@ -396,3 +396,47 @@ and through a probability whose denominator had quietly changed.
 
 **Still open:** the simulator cannot rank within a group. Suppressing the column
 is honest but it is not the feature — per-group projection is the real fix.
+
+---
+
+## CFI-013 — a points deduction was adding points
+
+**Status:** fixed · **Found:** reading the Championship table after widening
+coverage · **Severity:** critical — wrong champion-facing data, silently
+
+**Symptom.** Southampton sat **1st in the Championship on 7 points** from 1 win,
+0 draws and 1 defeat. One win is three points. They were above three clubs on
+two wins each.
+
+The truth, from the same feed: Southampton are **24th on −1**, having been docked
+four points.
+
+**Root cause.** A sign convention mismatch across a boundary. The standings
+engine's contract is that a deduction is a POSITIVE magnitude to subtract —
+`points -= penalty`. FotMob publishes the opposite: an already-signed negative
+number, `deduction: -4`. The adapter passed it straight through, so the engine
+computed `3 − (−4) = 7`. A punishment became a bonus, and it moved the club from
+bottom to top.
+
+**Why it survived this long.** None of the original eight competitions had an
+active deduction this season, so the path was never exercised on real data. The
+unit test that covered it encoded my *assumption* rather than the vendor's
+behaviour — a fixture with `deduction: 6` and `pts: 0`, which is internally
+inconsistent and could not occur in a real feed.
+
+**Fix.** The sign is now DERIVED rather than assumed: the adjustment is whatever
+`pts` the feed publishes minus the points its own W/D/L imply. Self-consistent by
+construction, and it survives the vendor changing convention. The `deduction`
+field is a fallback for when the numbers to derive from are absent. The test
+fixture is now shaped like a real feed row.
+
+**Lesson.** Two lessons, and the second is the uncomfortable one.
+
+A sign convention crossing a module boundary needs to be asserted at the
+boundary, not assumed on both sides — the engine and the adapter were each
+individually reasonable and disagreed silently.
+
+And a hand-written fixture is only ever evidence about what the author believed.
+This test passed for weeks while the behaviour it described was impossible. When
+a fixture encodes a vendor's format, at least one case should be copied from a
+real response rather than invented.

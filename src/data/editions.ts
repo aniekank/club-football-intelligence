@@ -40,8 +40,17 @@ export interface Edition {
 export const BOOT_COMPETITIONS = [
   // Domestic leagues, then the continental competitions. Order matters only for
   // boot sequencing — the navigation groups them by `tier`, not by this list.
-  'epl', 'laliga', 'seriea', 'bundesliga', 'ligue1', 'mls', 'ligamx',
-  'ucl', 'uel', 'uecl', 'cwc', 'libertadores', 'concacaf', 'afc',
+  // Boot order IS load priority: the site becomes usable after the first, and
+  // the rest fill in behind it sequentially. So the most-visited competitions
+  // come first and the long tail waits, rather than the reverse.
+  'epl', 'laliga', 'seriea', 'bundesliga', 'ligue1',
+  'ucl', 'uel', 'uecl',
+  'championship', 'superlig', 'eredivisie', 'primeira', 'belgianpro',
+  'scotprem', 'brasileirao', 'mls', 'ligamx',
+  'bundesliga2', 'serieb', 'ligue2', 'laliga2', 'league-one', 'league-two',
+  'allsvenskan', 'eliteserien', 'superligaen',
+  'swiss', 'austria', 'ekstraklasa', 'greece', 'saudi', 'aleague',
+  'cwc', 'libertadores', 'concacaf', 'afc',
 ];
 
 const LIVE_EDITIONS: Edition[] = BOOT_COMPETITIONS.map((competitionId) => ({

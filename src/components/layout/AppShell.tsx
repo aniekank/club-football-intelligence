@@ -3,6 +3,7 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { CountryRail } from '@/components/nav/CountryRail';
 import { InternationalBar } from '@/components/nav/InternationalBar';
+import { DivisionStrip } from '@/components/nav/DivisionStrip';
 import { liveAcrossCompetitions } from '@/server/active';
 import type { Competition } from '@/domain/types';
 import type { Edition } from '@/data/editions';
@@ -35,6 +36,13 @@ export function AppShell({
   const domestic = competitions.filter((c) => c.tier === 'domestic-league');
   const international = competitions.filter((c) => c.tier !== 'domestic-league');
 
+  // The tiers of whichever country you are in — empty for a continental
+  // competition, and a single entry for a country with only a top flight, in
+  // which case the strip does not render at all.
+  const divisions = active?.tier === 'domestic-league'
+    ? domestic.filter((c) => c.country === active.country)
+    : [];
+
   return (
     <div
       className="flex min-h-screen flex-col bg-canvas"
@@ -65,6 +73,9 @@ export function AppShell({
         <div className="min-w-0 flex-1">
           <Suspense fallback={<div className="h-10 border-b border-border-subtle" />}>
             <InternationalBar competitions={international} activeId={activeId} />
+          </Suspense>
+          <Suspense fallback={null}>
+            <DivisionStrip divisions={divisions} activeId={activeId} />
           </Suspense>
           <main id="main">{children}</main>
         </div>
