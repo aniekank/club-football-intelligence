@@ -440,3 +440,32 @@ And a hand-written fixture is only ever evidence about what the author believed.
 This test passed for weeks while the behaviour it described was impossible. When
 a fixture encodes a vendor's format, at least one case should be copied from a
 real response rather than invented.
+
+---
+
+## CFI-014 — a three-week xG window presented as a season total
+
+**Status:** fixed · **Found:** reading Argentina's table after adding it ·
+**Severity:** high — a real number with the wrong meaning
+
+**Symptom.** Vélez Sarsfield: **23 played, 2.3 xG**. That is a tenth of an
+expected goal per match — not a rounding problem, a different quantity wearing
+the same label.
+
+**Root cause.** Where a competition's feed publishes season xG, the adapter uses
+it. Where it does not — which is every league added from South America and
+CONCACAF — the only xG available is derived from the shots in matches we fetched
+detail for, a rolling three-week window. The tally summed those and labelled the
+result a season total, so a club's "season xG" covered two of its twenty-three
+games.
+
+**Fix.** A season xG is now only reported when xG covers EVERY match the club has
+played. Partial coverage reports null, which the column already renders as "—"
+and the `hasXG` capability hides entirely. Competitions whose feed does publish
+season totals are untouched, because the adapter overwrites the derived values
+with the upstream ones afterwards.
+
+**Lesson.** The product is careful never to render a missing number as zero. This
+was the same failure in a subtler form: not a fabricated value, but a real value
+whose denominator had quietly changed. "Do we have this number?" was answered
+correctly; "does this number mean what the column says?" was never asked.

@@ -85,6 +85,15 @@ export const FOTMOB_LEAGUES: Record<string, number> = {
   greece: 135,
   saudi: 536,
   aleague: 113,
+  // South America and CONCACAF. None of these publish xG; the capability flags
+  // report that honestly rather than the UI inventing zeroes.
+  argentina: 112,
+  costarica: 121,
+  honduras: 337,
+  guatemala: 336,
+  elsalvador: 335,
+  panama: 9039,
+  canada: 9986,
 };
 
 /**
@@ -597,9 +606,61 @@ export async function buildSnapshot(
    * Supporters' Shield is settled on the combined table. Reading only the first
    * block would give a fifteen-club league missing half the division.
    */
-  const conferenceTables = (tableData?.tables ?? []).filter(
+  const allBlocks = (tableData?.tables ?? []).filter(
     (t) => (t.table?.all?.length ?? 0) > 0,
   );
+
+  /**
+   * Keep only the tournament currently being played.
+   *
+   * Argentina and Panama return FOUR blocks in one response — "Apertura -
+   * Group A", "Apertura - Group B", "Clausura - Group A", "Clausura - Group B"
+   * — because their season contains two SEPARATE tournaments. Treating those as
+   * four conferences of one competition puts every club in the table twice and
+   * merges two championships into a ranking that exists nowhere.
+   *
+   * Liga MX has the same shape and is not affected, because FotMob exposes its
+   * halves as distinct seasons ("2026/2027 - Apertura") which the edition layer
+   * already splits. These two only offer "2026", so the split has to happen here.
+   *
+   * WHICH tournament is live is decided by play, not by position. The Apertura
+   * blocks were listed first for Panama and second for Argentina, so feed order
+   * is a trap; but the finished tournament has every club on a full, identical
+   * count of matches while the live one is mid-way. Lowest maximum `played`
+   * wins, which also does the right thing at a handover, when the incoming
+   * tournament sits at zero.
+   */
+  const tournamentOf = (name: string | undefined) =>
+    name && name.includes(' - ') ? name.slice(0, name.indexOf(' - ')).trim() : null;
+
+  const tournaments = new Map<string, typeof allBlocks>();
+  for (const t of allBlocks) {
+    const key = tournamentOf(t.leagueName);
+    if (!key) continue;
+    tournaments.set(key, [...(tournaments.get(key) ?? []), t]);
+  }
+
+  const liveTournament = tournaments.size > 1
+    ? [...tournaments.entries()].reduce((best, entry) => {
+        const maxPlayed = (blocks: typeof allBlocks) =>
+          Math.max(...blocks.flatMap((b) => (b.table?.all ?? []).map((r) => r.played ?? 0)));
+        return maxPlayed(entry[1]) < maxPlayed(best[1]) ? entry : best;
+      })
+    : null;
+
+  const conferenceTables = liveTournament ? liveTournament[1] : allBlocks;
+
+  /**
+   * The group's own name, without the tournament it belongs to.
+   *
+   * Once the tournament is selected it is stated once, in the season label —
+   * repeating it on every table gives headings like "Clausura - Group A" above
+   * a page already titled Clausura.
+   */
+  const groupName = (name: string | undefined): string =>
+    (liveTournament && name?.startsWith(`${liveTournament[0]} - `)
+      ? name.slice(liveTournament[0].length + 3)
+      : name ?? '').trim();
   const isComposite = Boolean(tableData?.composite) && conferenceTables.length > 1;
 
   /**
@@ -647,7 +708,9 @@ export async function buildSnapshot(
   const rows = (isComposite ? compositeRows : tableData?.table?.all) ?? [];
   const xgRows = (isComposite ? compositeXg : tableData?.table?.xg) ?? [];
   const fixtures = league.fixtures?.allMatches ?? [];
-  const seasonLabel = league.details?.selectedSeason ?? tableData?.selectedSeason ?? 'current';
+  const rawSeason = league.details?.selectedSeason ?? tableData?.selectedSeason ?? 'current';
+  // "2026" alone would not say WHICH of the year's two tournaments this is.
+  const seasonLabel = liveTournament ? `${rawSeason} - ${liveTournament[0]}` : rawSeason;
 
   // ── Teams ────────────────────────────────────────────────────────────────
   // The table is the authoritative roster: it is exactly the clubs in this
@@ -863,7 +926,7 @@ export async function buildSnapshot(
       competition.zones,
     ),
     ...(isComposite
-      ? { conferences: conferences.map((c) => c.leagueName ?? '').filter(Boolean) }
+      ? { conferences: conferences.map((c) => groupName(c.leagueName)).filter(Boolean) }
       : {}),
   };
 
@@ -871,7 +934,7 @@ export async function buildSnapshot(
   const conferenceOf = new Map<string, string>();
   for (const conf of conferences) {
     for (const r of conf.table?.all ?? []) {
-      if (conf.leagueName) conferenceOf.set(String(r.id), conf.leagueName);
+      if (conf.leagueName) conferenceOf.set(String(r.id), groupName(conf.leagueName));
     }
   }
 
@@ -930,7 +993,7 @@ export async function buildSnapshot(
             return {
               ...row,
               rank,
-              groupId: conf.leagueName ?? null,
+              groupId: groupName(conf.leagueName) || null,
               // The zone follows the CONFERENCE rank, not the global one.
               zone: zone?.kind ?? null,
             };

@@ -248,6 +248,24 @@
     }
   }
 
+  /**
+   * Forced-colors drops the stone treatment.
+   *
+   * A lighting filter computes its own greys and would fight a palette the
+   * reader has explicitly chosen for legibility. The crest still renders — it
+   * just renders plainly, which is the right answer for someone who has asked
+   * the OS to control contrast.
+   */
+  @media (forced-colors: active) {
+    .stone-crest image {
+      filter: none !important;
+      opacity: 1 !important;
+    }
+    .stone-crest rect[filter] {
+      display: none;
+    }
+  }
+
   /* Horizontal-scroll container for wide tables and charts. The page body must
      never scroll sideways; the offending element owns its own overflow. */
   .scroll-x {

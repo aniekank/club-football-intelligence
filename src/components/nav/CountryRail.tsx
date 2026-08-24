@@ -40,7 +40,8 @@ import type { Competition } from '@/domain/types';
 const COUNTRY_ORDER = [
   'England', 'Spain', 'Italy', 'Germany', 'France',
   'Turkey', 'Netherlands', 'Portugal', 'Belgium', 'Scotland',
-  'Brazil', 'United States', 'Mexico',
+  'Brazil', 'Argentina', 'United States', 'Mexico', 'Canada',
+  'Costa Rica', 'Honduras', 'Guatemala', 'El Salvador', 'Panama',
   'Sweden', 'Norway', 'Denmark', 'Switzerland', 'Austria', 'Poland', 'Greece',
   'Saudi Arabia', 'Australia',
 ];

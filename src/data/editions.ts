@@ -50,6 +50,7 @@ export const BOOT_COMPETITIONS = [
   'bundesliga2', 'serieb', 'ligue2', 'laliga2', 'league-one', 'league-two',
   'allsvenskan', 'eliteserien', 'superligaen',
   'swiss', 'austria', 'ekstraklasa', 'greece', 'saudi', 'aleague',
+  'argentina', 'costarica', 'honduras', 'guatemala', 'elsalvador', 'panama', 'canada',
   'cwc', 'libertadores', 'concacaf', 'afc',
 ];
 

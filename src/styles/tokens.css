@@ -148,6 +148,13 @@
   --comp-greece: #5f9fd9;
   --comp-saudi: #3fae7f;
   --comp-aleague: #c4a05f;
+  --comp-argentina: #6fb4e0;
+  --comp-costarica: #d95f6f;
+  --comp-honduras: #5fa8e0;
+  --comp-guatemala: #6fb0d9;
+  --comp-elsalvador: #5f7fd6;
+  --comp-panama: #d96f8a;
+  --comp-canada: #e05f5f;
   --comp-default: #c8f751;
 
   /* ── Typography ─────────────────────────────────────────────────────────
@@ -364,6 +371,13 @@
     --comp-greece: #2f70ab;
     --comp-saudi: #128053;
     --comp-aleague: #967232;
+    --comp-argentina: #2f7fb2;
+    --comp-costarica: #ab2f40;
+    --comp-honduras: #2470ab;
+    --comp-guatemala: #2f7aa8;
+    --comp-elsalvador: #2f4fa8;
+    --comp-panama: #ab2f5c;
+    --comp-canada: #b22f2f;
     --comp-default: #6f9410;
 
     --shadow-sm: 0 1px 2px rgb(16 20 24 / 0.06);
@@ -477,6 +491,13 @@
   --comp-greece: #2f70ab;
   --comp-saudi: #128053;
   --comp-aleague: #967232;
+  --comp-argentina: #2f7fb2;
+  --comp-costarica: #ab2f40;
+  --comp-honduras: #2470ab;
+  --comp-guatemala: #2f7aa8;
+  --comp-elsalvador: #2f4fa8;
+  --comp-panama: #ab2f5c;
+  --comp-canada: #b22f2f;
   --comp-default: #6f9410;
 
   --shadow-sm: 0 1px 2px rgb(16 20 24 / 0.06);
@@ -497,4 +518,76 @@
     --duration-slow: 1ms;
     --duration-deliberate: 1ms;
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   "Linx" — a third palette, after Only Built 4 Cuban Linx.
+
+   A warm, near-black ground with crimson-brown surfaces and gold as the accent,
+   taking the record's colour: blood red, orange heat, gold lettering, deep
+   shadow. It is a DARK theme with a red cast, not a red theme — a saturated red
+   field behind a dense table is unreadable within a minute, and this product is
+   read for long stretches.
+
+   Two things needed real care rather than sampling.
+
+   STATUS COLOUR. On a red-cast ground "critical = red" stops signalling: the
+   alarm is the same hue as the room. Critical is pushed toward crimson-pink so
+   it separates both from the surfaces and from `serious` orange, and `good`
+   keeps a cool green so the two poles stay opposite rather than adjacent.
+
+   SERIES COLOUR. The eight-hue categorical set is unchanged — it was validated
+   for colour-vision deficiency as a SET, and re-picking hues per theme would
+   throw that away. What changes with the ground is contrast against it, which
+   is what was re-checked here.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root[data-theme='linx'] {
+  color-scheme: dark;
+
+  --surface-canvas: #140708;
+  --surface-1: #1f0d0d;
+  --surface-2: #2b1514;
+  --surface-3: #3a1d19;
+  --surface-inset: #0d0405;
+
+  --border-subtle: #3a1f1b;
+  --border-default: #52302a;
+  --border-strong: #714539;
+
+  --text-primary: #f8ece2;
+  --text-secondary: #d5b6a4;
+  --text-muted: #a07d6e;
+  --text-inverse: #140708;
+
+  /* The gold of the lettering, not the red of the curtain — an accent has to be
+     the thing that stands OUT of the palette, and red would vanish into it. */
+  --brand: #f0a52a;
+  --brand-hover: #f8bd58;
+  --brand-press: #d68c12;
+  --brand-ink: #180808;
+  --brand-faint: #35210c;
+
+  --status-good: #3fc46a;
+  --status-warning: #ecc04a;
+  --status-serious: #f5883c;
+  --status-critical: #ff4d6a;
+  --status-good-faint: #102a19;
+  --status-warning-faint: #2f2610;
+  --status-serious-faint: #33200f;
+  --status-critical-faint: #331018;
+
+  --band-champion: #f0a52a;
+  --band-ucl: #3f91e6;
+  --band-uel: #e05f41;
+  --band-conference: #14a98b;
+  --band-relegation-playoff: #ecc04a;
+  --band-relegation: #ff4d6a;
+  --band-none: transparent;
+
+  --edge-highlight: rgb(255 214 170 / 0.10);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-md: 0 2px 8px rgb(0 0 0 / 0.55), 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.45);
+  --shadow-xl: 0 16px 48px rgb(0 0 0 / 0.65), 0 4px 12px rgb(0 0 0 / 0.5);
 }

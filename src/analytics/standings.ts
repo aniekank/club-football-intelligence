@@ -32,6 +32,8 @@ interface Tally {
   awayGoalsFor: number; awayWins: number;
   disciplinaryPoints: number;
   xGFor: number; xGAgainst: number; hasXG: boolean;
+  /** Matches this club played that actually carried xG. */
+  xgMatches: number;
   home: SplitRecord; away: SplitRecord;
   form: { kickoff: string; letter: MatchResultLetter }[];
 }
@@ -45,7 +47,7 @@ function emptyTally(teamId: ID): Tally {
     teamId,
     played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0,
     awayGoalsFor: 0, awayWins: 0, disciplinaryPoints: 0,
-    xGFor: 0, xGAgainst: 0, hasXG: false,
+    xGFor: 0, xGAgainst: 0, hasXG: false, xgMatches: 0,
     home: emptySplit(), away: emptySplit(),
     form: [],
   };
@@ -96,6 +98,7 @@ function applyResult(
 
   if (xgFor !== null) { t.xGFor += xgFor; t.hasXG = true; }
   if (xgAgainst !== null) { t.xGAgainst += xgAgainst; t.hasXG = true; }
+  if (xgFor !== null || xgAgainst !== null) t.xgMatches += 1;
 
   // UEFA's scale: a yellow is 1, a red is 3.
   t.disciplinaryPoints += cards.yellow + cards.red * 3;
@@ -406,8 +409,22 @@ export function computeStandings(input: ComputeStandingsInput): StandingRow[] {
       homeRecord: t.home,
       awayRecord: t.away,
       form,
-      xGFor: t.hasXG ? round2(t.xGFor) : null,
-      xGAgainst: t.hasXG ? round2(t.xGAgainst) : null,
+      /**
+       * A season xG total is only honest when xG covers EVERY match played.
+       *
+       * Where the feed supplies no season xG, the only xG available is derived
+       * from the shots in the matches we fetched detail for — a three-week
+       * window. Summing those and labelling the result a season total put
+       * "2.3 xG" beside "23 played" for Vélez Sarsfield: not a rounding
+       * problem, a different quantity wearing the same label. Partial coverage
+       * now reports null, which the column already renders as "—" and the
+       * capability flag hides entirely.
+       *
+       * Competitions whose feed DOES publish season xG are unaffected — the
+       * adapter overwrites these values with the upstream totals afterwards.
+       */
+      xGFor: t.hasXG && t.xgMatches >= t.played ? round2(t.xGFor) : null,
+      xGAgainst: t.hasXG && t.xgMatches >= t.played ? round2(t.xGAgainst) : null,
       expectedPoints: null, // filled by the simulation layer
       disciplinaryPoints: t.disciplinaryPoints,
       zone: zone?.kind ?? null,

@@ -4,6 +4,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { MatchCard } from '@/components/match/MatchCard';
 import { LeagueTable } from '@/components/table/LeagueTable';
 import { SeasonShotMap } from '@/components/charts/SeasonShotMap';
+import { StoneCrest } from '@/components/team/StoneCrest';
 import {
   Card, CardHeader, Crest, Figure, StatTile, FormRun, Badge, EmptyState, EstimateMark,
 } from '@/components/ui';
@@ -59,7 +60,7 @@ export default function TeamPage({
           <>
             <Card>
               <div className="flex flex-wrap items-center gap-4 p-5">
-                <Crest url={team.crestUrl} code={team.code} name={team.name} size={56} />
+                <StoneCrest url={team.crestUrl} code={team.code} name={team.name} size={88} />
                 <div className="min-w-0 flex-1">
                   <p className="eyebrow">
                     {team.country} · {competition.name}

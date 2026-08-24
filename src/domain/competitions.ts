@@ -538,6 +538,72 @@ export const A_LEAGUE = league({
   relegated: 0, titleDecidedByPlayoff: true,
 });
 
+/**
+ * Argentina — two tournaments a year, each played in two zones.
+ *
+ * The Primera División runs an Apertura and a Clausura, and each splits the
+ * thirty clubs into two zones of fifteen who are ranked separately. So this is
+ * the conference machinery again, with the adapter first selecting whichever of
+ * the year's two tournaments is actually being played.
+ *
+ * The title is decided by a knockout between the zone leaders, never by
+ * finishing top of a zone — hence `titleDecidedByPlayoff`.
+ *
+ * AFA ranks on points, then goal difference, then goals scored.
+ */
+export const ARGENTINA = league({
+  id: 'argentina', name: 'Primera División', shortName: 'ARG',
+  country: 'Argentina', countryCode: 'ARG',
+  tiebreakers: ['points', 'goal-difference', 'goals-for'],
+  size: 30, relegated: 2, titleDecidedByPlayoff: true,
+});
+
+/**
+ * CONCACAF's domestic leagues.
+ *
+ * Most of the confederation runs an Apertura/Clausura calendar, and none of
+ * these carry expected goals — the capability flags handle that honestly: the
+ * xG columns simply do not render rather than showing zeroes, which is exactly
+ * what `hasXG` was built for. Everything else — table, form, model, fixtures —
+ * works as it does anywhere else.
+ */
+export const COSTA_RICA = league({
+  id: 'costarica', name: 'Liga Promerica', shortName: 'CRC',
+  country: 'Costa Rica', countryCode: 'CRC',
+  tiebreakers: ['points', 'goal-difference', 'goals-for'],
+  size: 12, relegated: 1, titleDecidedByPlayoff: true,
+});
+export const HONDURAS = league({
+  id: 'honduras', name: 'Liga Nacional', shortName: 'HON',
+  country: 'Honduras', countryCode: 'HON',
+  tiebreakers: ['points', 'goal-difference', 'goals-for'],
+  size: 12, relegated: 1, titleDecidedByPlayoff: true,
+});
+export const GUATEMALA = league({
+  id: 'guatemala', name: 'Liga Nacional', shortName: 'GUA',
+  country: 'Guatemala', countryCode: 'GUA',
+  tiebreakers: ['points', 'goal-difference', 'goals-for'],
+  size: 12, relegated: 1, titleDecidedByPlayoff: true,
+});
+export const EL_SALVADOR = league({
+  id: 'elsalvador', name: 'Primera División', shortName: 'SLV',
+  country: 'El Salvador', countryCode: 'SLV',
+  tiebreakers: ['points', 'goal-difference', 'goals-for'],
+  size: 12, relegated: 1, titleDecidedByPlayoff: true,
+});
+export const PANAMA = league({
+  id: 'panama', name: 'Liga Panameña', shortName: 'PAN',
+  country: 'Panama', countryCode: 'PAN',
+  tiebreakers: ['points', 'goal-difference', 'goals-for'],
+  size: 12, relegated: 0, titleDecidedByPlayoff: true,
+});
+export const CANADA_PL = league({
+  id: 'canada', name: 'Canadian Premier League', shortName: 'CAN',
+  country: 'Canada', countryCode: 'CAN',
+  tiebreakers: ['points', 'wins', 'goal-difference', 'goals-for'],
+  size: 8, relegated: 0, titleDecidedByPlayoff: true,
+});
+
 export const COMPETITIONS: Competition[] = [
   PREMIER_LEAGUE,
   LA_LIGA,
@@ -575,6 +641,13 @@ export const COMPETITIONS: Competition[] = [
   GREEK_SUPER,
   SAUDI_PRO,
   A_LEAGUE,
+  ARGENTINA,
+  COSTA_RICA,
+  HONDURAS,
+  GUATEMALA,
+  EL_SALVADOR,
+  PANAMA,
+  CANADA_PL,
 ];
 
 const BY_ID = new Map(COMPETITIONS.map((c) => [c.id, c]));

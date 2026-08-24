@@ -25,6 +25,7 @@ export type FlagKind =
   | 'ENG' | 'ESP' | 'ITA' | 'GER' | 'FRA' | 'USA' | 'MEX'
   | 'SCO' | 'NED' | 'POR' | 'TUR' | 'BEL' | 'BRA'
   | 'DEN' | 'NOR' | 'SWE' | 'SUI' | 'AUT' | 'POL' | 'GRE' | 'KSA' | 'AUS'
+  | 'ARG' | 'CRC' | 'HON' | 'GUA' | 'SLV' | 'PAN' | 'CAN'
   | 'UEFA' | 'FIFA' | 'CONMEBOL' | 'CONCACAF' | 'AFC';
 
 /** Competition id → the mark that identifies it. */
@@ -58,6 +59,13 @@ export const FLAG_FOR: Record<string, FlagKind> = {
   greece: 'GRE',
   saudi: 'KSA',
   aleague: 'AUS',
+  argentina: 'ARG',
+  costarica: 'CRC',
+  honduras: 'HON',
+  guatemala: 'GUA',
+  elsalvador: 'SLV',
+  panama: 'PAN',
+  canada: 'CAN',
   ucl: 'UEFA',
   uel: 'UEFA',
   uecl: 'UEFA',
@@ -270,6 +278,76 @@ function Marks({ kind }: { kind: FlagKind }) {
           <circle cx="21" cy="12" r="1.3" fill="#fff" />
           <circle cx="25" cy="20" r="1.3" fill="#fff" />
           <circle cx="20" cy="25" r="1.3" fill="#fff" />
+        </>
+      );
+    case 'ARG':
+      return (
+        <>
+          <rect width="32" height="32" fill="#fff" />
+          <rect width="32" height="10.67" fill="#74acdf" />
+          <rect y="21.33" width="32" height="10.67" fill="#74acdf" />
+          <circle cx="16" cy="16" r="3.4" fill="#f6b40e" />
+        </>
+      );
+    case 'CRC':
+      return (
+        <>
+          <rect width="32" height="32" fill="#fff" />
+          <rect y="2" width="32" height="6" fill="#002b7f" />
+          <rect y="24" width="32" height="6" fill="#002b7f" />
+          <rect y="11" width="32" height="10" fill="#ce1126" />
+        </>
+      );
+    case 'HON':
+      return (
+        <>
+          <rect width="32" height="32" fill="#fff" />
+          <rect width="32" height="10.67" fill="#0073cf" />
+          <rect y="21.33" width="32" height="10.67" fill="#0073cf" />
+          <g fill="#0073cf">
+            <circle cx="16" cy="16" r="1.5" />
+            <circle cx="11" cy="13" r="1.2" />
+            <circle cx="21" cy="13" r="1.2" />
+            <circle cx="11" cy="19" r="1.2" />
+            <circle cx="21" cy="19" r="1.2" />
+          </g>
+        </>
+      );
+    case 'GUA':
+      return (
+        <>
+          <rect width="32" height="32" fill="#fff" />
+          <rect width="10.67" height="32" fill="#4997d0" />
+          <rect x="21.33" width="10.67" height="32" fill="#4997d0" />
+          <circle cx="16" cy="16" r="3.2" fill="none" stroke="#4b7f52" strokeWidth="1.6" />
+        </>
+      );
+    case 'SLV':
+      return (
+        <>
+          <rect width="32" height="32" fill="#fff" />
+          <rect width="32" height="10.67" fill="#0f47af" />
+          <rect y="21.33" width="32" height="10.67" fill="#0f47af" />
+          <path d="M16 12.6l1.5 3.1 3.4.5-2.5 2.4.6 3.4-3-1.6-3 1.6.6-3.4-2.5-2.4 3.4-.5z" fill="#0f47af" />
+        </>
+      );
+    case 'PAN':
+      return (
+        <>
+          <rect width="32" height="32" fill="#fff" />
+          <rect x="16" width="16" height="16" fill="#da121a" />
+          <rect y="16" width="16" height="16" fill="#072357" />
+          <path d="M8 3.4l1.4 3 3.2.4-2.4 2.2.6 3.2L8 10.6l-2.8 1.6.6-3.2-2.4-2.2 3.2-.4z" fill="#072357" />
+          <path d="M24 19.4l1.4 3 3.2.4-2.4 2.2.6 3.2-2.8-1.6-2.8 1.6.6-3.2-2.4-2.2 3.2-.4z" fill="#da121a" />
+        </>
+      );
+    case 'CAN':
+      return (
+        <>
+          <rect width="32" height="32" fill="#fff" />
+          <rect width="8" height="32" fill="#d80621" />
+          <rect x="24" width="8" height="32" fill="#d80621" />
+          <path d="M16 8l1.6 4.2 3.4-1.6-1.4 3.6 3.4.6-2.8 2.2 1.2 3.4-3.6-1.4-.6 3.6h-1.2l-.6-3.6-3.6 1.4 1.2-3.4-2.8-2.2 3.4-.6-1.4-3.6 3.4 1.6z" fill="#d80621" />
         </>
       );
     case 'UEFA':

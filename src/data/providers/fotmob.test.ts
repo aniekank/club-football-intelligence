@@ -426,3 +426,92 @@ describe('group-stage qualification labels', () => {
     expect(snap.competition.zones.find((z) => z.fromRank === 1)?.label).toBe('Round of 16');
   });
 });
+
+describe('a season containing two separate tournaments', () => {
+  /**
+   * Argentina and Panama return FOUR blocks in one response — Apertura and
+   * Clausura, each split into two zones — because their season contains two
+   * distinct championships. Treated as four conferences of one competition,
+   * every club appears twice and two titles merge into a ranking that exists
+   * nowhere.
+   *
+   * Which tournament is live is decided by PLAY, not position: the feed listed
+   * Apertura first for Panama and second for Argentina, so order is a trap. The
+   * finished tournament has every club on a full identical count; the live one
+   * is mid-way.
+   */
+  const zone = (name: string, ids: number[], played: number) => ({
+    leagueName: name,
+    table: {
+      all: ids.map((id, i) => ({ ...tableRow(id, `T${id}`, i + 1), played })),
+    },
+  });
+
+  const build = (tables: ReturnType<typeof zone>[]) => ({
+    details: { id: 112, name: 'Liga Profesional', selectedSeason: '2026' },
+    table: [{ data: { composite: true, tables, isCurrentSeason: true, selectedSeason: '2026' } }],
+    fixtures: {
+      allMatches: [
+        fixture(1, [1, 'T1'], [2, 'T2'], 1, 1, '1 - 0'),
+        fixture(2, [3, 'T3'], [4, 'T4'], 1, 1, '2 - 2'),
+      ],
+    },
+  });
+
+  it('keeps only the tournament still being played', async () => {
+    const league = build([
+      zone('Clausura - Group A', [1, 2], 6),
+      zone('Clausura - Group B', [3, 4], 6),
+      zone('Apertura - Group A', [1, 2], 16),
+      zone('Apertura - Group B', [3, 4], 16),
+    ]);
+    const snap = await buildSnapshot('argentina', league, { maxDetailRequests: 0 });
+    // Four clubs, not eight: no club appears in two tournaments at once.
+    expect(snap.teams).toHaveLength(4);
+    expect(snap.standings).toHaveLength(4);
+    expect(new Set(snap.standings.map((r) => r.teamId)).size).toBe(4);
+  });
+
+  it('ignores feed order when picking the live tournament', async () => {
+    // Panama's shape: the LIVE tournament is listed FIRST here, and second in
+    // the case above. Both must resolve to the mid-way one.
+    const league = build([
+      zone('Apertura - Eastern', [1, 2], 4),
+      zone('Apertura - Western', [3, 4], 4),
+      zone('Clausura - Eastern', [1, 2], 16),
+      zone('Clausura - Western', [3, 4], 16),
+    ]);
+    const snap = await buildSnapshot('panama', league, { maxDetailRequests: 0 });
+    expect(snap.teams).toHaveLength(4);
+    expect(snap.competition.conferences).toEqual(['Eastern', 'Western']);
+  });
+
+  it('names the tournament in the season and strips it from the groups', async () => {
+    const league = build([
+      zone('Clausura - Group A', [1, 2], 6),
+      zone('Clausura - Group B', [3, 4], 6),
+      zone('Apertura - Group A', [1, 2], 16),
+      zone('Apertura - Group B', [3, 4], 16),
+    ]);
+    const snap = await buildSnapshot('argentina', league, { maxDetailRequests: 0 });
+    expect(snap.season.label).toBe('2026 - Clausura');
+    // Stated once in the season, not repeated on every table heading.
+    expect(snap.competition.conferences).toEqual(['Group A', 'Group B']);
+  });
+
+  it('leaves a single-tournament composite alone', async () => {
+    // MLS must not be touched by any of this.
+    const mls = {
+      details: { id: 130, name: 'MLS', selectedSeason: '2026' },
+      table: [{ data: { composite: true, isCurrentSeason: true, selectedSeason: '2026', tables: [
+        { leagueName: 'Eastern', table: { all: [tableRow(1, 'A', 1), tableRow(2, 'B', 2)] } },
+        { leagueName: 'Western', table: { all: [tableRow(3, 'C', 1), tableRow(4, 'D', 2)] } },
+        { leagueName: 'Overall', table: { all: [1, 2, 3, 4].map((i, n) => tableRow(i, String(i), n + 1)) } },
+      ] } }],
+      fixtures: { allMatches: [fixture(1, [1, 'A'], [3, 'C'], 1, 1, '1 - 0')] },
+    };
+    const snap = await buildSnapshot('mls', mls, { maxDetailRequests: 0 });
+    expect(snap.competition.conferences).toEqual(['Eastern', 'Western']);
+    expect(snap.season.label).toBe('2026');
+  });
+});
