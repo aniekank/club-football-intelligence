@@ -591,3 +591,72 @@
   --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.45);
   --shadow-xl: 0 16px 48px rgb(0 0 0 / 0.65), 0 4px 12px rgb(0 0 0 / 0.5);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   "Carbon" — after the Air Jordan 14 Retro "Ferrari".
+
+   Red suede over black, a shield-yellow mark, and carbon-fibre grey through the
+   midsole. Named for the weave rather than the marque: a trademark makes a poor
+   UI label in a public repo, and the carbon is genuinely half of what that shoe
+   looks like.
+
+   The ground is a true neutral black — cooler than Linx's warm brown — so the
+   red reads as applied colour on a dark body, which is how it sits on the shoe.
+   Carbon grey does the work Linx gives to cream: secondary text, borders, the
+   quiet structural furniture.
+
+   THE ONE REAL CONFLICT. Red is the identity colour here, so `critical` cannot
+   also be red — an alarm indistinguishable from the brand is not an alarm. It
+   moves to magenta-pink, which stays unmistakably "stop" while ceding red to
+   the accent. Yellow takes `warning`, which is where the shield colour belongs
+   anyway. This is the same problem Linx has and the opposite solution: there,
+   red was the ROOM and critical stepped away from it; here red is the SUBJECT.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root[data-theme='carbon'] {
+  color-scheme: dark;
+
+  --surface-canvas: #0a0a0b;
+  --surface-1: #141416;
+  --surface-2: #1d1d20;
+  --surface-3: #27272b;
+  --surface-inset: #060607;
+
+  --border-subtle: #26262a;
+  --border-default: #35353b;
+  --border-strong: #4a4a52;
+
+  --text-primary: #f4f5f6;
+  --text-secondary: #b6bbc0;  /* carbon-fibre silver */
+  --text-muted: #7a7f86;
+  --text-inverse: #0a0a0b;
+
+  --brand: #e2231a;
+  --brand-hover: #f2453c;
+  --brand-press: #b8160f;
+  --brand-ink: #ffffff;       /* white on Ferrari red, not black */
+  --brand-faint: #2c0d0c;
+
+  --status-good: #2fc85a;
+  --status-warning: #f5d400;  /* the shield */
+  --status-serious: #ff7a1a;
+  --status-critical: #ff2d6f; /* ceded red to the brand — see above */
+  --status-good-faint: #0d2a16;
+  --status-warning-faint: #2e2a08;
+  --status-serious-faint: #331c0a;
+  --status-critical-faint: #330d1c;
+
+  --band-champion: #f5d400;
+  --band-ucl: #3f91e6;
+  --band-uel: #ff7a1a;
+  --band-conference: #14a98b;
+  --band-relegation-playoff: #f5d400;
+  --band-relegation: #ff2d6f;
+  --band-none: transparent;
+
+  --edge-highlight: rgb(255 255 255 / 0.09);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.55);
+  --shadow-md: 0 2px 8px rgb(0 0 0 / 0.6), 0 1px 2px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.65), 0 2px 6px rgb(0 0 0 / 0.5);
+  --shadow-xl: 0 16px 48px rgb(0 0 0 / 0.7), 0 4px 12px rgb(0 0 0 / 0.55);
+}
