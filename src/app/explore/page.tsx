@@ -129,8 +129,8 @@ function ClubScatter({
     <>
       <FilterBar>
         <ScopeToggle value="clubs" />
-        <ParamSelect name="x" value={xKey} options={options} label="X axis" className="w-56" />
-        <ParamSelect name="y" value={yKey} options={options} label="Y axis" className="w-56" />
+        <ParamSelect name="x" value={xKey} options={options} label="X axis" className="w-[14rem]" />
+        <ParamSelect name="y" value={yKey} options={options} label="Y axis" className="w-[14rem]" />
         <ResetFilters params={['x', 'y', 'scope', 'pos', 'mins']} />
       </FilterBar>
       <div className="mx-auto max-w-4xl p-4">
@@ -197,8 +197,8 @@ function PlayerScatter({
     <>
       <FilterBar>
         <ScopeToggle value="players" />
-        <ParamSelect name="x" value={xKey} options={options} label="X axis" className="w-56" />
-        <ParamSelect name="y" value={yKey} options={options} label="Y axis" className="w-56" />
+        <ParamSelect name="x" value={xKey} options={options} label="X axis" className="w-[14rem]" />
+        <ParamSelect name="y" value={yKey} options={options} label="Y axis" className="w-[14rem]" />
         <ParamToggle
           name="pos"
           value={pos}

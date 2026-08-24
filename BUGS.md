@@ -469,3 +469,50 @@ with the upstream ones afterwards.
 was the same failure in a subtler form: not a fabricated value, but a real value
 whose denominator had quietly changed. "Do we have this number?" was answered
 correctly; "does this number mean what the column says?" was never asked.
+
+---
+
+## CFI-015 — fifty-four Tailwind classes that were never classes
+
+**Status:** fixed · **Found:** a forecast bar with no height · **Severity:**
+medium — silent no-op styling across twenty-two files
+
+**Symptom.** A redesigned match-forecast bar rendered as nothing. No error, no
+warning: the values above it were fine, the bar simply was not there.
+
+**Root cause.** `tailwind.config.ts` sets `theme.spacing` — not
+`theme.extend.spacing` — to a deliberate 8pt scale of steps 0–10. That REPLACES
+Tailwind's default scale rather than adding to it, with two consequences:
+
+1. The steps mean different things. Step 5 is 24px here, not Tailwind's 20px.
+2. Anything outside 0–10 is not a class at all. `h-1.5` compiles to nothing, so
+   the bar had no height.
+
+A scan found **54 uses across 22 files**: `w-12`, `w-56`, `h-20`, `h-64`,
+`mt-12`, `gap-1.5`, `p-0.5`. Most predate this bar — column widths in the league
+table, chart heights on the home page, the footer's own top margin. All silently
+doing nothing.
+
+This is the third time the same scale caused a failure. It also put an embossed
+crest in the top-left corner instead of off the right edge (`-right-24`
+compiled to nothing, and an absolutely-positioned element with no inset falls
+back to its static position), and clipped the sticky season picker.
+
+**Fix.** Every out-of-scale use rewritten as an explicit arbitrary value —
+`h-[0.375rem]`, `w-[3rem]` — preserving the author's intent while making the
+class real. The scale itself is unchanged: it is a deliberate design decision
+and expanding it to absorb mistakes would give up the rhythm it exists to
+enforce.
+
+`spacingScale.test.ts` walks every `.tsx` and fails on any spacing utility
+outside 0–10, naming the file and line. Mutation-tested.
+
+**Lesson.** Silent no-ops are the worst failure mode a design system can have,
+and replacing a framework's scale rather than extending it manufactures them:
+every developer's Tailwind muscle memory becomes a source of invisible bugs.
+Either extend rather than replace, or make the replacement enforceable. The
+guard was the missing half of the decision.
+
+Worth noting the guard itself needed two attempts: the first version sniffed
+each line for a leading `*` or `//`, which flagged a paragraph EXPLAINING the
+rule as a violation of it. Comment state has to be tracked, not sniffed.

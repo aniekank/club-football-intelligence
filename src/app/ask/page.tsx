@@ -89,7 +89,7 @@ export default function AskPage({
               <Link
                 key={s}
                 href={`${base}&q=${encodeURIComponent(s)}`}
-                className="rounded-pill border border-border-subtle px-3 py-1.5 text-sm text-ink-secondary transition-colors duration-fast ease-standard hover:border-border hover:bg-surface-2 hover:text-ink"
+                className="rounded-pill border border-border-subtle px-3 py-[0.375rem] text-sm text-ink-secondary transition-colors duration-fast ease-standard hover:border-border hover:bg-surface-2 hover:text-ink"
               >
                 {s}
               </Link>
@@ -166,7 +166,7 @@ export default function AskPage({
                     <Link
                       key={f}
                       href={`${base}&q=${encodeURIComponent(f)}`}
-                      className="rounded-pill border border-border-subtle px-3 py-1.5 text-sm text-ink-secondary transition-colors duration-fast ease-standard hover:border-border hover:bg-surface-2 hover:text-ink"
+                      className="rounded-pill border border-border-subtle px-3 py-[0.375rem] text-sm text-ink-secondary transition-colors duration-fast ease-standard hover:border-border hover:bg-surface-2 hover:text-ink"
                     >
                       {f}
                     </Link>

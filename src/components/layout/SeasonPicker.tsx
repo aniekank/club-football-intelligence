@@ -46,7 +46,7 @@ export function SeasonPicker({
             aria-current={active ? 'true' : undefined}
             title={e.blurb}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-sm px-2 py-1 text-2xs font-semibold uppercase tracking-caps',
+              'inline-flex items-center gap-[0.375rem] rounded-sm px-2 py-1 text-2xs font-semibold uppercase tracking-caps',
               'transition-colors duration-fast ease-standard',
               active
                 ? 'bg-surface-3 text-ink'
@@ -54,7 +54,7 @@ export function SeasonPicker({
             )}
           >
             {e.live ? (
-              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-brand" />
+              <span aria-hidden="true" className="h-[0.375rem] w-[0.375rem] rounded-full bg-brand" />
             ) : null}
             {e.live ? 'Live' : e.seasonLabel.replace('/', '–')}
           </Link>

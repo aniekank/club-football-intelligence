@@ -61,7 +61,7 @@ export function PercentileBars({
             </span>
             <span className="flex items-baseline gap-2 text-right">
               <Figure className="w-8 text-xs font-semibold">{r.pct}</Figure>
-              <Figure tone="muted" className="w-12 text-2xs">{r.raw.toFixed(2)}</Figure>
+              <Figure tone="muted" className="w-[3rem] text-2xs">{r.raw.toFixed(2)}</Figure>
             </span>
             <span className="sr-only">
               {METRIC_LABELS[r.key] ?? r.key}: {r.pct}th percentile among {position}s,

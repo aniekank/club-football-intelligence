@@ -163,22 +163,22 @@ export function LeagueTable({
               {compact ? null : <Col k="wins" label="W" className="hidden w-10 sm:table-cell" />}
               {compact ? null : <Th className="hidden w-10 sm:table-cell">D</Th>}
               {compact ? null : <Th className="hidden w-10 sm:table-cell">L</Th>}
-              {compact ? null : <Th className="hidden w-12 lg:table-cell">GF</Th>}
-              {compact ? null : <Th className="hidden w-12 lg:table-cell">GA</Th>}
-              <Col k="goalDifference" label="GD" className="w-12" />
-              <Col k="points" label="Pts" className="w-12 font-bold text-ink" />
+              {compact ? null : <Th className="hidden w-[3rem] lg:table-cell">GF</Th>}
+              {compact ? null : <Th className="hidden w-[3rem] lg:table-cell">GA</Th>}
+              <Col k="goalDifference" label="GD" className="w-[3rem]" />
+              <Col k="points" label="Pts" className="w-[3rem] font-bold text-ink" />
               {hasXG ? (
-                <Col k="xGFor" label="xG" className="hidden w-16 xl:table-cell" title="Expected goals for" />
+                <Col k="xGFor" label="xG" className="hidden w-[4rem] xl:table-cell" title="Expected goals for" />
               ) : null}
               {hasXG ? (
-                <Col k="xGAgainst" label="xGA" better={false} className="hidden w-16 xl:table-cell" title="Expected goals against" />
+                <Col k="xGAgainst" label="xGA" better={false} className="hidden w-[4rem] xl:table-cell" title="Expected goals against" />
               ) : null}
-              {compact ? null : <Th className="hidden w-32 md:table-cell text-left">Form</Th>}
+              {compact ? null : <Th className="hidden w-[8rem] md:table-cell text-left">Form</Th>}
               {hasModel ? (
-                <Col k="titleProbability" label={topLabel} title={topTitle} className="w-20" />
+                <Col k="titleProbability" label={topLabel} title={topTitle} className="w-[5rem]" />
               ) : null}
               {hasModel && hasRelegation ? (
-                <Col k="relegationProbability" label="Rel" better={false} className="hidden w-20 lg:table-cell" />
+                <Col k="relegationProbability" label="Rel" better={false} className="hidden w-[5rem] lg:table-cell" />
               ) : null}
             </tr>
           </thead>

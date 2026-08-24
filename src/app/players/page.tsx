@@ -82,7 +82,7 @@ export default function PlayersPage({
                         <Link
                           href={`/players/${r.player.id}${suffix}`}
                           className={cn(
-                            'group grid grid-cols-[1.25rem_1fr_auto] items-center gap-2 rounded-sm px-1 py-1.5',
+                            'group grid grid-cols-[1.25rem_1fr_auto] items-center gap-2 rounded-sm px-1 py-[0.375rem]',
                             'transition-colors duration-fast ease-standard hover:bg-surface-2',
                           )}
                         >
@@ -101,7 +101,7 @@ export default function PlayersPage({
                                 the board readable without reading ten numbers. */}
                             <span
                               aria-hidden="true"
-                              className="hidden h-1 w-12 overflow-hidden rounded-full bg-surface-inset sm:block"
+                              className="hidden h-1 w-[3rem] overflow-hidden rounded-full bg-surface-inset sm:block"
                             >
                               <span
                                 className="block h-full rounded-full"

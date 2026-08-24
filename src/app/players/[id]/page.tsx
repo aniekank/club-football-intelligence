@@ -62,7 +62,7 @@ export default function PlayerPage({
                   width={64}
                   height={64}
                   loading="lazy"
-                  className="h-16 w-16 shrink-0 rounded-full bg-surface-2 object-cover"
+                  className="h-[4rem] w-[4rem] shrink-0 rounded-full bg-surface-2 object-cover"
                 />
                 <div className="min-w-0 flex-1">
                   <p className="eyebrow flex items-center gap-2">

@@ -66,12 +66,12 @@ export function SeasonProjection({
               <span className="relative block h-5" aria-hidden="true">
                 {/* p10–p90 */}
                 <span
-                  className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-seq-200/40"
+                  className="absolute top-1/2 h-[0.375rem] -translate-y-1/2 rounded-full bg-seq-200/40"
                   style={{ left: `${at(p.p10)}%`, width: `${at(p.p90) - at(p.p10)}%` }}
                 />
                 {/* interquartile */}
                 <span
-                  className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-full bg-seq-500/70"
+                  className="absolute top-1/2 h-[0.625rem] -translate-y-1/2 rounded-full bg-seq-500/70"
                   style={{ left: `${at(p.p25)}%`, width: `${Math.max(at(p.p75) - at(p.p25), 1)}%` }}
                 />
                 {/* median notch, ringed in the surface colour so it stays
@@ -87,7 +87,7 @@ export function SeasonProjection({
 
               <span className="flex items-baseline gap-2 text-right">
                 <Figure className="text-sm font-semibold">{p.p50}</Figure>
-                <Figure tone="muted" className="w-16 text-2xs">
+                <Figure tone="muted" className="w-[4rem] text-2xs">
                   {p.p10}–{p.p90}
                 </Figure>
               </span>
@@ -103,11 +103,11 @@ export function SeasonProjection({
 
       <figcaption className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-2xs text-ink-muted">
         <span className="inline-flex items-center gap-2">
-          <span className="h-1.5 w-6 rounded-full bg-seq-200/40" aria-hidden="true" />
+          <span className="h-[0.375rem] w-6 rounded-full bg-seq-200/40" aria-hidden="true" />
           10th–90th percentile
         </span>
         <span className="inline-flex items-center gap-2">
-          <span className="h-2.5 w-6 rounded-full bg-seq-500/70" aria-hidden="true" />
+          <span className="h-[0.625rem] w-6 rounded-full bg-seq-500/70" aria-hidden="true" />
           middle 50%
         </span>
         <span className="inline-flex items-center gap-2">

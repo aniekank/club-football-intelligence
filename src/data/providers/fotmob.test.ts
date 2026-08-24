@@ -515,3 +515,64 @@ describe('a season containing two separate tournaments', () => {
     expect(snap.season.label).toBe('2026');
   });
 });
+
+describe('club colours', () => {
+  /**
+   * `primaryColor` sat hardcoded to null from the first commit: the field
+   * existed, the UI read it, and nothing ever populated it — so every treatment
+   * keyed on club colour rendered transparent and looked like a design choice.
+   *
+   * The colours ride along on match detail, which is fetched anyway, so this
+   * costs no extra requests.
+   */
+  const league = {
+    details: { id: 47, name: 'Premier League', selectedSeason: '2026/2027' },
+    table: [{ data: {
+      legend: [],
+      table: { all: [tableRow(10, 'Alpha', 1), tableRow(20, 'Beta', 2), tableRow(30, 'Gamma', 3)] },
+      isCurrentSeason: true, selectedSeason: '2026/2027',
+    } }],
+    fixtures: {
+      allMatches: [fixture(1, [10, 'Alpha'], [20, 'Beta'], 1, 1, '1 - 0')],
+    },
+  };
+
+  it('takes both clubs colours from a covered match', async () => {
+    const snap = await buildSnapshot('epl', league, {
+      maxDetailRequests: 5,
+      // Shaped like the REAL response: teamColors sits under `general`, not at
+      // the root. The first version of this fixture put it at the root because
+      // that is where I assumed it was, and it passed while the feature did
+      // nothing — the same failure as CFI-013.
+      fetchDetails: async () => ({
+        general: { teamColors: { darkMode: { home: '#fd9416', away: '#C70101' } } },
+      }),
+    });
+    expect(snap.teams.find((t) => t.id === '10')?.primaryColor).toBe('#fd9416');
+    expect(snap.teams.find((t) => t.id === '20')?.primaryColor).toBe('#C70101');
+  });
+
+  it('leaves a club with no covered match at null rather than guessing', async () => {
+    const snap = await buildSnapshot('epl', league, {
+      maxDetailRequests: 5,
+      // Shaped like the REAL response: teamColors sits under `general`, not at
+      // the root. The first version of this fixture put it at the root because
+      // that is where I assumed it was, and it passed while the feature did
+      // nothing — the same failure as CFI-013.
+      fetchDetails: async () => ({
+        general: { teamColors: { darkMode: { home: '#fd9416', away: '#C70101' } } },
+      }),
+    });
+    // Gamma is in the table but plays no covered fixture.
+    expect(snap.teams.find((t) => t.id === '30')?.primaryColor).toBeNull();
+  });
+
+  it('survives a feed that omits colours entirely', async () => {
+    const snap = await buildSnapshot('epl', league, {
+      maxDetailRequests: 5,
+      fetchDetails: async () => ({}),
+    });
+    expect(snap.teams.every((t) => t.primaryColor === null)).toBe(true);
+    expect(checkSnapshot(snap).errors).toEqual([]);
+  });
+});

@@ -70,7 +70,7 @@ export function ThemeToggle() {
     <div
       role="radiogroup"
       aria-label="Colour theme"
-      className="flex items-center gap-0.5 rounded-sm border border-border-subtle p-0.5"
+      className="flex items-center gap-[0.125rem] rounded-sm border border-border-subtle p-[0.125rem]"
     >
       {THEMES.map((t) => {
         const active = t.id === theme;

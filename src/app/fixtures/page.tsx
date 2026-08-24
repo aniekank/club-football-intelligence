@@ -44,7 +44,7 @@ export default function FixturesPage({
           <div className="p-4">
             {!snapshot ? (
               <div className="space-y-2">
-                {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
+                {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-[5rem]" />)}
               </div>
             ) : (
               <FixtureList snapshot={snapshot} showResults={showResults} suffix={suffix} />

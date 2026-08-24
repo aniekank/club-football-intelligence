@@ -131,7 +131,7 @@ function Row({
       <span
         aria-hidden="true"
         className={cn(
-          'shrink-0 pt-0.5 text-xs leading-none',
+          'shrink-0 pt-[0.125rem] text-xs leading-none',
           event.type === 'YELLOW_CARD' && 'text-status-warning',
           red && 'text-status-critical',
           event.type === 'SUBSTITUTION' && 'text-ink-muted',
@@ -168,7 +168,7 @@ function Row({
   );
 
   return (
-    <li className="grid grid-cols-[1fr_auto_1fr] items-baseline gap-3 py-1.5">
+    <li className="grid grid-cols-[1fr_auto_1fr] items-baseline gap-3 py-[0.375rem]">
       <span className={cn('min-w-0 text-right', !isHome && 'invisible')}>
         {isHome ? linked : null}
       </span>

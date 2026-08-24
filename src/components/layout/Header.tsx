@@ -69,7 +69,7 @@ export function Header({
               name="q"
               placeholder="Search"
               aria-label="Search clubs and players"
-              className="h-8 w-32 rounded-sm border border-border-subtle bg-surface-1 px-2 text-xs placeholder:text-ink-muted focus-visible:shadow-focus lg:w-44"
+              className="h-8 w-[8rem] rounded-sm border border-border-subtle bg-surface-1 px-2 text-xs placeholder:text-ink-muted focus-visible:shadow-focus lg:w-[11rem]"
             />
           </form>
           {liveCount > 0 ? (

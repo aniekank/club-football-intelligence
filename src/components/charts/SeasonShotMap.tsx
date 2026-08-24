@@ -198,7 +198,7 @@ export function SeasonShotMap({
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <span className="inline-flex items-baseline gap-1.5">
+    <span className="inline-flex items-baseline gap-[0.375rem]">
       <span className="eyebrow">{label}</span>
       <span className="figure font-semibold">{value}</span>
     </span>

@@ -12,6 +12,9 @@ import { resolveActive } from '@/server/active';
 import { num, int, pct } from '@/lib/format';
 import { LocalTime } from '@/components/ui/LocalTime';
 import { predictMatch } from '@/analytics/poisson';
+import { EmbossedCrest } from '@/components/team/EmbossedCrest';
+import { clubWash, tooSimilar } from '@/lib/clubColor';
+import { cn } from '@/lib/cn';
 import type { Match, MatchTeamStats, Team } from '@/domain/types';
 
 export const dynamic = 'force-dynamic';
@@ -85,11 +88,62 @@ function MatchDetail({
       ? predictMatch(home, away, { venueKind: match.venueKind })
       : null;
 
+  /**
+   * The head-to-head accent.
+   *
+   * Two clubs, so the hero is built as a CLASH rather than a card with a
+   * scoreline in it: each side's colour washes in from its own edge and each
+   * club's crest is embossed bleeding off that same edge, so the page has a
+   * left and a right before you have read a word.
+   *
+   * Three constraints shape it, and all three are about not breaking the thing
+   * the reader came for.
+   *
+   * The gradient is TRANSPARENT THROUGH THE MIDDLE — the colour stops at 40%
+   * and resumes at 60%, and the score lives in that gap. Legibility of the
+   * scoreline never depends on a brand palette we do not control.
+   *
+   * The alpha is scaled by how light each colour is (see `clubWash`), because
+   * these come from a feed: Real Madrid's white and Juventus's black are both
+   * in here, and one of them will wash out a dark card at any fixed alpha.
+   *
+   * And when both clubs are effectively the same colour — Liverpool against
+   * Manchester United — the split is dropped entirely. A red-to-red gradient
+   * communicates nothing and just makes the card muddy; a real derby is better
+   * served by no accent than by a meaningless one.
+   */
+  const clash = !tooSimilar(home?.primaryColor ?? null, away?.primaryColor ?? null);
+  const homeWash = clash ? clubWash(home?.primaryColor ?? null) : 'transparent';
+  const awayWash = clash ? clubWash(away?.primaryColor ?? null) : 'transparent';
+
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <Card className="overflow-hidden">
-        <div className="border-b border-border-subtle px-4 py-3">
+      <Card className="relative isolate overflow-hidden">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-20"
+          style={{
+            background: `linear-gradient(100deg, ${homeWash} 0%, transparent 40%, transparent 60%, ${awayWash} 100%)`,
+          }}
+        />
+        {/* Ghosted marks — recognition at a glance, ignorable at a read. */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-[-4rem] top-1/2 -z-10 hidden -translate-y-1/2 sm:block"
+        >
+          <EmbossedCrest url={home?.crestUrl ?? null} size={210} opacity={0.24} />
+        </span>
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute right-[-4rem] top-1/2 -z-10 hidden -translate-y-1/2 sm:block"
+        >
+          <EmbossedCrest url={away?.crestUrl ?? null} size={210} opacity={0.24} />
+        </span>
+        {/* Opaque on purpose: the embossed marks bleed through the hero behind
+            this, and a competition name over a relief is harder to read than it
+            has any need to be. The clash belongs on the scoreline row. */}
+        <div className="relative border-b border-border-subtle bg-surface-1 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="eyebrow">
               {competitionName} · {match.roundLabel}
@@ -289,43 +343,78 @@ function TeamHero({ team, align }: { team: Team | undefined; align: 'start' | 'e
 }
 
 /** A single 100%-wide bar for the three-way outcome. One bar, one total. */
+/**
+ * The match forecast, as three shares of one bar.
+ *
+ * ── Numbers out of the bar ─────────────────────────────────────────────────
+ * This was a 32px block with the percentages set INSIDE each segment, which
+ * meant every value was hostage to its own width: a 9% draw had nowhere to put
+ * "9%", so the bar hid it and the reader lost the number entirely. Moving the
+ * figures above frees the bar to be a bar — 6px, doing one job — and every
+ * value reads at the same size whether it is 9% or 61%.
+ *
+ * ── Colour is not club colour ──────────────────────────────────────────────
+ * Club colours are now available and are deliberately NOT used here. Two clubs
+ * in one chart can collide — a Liverpool-Forest bar would be red against red —
+ * and neither palette is colour-vision validated. The series tokens are, and
+ * position already carries which side is which.
+ *
+ * ── The likeliest outcome is emphasised ────────────────────────────────────
+ * One of the three is what the model actually expects, and a reader scanning a
+ * fixture list wants that in one glance. Weight says it; colour does not have
+ * to, so the emphasis survives greyscale.
+ */
 function OutcomeBar({
   homeName, awayName, homeWin, draw, awayWin,
 }: {
   homeName: string; awayName: string;
   homeWin: number; draw: number; awayWin: number;
 }) {
+  const parts = [
+    { key: 'home', label: homeName, value: homeWin, fill: 'var(--series-1)', align: 'items-start text-left' },
+    { key: 'draw', label: 'Draw', value: draw, fill: 'var(--border-strong)', align: 'items-center text-center' },
+    { key: 'away', label: awayName, value: awayWin, fill: 'var(--series-2)', align: 'items-end text-right' },
+  ] as const;
+  const top = Math.max(homeWin, draw, awayWin);
+
   return (
     <div>
-      <div className="flex h-8 w-full overflow-hidden rounded-sm" role="img"
-        aria-label={`${homeName} win ${pct(homeWin)}, draw ${pct(draw)}, ${awayName} win ${pct(awayWin)}`}>
-        {/* A 2px surface gap between segments keeps the boundaries readable
-            without a border eating into the values. */}
-        <span
-          className="flex items-center justify-start pl-2 text-2xs font-semibold text-brand-ink"
-          style={{ width: `${homeWin * 100}%`, background: 'var(--series-1)' }}
-        >
-          {homeWin > 0.12 ? pct(homeWin) : ''}
-        </span>
-        <span aria-hidden="true" className="w-[2px] shrink-0 bg-surface-1" />
-        <span
-          className="flex items-center justify-center text-2xs font-semibold text-ink"
-          style={{ width: `${draw * 100}%`, background: 'var(--surface-3)' }}
-        >
-          {draw > 0.12 ? pct(draw) : ''}
-        </span>
-        <span aria-hidden="true" className="w-[2px] shrink-0 bg-surface-1" />
-        <span
-          className="flex items-center justify-end pr-2 text-2xs font-semibold text-brand-ink"
-          style={{ width: `${awayWin * 100}%`, background: 'var(--series-2)' }}
-        >
-          {awayWin > 0.12 ? pct(awayWin) : ''}
-        </span>
+      <div className="mb-2 grid grid-cols-3 gap-2">
+        {parts.map((p) => (
+          <div key={p.key} className={cn('flex min-w-0 flex-col', p.align)}>
+            <span className="flex items-center gap-[0.375rem] truncate">
+              <span
+                aria-hidden="true"
+                className="h-[0.375rem] w-[0.375rem] shrink-0 rounded-full"
+                style={{ background: p.fill }}
+              />
+              <span className="eyebrow truncate">{p.label}</span>
+            </span>
+            <Figure
+              className={cn(
+                'text-xl leading-tight',
+                p.value === top ? 'font-semibold text-ink' : 'text-ink-secondary',
+              )}
+            >
+              {pct(p.value)}
+            </Figure>
+          </div>
+        ))}
       </div>
-      <div className="mt-1 flex justify-between text-2xs text-ink-muted">
-        <span>{homeName}</span>
-        <span>Draw</span>
-        <span>{awayName}</span>
+
+      <div
+        className="flex h-[0.375rem] w-full overflow-hidden rounded-pill"
+        role="img"
+        aria-label={`${homeName} win ${pct(homeWin)}, draw ${pct(draw)}, ${awayName} win ${pct(awayWin)}`}
+      >
+        {parts.map((p, i) => (
+          <span key={p.key} className="flex h-full min-w-0" style={{ width: `${p.value * 100}%` }}>
+            {/* A 2px surface gap keeps the boundaries readable without a border
+                eating into the value it is meant to delimit. */}
+            {i > 0 ? <span aria-hidden="true" className="w-[2px] shrink-0 bg-surface-1" /> : null}
+            <span className="h-full flex-1 rounded-pill" style={{ background: p.fill }} />
+          </span>
+        ))}
       </div>
     </div>
   );

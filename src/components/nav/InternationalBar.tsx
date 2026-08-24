@@ -76,7 +76,7 @@ export function InternationalBar({
                     title={c.name}
                     style={{ ['--comp-active' as string]: `var(--comp-${c.accentKey})` }}
                     className={cn(
-                      'group inline-flex shrink-0 items-center gap-1.5 rounded-pill px-2 py-1',
+                      'group inline-flex shrink-0 items-center gap-[0.375rem] rounded-pill px-2 py-1',
                       'transition-colors duration-fast ease-standard',
                       active
                         ? 'bg-[color-mix(in_oklab,var(--comp-active)_18%,transparent)]'

@@ -210,6 +210,8 @@ interface FmMatchDetails {
     matchId?: number | string; leagueId?: number; matchRound?: number | string;
     started?: boolean; finished?: boolean; matchTimeUTC?: string;
     homeTeam?: { id: number; name: string }; awayTeam?: { id: number; name: string };
+    /** Club colours, already resolved per theme by the provider. */
+    teamColors?: { darkMode?: { home?: string; away?: string } };
   };
   content?: {
     shotmap?: { shots?: FmShot[] };
@@ -786,6 +788,8 @@ export async function buildSnapshot(
     });
 
   // ── Match detail, budgeted ───────────────────────────────────────────────
+  /** For writing club colours back onto the roster as details arrive. */
+  const teamById = new Map(teams.map((t) => [t.id, t]));
   const now = Date.now();
   const windowStart = now - detailWindowDays * 86_400_000;
   const detailTargets = matches
@@ -812,6 +816,32 @@ export async function buildSnapshot(
         [target.awayTeamId]: buildTeamStats(target.awayTeamId, details, 1),
       };
       target.shots = buildShots(target.id, details);
+
+      /**
+       * Club colours, taken from a request we were making anyway.
+       *
+       * `primaryColor` sat hardcoded to null since the first commit — the field
+       * existed, the UI read it, and nothing ever filled it, so every treatment
+       * keyed on club colour silently rendered as transparent. The colours live
+       * on the per-club endpoint, and fetching those at boot would be ~700
+       * extra requests across thirty-six competitions for a decorative tint.
+       *
+       * Match detail carries both clubs' colours, and the detail window is
+       * already fetched for shots and stats. So this costs nothing: any club
+       * appearing in a covered match gets its colour, and one that does not
+       * keeps null and the UI degrades exactly as it already did.
+       *
+       * `darkMode` is the provider's own dark-surface variant, which is the
+       * right starting point here — the light theme applies its own alpha.
+       */
+      const colors = details.general?.teamColors?.darkMode;
+      const paint = (teamId: ID, hex: string | undefined) => {
+        if (!hex) return;
+        const team = teamById.get(teamId);
+        if (team && !team.primaryColor) team.primaryColor = hex;
+      };
+      paint(target.homeTeamId, colors?.home);
+      paint(target.awayTeamId, colors?.away);
       /**
        * Momentum can carry null readings — minutes the provider has no value
        * for. A null is not a zero: plotting it would draw a spike to the

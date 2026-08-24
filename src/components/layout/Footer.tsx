@@ -75,7 +75,7 @@ export function Footer({ competitions }: { competitions: Competition[] }) {
   if (rest.length) regions.push({ title: 'Elsewhere', items: rest });
 
   return (
-    <footer className="mt-12 border-t border-border-subtle bg-surface-1">
+    <footer className="mt-[3rem] border-t border-border-subtle bg-surface-1">
       <div className="mx-auto max-w-container px-4 py-10">
         <div className="grid gap-8 lg:grid-cols-[1.1fr_2.4fr]">
           <div>
@@ -122,7 +122,12 @@ export function Footer({ competitions }: { competitions: Competition[] }) {
               How we frame betting value
             </Link>
           </p>
-          <p>Not affiliated with any club, league or betting operator.</p>
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>Not affiliated with any club, league or betting operator.</span>
+            <span className="text-ink-secondary">
+              A <span className="font-semibold text-ink">Task Enterprises</span> product
+            </span>
+          </p>
         </div>
       </div>
     </footer>
@@ -149,7 +154,7 @@ function FooterGroup({
             >
               <span
                 aria-hidden="true"
-                className="h-1.5 w-1.5 shrink-0 rounded-full opacity-70 transition-opacity duration-fast ease-standard group-hover:opacity-100"
+                className="h-[0.375rem] w-[0.375rem] shrink-0 rounded-full opacity-70 transition-opacity duration-fast ease-standard group-hover:opacity-100"
                 style={{ background: `var(--comp-${c.accentKey})` }}
               />
               {labelFor(c)}

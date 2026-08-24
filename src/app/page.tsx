@@ -322,14 +322,14 @@ function LoadingState() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
       <div className="space-y-2">
-        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-6 w-[10rem]" />
         {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-20 w-full" />
+          <Skeleton key={i} className="h-[5rem] w-full" />
         ))}
       </div>
       <div className="space-y-2">
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-[8rem] w-full" />
+        <Skeleton className="h-[16rem] w-full" />
       </div>
     </div>
   );

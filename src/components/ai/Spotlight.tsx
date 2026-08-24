@@ -123,7 +123,7 @@ export function Spotlight({ insights, suffix }: { insights: Insight[]; suffix: s
           {playing ? '❚❚' : '▶'}
         </button>
 
-        <div className="flex flex-1 items-center gap-1.5" role="tablist" aria-label="Storyline">
+        <div className="flex flex-1 items-center gap-[0.375rem]" role="tablist" aria-label="Storyline">
           {insights.map((ins, i) => {
             const active = i === index;
             return (
@@ -186,7 +186,7 @@ function StoryCard({
       {insight.metrics.length ? (
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-border-subtle pt-2">
           {insight.metrics.map((m) => (
-            <span key={m.label} className="inline-flex items-baseline gap-1.5">
+            <span key={m.label} className="inline-flex items-baseline gap-[0.375rem]">
               <span className="eyebrow">{m.label}</span>
               <Figure className="text-sm font-semibold">{m.value}</Figure>
             </span>

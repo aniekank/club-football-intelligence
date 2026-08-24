@@ -34,7 +34,7 @@ export function DivisionStrip({
       aria-label={`${country} divisions`}
       className="border-b border-border-subtle bg-surface-1/25"
     >
-      <div className="scroll-x mx-auto flex max-w-container items-center gap-2 px-4 py-1.5">
+      <div className="scroll-x mx-auto flex max-w-container items-center gap-2 px-4 py-[0.375rem]">
         <span className="eyebrow shrink-0">{country}</span>
         {divisions.map((d) => {
           const active = d.id === activeId;

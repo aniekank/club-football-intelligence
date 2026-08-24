@@ -164,7 +164,7 @@ export function ParamNumber({
           const v = Number(e.target.value);
           setParam({ [name]: Number.isFinite(v) && v !== defaultValue ? String(v) : null });
         }}
-        className="figure h-9 w-24 rounded-sm border border-border-subtle bg-surface-1 px-2 text-sm transition-colors duration-fast ease-standard hover:border-border focus-visible:shadow-focus"
+        className="figure h-9 w-[6rem] rounded-sm border border-border-subtle bg-surface-1 px-2 text-sm transition-colors duration-fast ease-standard hover:border-border focus-visible:shadow-focus"
       />
     </label>
   );

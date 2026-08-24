@@ -98,7 +98,7 @@ function PlayerRow({
         <span className="truncate text-sm">{slot.name}</span>
         {r !== null ? (
           <span
-            className="rounded-xs px-1.5 py-px"
+            className="rounded-xs px-[0.375rem] py-px"
             style={{
               // Ratings live in a narrow band; anchoring the tint at 6.0-8.5
               // makes the difference between a 6.4 and an 8.1 visible instead
