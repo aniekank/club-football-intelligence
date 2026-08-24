@@ -28,7 +28,7 @@ cp .env.example .env
 |---|---|
 | `npm run dev` | development server |
 | `npm run build && npm start` | production build |
-| `npm test` | 83 tests, hermetic, no network |
+| `npm test` | 93 tests, hermetic, no network |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npx tsx scripts/probe-fotmob.mts epl` | load a competition live and check conformance |
 | `npx tsx scripts/probe-forecast.mts epl` | run the full engine against live data |

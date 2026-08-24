@@ -13,7 +13,7 @@ Two tiers:
 
 ---
 
-## Automated coverage (83 tests)
+## Automated coverage (93 tests)
 
 | Area | File | What it pins |
 |---|---|---|
@@ -23,6 +23,7 @@ Two tiers:
 | Betting maths | `src/analytics/betting.test.ts` | De-vigging, Kelly bounds, value thresholds, market plausibility, readiness gate |
 | Data adapter | `src/data/providers/fotmob.test.ts` | Round classification, conformance, capability honesty, code collisions |
 | Snapshot store | `src/data/store.test.ts` | Index invalidation on swap, safe misses, stale-live guard |
+| Player views | `src/server/players.test.ts` | Per-90 vs ratio handling, mid-rank percentile ties, missing-metric omission, leaderboard minutes floor |
 
 **The single most important automated test** is
 `standings.test.ts → "the same results, two different champions"`. It runs one
