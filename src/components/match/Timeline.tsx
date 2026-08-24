@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Figure } from '@/components/ui';
 import { cn } from '@/lib/cn';
+import { playerHref } from '@/lib/entityLink';
 import type { MatchEvent, Team } from '@/domain/types';
 
 /**
@@ -49,13 +50,15 @@ function splitDetail(detail: string): [string, string | null] {
 }
 
 export function Timeline({
-  events, home, away, competitionId, seasonParam,
+  events, home, away, competitionId, seasonParam, knownPlayerIds,
 }: {
   events: MatchEvent[];
   home: Team | undefined;
   away: Team | undefined;
   competitionId: string;
   seasonParam?: string;
+  /** Ids that actually have a player page in this snapshot. */
+  knownPlayerIds: Set<string>;
 }) {
   if (!events.length) return null;
   const suffix = seasonParam
@@ -74,7 +77,7 @@ export function Timeline({
           className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border-subtle"
         />
         {key.map((e) => (
-          <Row key={e.id} event={e} home={home} away={away} suffix={suffix} />
+          <Row key={e.id} event={e} home={home} away={away} suffix={suffix} knownPlayerIds={knownPlayerIds} />
         ))}
       </ol>
 
@@ -90,7 +93,7 @@ export function Timeline({
               className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border-subtle"
             />
             {subs.map((e) => (
-              <Row key={e.id} event={e} home={home} away={away} suffix={suffix} muted />
+              <Row key={e.id} event={e} home={home} away={away} suffix={suffix} knownPlayerIds={knownPlayerIds} muted />
             ))}
           </ol>
         </details>
@@ -100,12 +103,13 @@ export function Timeline({
 }
 
 function Row({
-  event, home, away, suffix, muted,
+  event, home, away, suffix, knownPlayerIds, muted,
 }: {
   event: MatchEvent;
   home: Team | undefined;
   away: Team | undefined;
   suffix: string;
+  knownPlayerIds: Set<string>;
   muted?: boolean;
 }) {
   const isHome = event.teamId === home?.id;
@@ -152,11 +156,11 @@ function Row({
     </span>
   );
 
-  const linked = event.playerId ? (
-    <Link
-      href={`/players/${event.playerId}${suffix}`}
-      className="rounded-sm underline-offset-2 hover:underline"
-    >
+  // Linked only when the player has a page in this snapshot — a scorer whose
+  // season stats were never ingested is still named, just not clickable.
+  const href = playerHref(event.playerId, knownPlayerIds, suffix);
+  const linked = href ? (
+    <Link href={href} className="rounded-sm underline-offset-2 hover:underline">
       {content}
     </Link>
   ) : (

@@ -9,6 +9,7 @@ import { generateInsights, generateBriefing } from '@/ai/narratives';
 import { resolveActive, liveAcrossCompetitions } from '@/server/active';
 import { formatDate, dayKey, pct, relativeTime, num } from '@/lib/format';
 import type { Match } from '@/domain/types';
+import { entitySuffix } from '@/lib/entityLink';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,9 +37,7 @@ export default function HomePage({
     : null;
   const insights = narrativeCtx ? generateInsights(narrativeCtx) : [];
   const briefing = narrativeCtx ? generateBriefing(narrativeCtx, liveElsewhere) : null;
-  const seasonSuffix = searchParams.season
-    ? `?competition=${competition.id}&season=${searchParams.season}`
-    : `?competition=${competition.id}`;
+  const seasonSuffix = entitySuffix(competition.id, searchParams.season);
 
   return (
     <AppShell
@@ -72,7 +71,10 @@ export default function HomePage({
                   away={snap.teams.find((t) => t.id === match.awayTeamId)}
                   showCompetition
                   competitionName={snap.competition.name}
-                  href={`/matches/${match.id}?competition=${snap.competition.id}`}
+                  // This strip spans EVERY competition, so the link must carry
+                  // the match's own one, not the page's active one — and always
+                  // the live edition, since only live matches appear here.
+                  href={`/matches/${match.id}${entitySuffix(snap.competition.id)}`}
                 />
               ))}
             </div>
@@ -131,7 +133,7 @@ export default function HomePage({
         ) : (
           <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
             <div className="min-w-0 space-y-6">
-              <FixtureFeed snapshot={snapshot} />
+              <FixtureFeed snapshot={snapshot} suffix={seasonSuffix} />
             </div>
 
             <aside className="space-y-6">
@@ -195,7 +197,7 @@ export default function HomePage({
                   </Link>
                 } />
                 <div className="mt-3">
-                  <CompactTable snapshot={snapshot} />
+                  <CompactTable snapshot={snapshot} suffix={seasonSuffix} />
                 </div>
               </Card>
             </aside>
@@ -215,7 +217,7 @@ export default function HomePage({
  * that says "nothing scheduled" about a season with 380 played matches, which
  * reads as a broken page rather than a finished one.
  */
-function FixtureFeed({ snapshot }: { snapshot: NonNullable<ReturnType<typeof resolveActive>['snapshot']> }) {
+function FixtureFeed({ snapshot, suffix }: { snapshot: NonNullable<ReturnType<typeof resolveActive>['snapshot']>; suffix: string }) {
   const now = Date.now();
   const isHistorical = !snapshot.season.isCurrent;
 
@@ -270,7 +272,7 @@ function FixtureFeed({ snapshot }: { snapshot: NonNullable<ReturnType<typeof res
                   match={m}
                   home={snapshot.teams.find((t) => t.id === m.homeTeamId)}
                   away={snapshot.teams.find((t) => t.id === m.awayTeamId)}
-                  href={`/matches/${m.id}?competition=${snapshot.competition.id}`}
+                  href={`/matches/${m.id}${suffix}`}
                 />
               ))}
             </div>
@@ -281,7 +283,7 @@ function FixtureFeed({ snapshot }: { snapshot: NonNullable<ReturnType<typeof res
   );
 }
 
-function CompactTable({ snapshot }: { snapshot: NonNullable<ReturnType<typeof resolveActive>['snapshot']> }) {
+function CompactTable({ snapshot, suffix }: { snapshot: NonNullable<ReturnType<typeof resolveActive>['snapshot']>; suffix: string }) {
   if (!snapshot.standings.length) {
     return <EmptyState title="No table for this format" />;
   }
@@ -290,6 +292,7 @@ function CompactTable({ snapshot }: { snapshot: NonNullable<ReturnType<typeof re
       competition={snapshot.competition}
       standings={snapshot.standings.slice(0, 8)}
       teams={snapshot.teams}
+      suffix={suffix}
       compact
     />
   );

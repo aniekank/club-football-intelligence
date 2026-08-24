@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/cn';
+import { sectionRoot } from '@/lib/sectionRoot';
 import type { Edition } from '@/data/editions';
 
 /**
@@ -29,10 +30,9 @@ export function SeasonPicker({
     if (edition.live) next.delete('season');
     else next.set('season', edition.seasonLabel.replace('/', '-'));
     // A season change invalidates any entity id in the path — a 2015/16 player
-    // does not exist in the current squad — so it always lands on the section
-    // root rather than 404ing on a stale id.
-    const root = `/${pathname.split('/').filter(Boolean)[0] ?? ''}`;
-    return `${root}?${next.toString()}`;
+    // does not exist in the current squad — so it always lands on the section's
+    // LIST route rather than 404ing on a stale id.
+    return `${sectionRoot(pathname)}?${next.toString()}`;
   }
 
   return (

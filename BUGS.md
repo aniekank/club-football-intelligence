@@ -255,3 +255,74 @@ inferred from a missing league.
 Rejecting a whole competition over a cosmetic field trades a small defect for a
 large one; the same rigour applied to a scoreline or a team reference is right,
 because those genuinely poison everything downstream.
+
+---
+
+## CFI-009 — coverage counted a live match as covered but not as played
+
+**Status:** fixed · **Found:** live, mid-matchday · **Severity:** high — the
+whole EPL refresh was rejected while a game was in progress
+
+**Symptom.** `/api/health` reported `loaded 10 · failed 1` with
+`meta.playerStatsCoverage: matchesCovered exceeds matchesPlayed`. Nothing broke
+visibly, because the previously-loaded snapshot kept serving.
+
+**Root cause.** Match detail is fetched for LIVE matches as well as FINISHED
+ones, and a live match's minutes are genuinely folded into the running totals.
+But the coverage denominator counted only FINISHED matches. The moment a game
+kicked off, covered exceeded played and conformance rejected the snapshot.
+
+**Fix.** The denominator is every match that could have detail — finished OR in
+progress — and `matchesCovered` is clamped to it rather than merely counted, so
+the invariant does not depend on two filters agreeing forever.
+
+**Lesson.** A gate that only fails during a narrow window fails in production
+and never in testing. The graceful degradation worked exactly as designed — but
+"the site still looks fine" is why this could have gone unnoticed for weeks.
+Health output has to be read, not assumed.
+
+---
+
+## CFI-010 — the historical editions were loaded, rendered, and un-clickable
+
+**Status:** fixed · **Found:** by crawling every internal link · **Severity:**
+high — the archive feature was a dead end
+
+**Symptom.** `/table?competition=epl&season=2015-2016` rendered the 2015/16
+table correctly — Leicester, 81 points — and every single club link on it 404'd.
+Same for every player on the archive players page. A link crawl over 18 seed
+pages found **137 dead links**.
+
+**Root cause.** Three separate defects that all presented as a 404:
+
+1. **Entity links dropped the season.** An id is only meaningful inside one
+   EDITION — team 40 is a 2015/16 club and does not exist in the live snapshot —
+   but nine link sites were built as `?competition=epl`, so they resolved against
+   the live season. The correct `suffix` pattern already existed in five other
+   places; the two had silently drifted apart.
+2. **Both switchers derived a dead base path.** The season picker sent
+   `/matches/[id]` to `/matches` and `/teams/[id]` to `/teams`, neither of which
+   is a route — the lists live at `/fixtures` and `/table`. The competition rail
+   kept the entity id entirely, carrying an EPL match id into LaLiga.
+3. **A squad member with no stats row 404'd.** `buildPlayerView` returned
+   undefined when a player had no aggregated stats, so the page called
+   `notFound()` for every unused substitute — 40 dead links on one match page.
+
+**Fix.** One `entitySuffix()` so the two conventions cannot drift; one
+`sectionRoot()` mapping detail routes to their real list route, used by both
+switchers; and `buildPlayerView` degrading to identity-only instead of
+vanishing. An unused substitute is a real player with a club, a shirt number and
+a position — a 404 asserts they do not exist, which is false.
+
+Verified by re-crawling: **590 links, 0 non-200**, and clicking through the
+archive lands on Ranieri's Leicester and Kane's 25-goal season.
+
+**Lesson.** Every one of these pages returned HTTP 200 and looked right. The
+defect was only ever visible in what the page LINKED to, which no page test
+checks. The link crawl also caught a regression I introduced while fixing the
+others — the home page's live strip spans every competition, so it must carry
+each match's own competition, not the active page's.
+
+The guard that matters most is `sectionRoot.test.ts`: it walks `src/app`, and
+fails if a new `[id]` route appears without a list-route mapping, or if a mapping
+points at a directory with no `page.tsx`. Mutation-tested both ways.

@@ -39,7 +39,12 @@ export const MIN_PEERS = 8;
 export interface PlayerView {
   player: Player;
   team: Team | undefined;
-  stats: PlayerStats;
+  /**
+   * Absent for a player who is in the squad but has no aggregated stats row —
+   * an unused substitute, or someone signed mid-window. They are still a real
+   * player with a club, a shirt number and a position.
+   */
+  stats: PlayerStats | undefined;
   /** Per-90 rates for volume metrics. */
   per90: Record<string, number>;
   /** 0–100 against positional peers. Missing key = not rankable, not zero. */
@@ -182,9 +187,20 @@ export function buildPlayerView(
   const player = snapshot.players.find((p) => p.id === playerId);
   if (!player) return undefined;
   const stats = snapshot.playerStats.find((s) => s.playerId === playerId);
-  if (!stats) return undefined;
-
   const team = snapshot.teams.find((t) => t.id === player.teamId);
+
+  /**
+   * No stats row is NOT "no such player".
+   *
+   * This returned undefined, the page called notFound(), and every unused
+   * substitute on every teamsheet 404'd — 40 dead links on a single match page.
+   * A 404 asserts the player does not exist, which is false and is exactly the
+   * kind of confident wrongness the capability flags exist to prevent. The view
+   * degrades to identity-only instead and the page says so.
+   */
+  if (!stats) {
+    return { player, team, stats: undefined, per90: {}, percentiles: {}, peerCount: 0 };
+  }
   const per90 = computePer90(stats);
   const { byPosition, counts } = peerTables(snapshot);
   const table = byPosition.get(player.position);

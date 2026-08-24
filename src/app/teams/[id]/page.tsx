@@ -11,6 +11,7 @@ import { resolveActive } from '@/server/active';
 import { teamAcrossCompetitions } from '@/server/teams';
 import { pct, num, signed, int, ordinal } from '@/lib/format';
 import { zoneForRank } from '@/domain/competitions';
+import { entitySuffix } from '@/lib/entityLink';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,7 @@ export default function TeamPage({
   searchParams: { competition?: string; season?: string };
 }) {
   const { competition, snapshot, available, forecast, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
+  const suffix = entitySuffix(competition.id, searchParams.season);
   const team = snapshot?.teams.find((t) => t.id === params.id);
   if (snapshot && !team) notFound();
 
@@ -102,6 +104,9 @@ export default function TeamPage({
                   {elsewhere.map((e) => (
                     <Link
                       key={e.competition.id}
+                      // Deliberately WITHOUT the season suffix: this crosses into
+                      // another competition, where the current season's key is
+                      // meaningless. Its live edition is the right destination.
                       href={`/teams/${team.id}?competition=${e.competition.id}`}
                       style={{ ['--comp-active' as string]: `var(--comp-${e.competition.accentKey})` }}
                       className="inline-flex items-center gap-2 rounded-sm border border-border-subtle px-2 py-1 text-xs transition-colors duration-fast ease-standard hover:border-border hover:bg-surface-2"
@@ -206,7 +211,7 @@ export default function TeamPage({
                         match={m}
                         home={snapshot.teams.find((t) => t.id === m.homeTeamId)}
                         away={snapshot.teams.find((t) => t.id === m.awayTeamId)}
-                        href={`/matches/${m.id}?competition=${competition.id}`}
+                        href={`/matches/${m.id}${suffix}`}
                       />
                     ))
                   )}
@@ -225,7 +230,7 @@ export default function TeamPage({
                         match={m}
                         home={snapshot.teams.find((t) => t.id === m.homeTeamId)}
                         away={snapshot.teams.find((t) => t.id === m.awayTeamId)}
-                        href={`/matches/${m.id}?competition=${competition.id}`}
+                        href={`/matches/${m.id}${suffix}`}
                       />
                     ))
                   )}
@@ -254,6 +259,7 @@ export default function TeamPage({
                     competition={snapshot.competition}
                     standings={aroundRank(snapshot.standings, standing?.rank ?? 1)}
                     teams={snapshot.teams}
+                suffix={suffix}
                     highlightTeamId={team.id}
                   />
                 </div>

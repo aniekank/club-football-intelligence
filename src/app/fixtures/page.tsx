@@ -4,6 +4,7 @@ import { Card, CardHeader, EmptyState, Skeleton, Badge } from '@/components/ui';
 import { resolveActive } from '@/server/active';
 import { dayKey, formatDate } from '@/lib/format';
 import type { Match } from '@/domain/types';
+import { entitySuffix } from '@/lib/entityLink';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Fixtures' };
@@ -14,6 +15,7 @@ export default function FixturesPage({
   searchParams: { competition?: string; season?: string; view?: string };
 }) {
   const { competition, snapshot, available, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
+  const suffix = entitySuffix(competition.id, searchParams.season);
   const showResults = searchParams.view === 'results';
 
   return (
@@ -45,7 +47,7 @@ export default function FixturesPage({
                 {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
               </div>
             ) : (
-              <FixtureList snapshot={snapshot} showResults={showResults} />
+              <FixtureList snapshot={snapshot} showResults={showResults} suffix={suffix} />
             )}
           </div>
         </Card>
@@ -70,10 +72,12 @@ function Toggle({ href, active, children }: { href: string; active: boolean; chi
 }
 
 function FixtureList({
-  snapshot, showResults,
+  snapshot, showResults, suffix,
 }: {
   snapshot: NonNullable<ReturnType<typeof resolveActive>['snapshot']>;
   showResults: boolean;
+  /** Carries the season, so a link from an archive page stays in that edition. */
+  suffix: string;
 }) {
   const relevant = snapshot.matches
     .filter((m) => (showResults ? m.status === 'FINISHED' : m.status !== 'FINISHED'))
@@ -109,7 +113,7 @@ function FixtureList({
                 match={m}
                 home={snapshot.teams.find((t) => t.id === m.homeTeamId)}
                 away={snapshot.teams.find((t) => t.id === m.awayTeamId)}
-                href={`/matches/${m.id}?competition=${snapshot.competition.id}`}
+                href={`/matches/${m.id}${suffix}`}
               />
             ))}
           </div>

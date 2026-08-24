@@ -4,6 +4,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { resolveActive } from '@/server/active';
 import { hasConferences } from '@/domain/competitions';
 import { relativeTime } from '@/lib/format';
+import { entitySuffix } from '@/lib/entityLink';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,7 @@ export default function TablePage({
   searchParams: { competition?: string; season?: string; sort?: string; dir?: string };
 }) {
   const { competition, snapshot, available, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
+  const suffix = entitySuffix(competition.id, searchParams.season);
 
   return (
     <AppShell
@@ -75,6 +77,7 @@ export default function TablePage({
                         competition={snapshot.competition}
                         standings={rows}
                         teams={snapshot.teams}
+                suffix={suffix}
                         sortable
                         sort={searchParams.sort}
                         dir={searchParams.dir}
@@ -88,6 +91,7 @@ export default function TablePage({
                 competition={snapshot.competition}
                 standings={snapshot.standings}
                 teams={snapshot.teams}
+                suffix={suffix}
                 sortable
                 sort={searchParams.sort}
                 dir={searchParams.dir}

@@ -32,6 +32,9 @@ export default function MatchPage({
 
   const home = match ? snapshot?.teams.find((t) => t.id === match.homeTeamId) : undefined;
   const away = match ? snapshot?.teams.find((t) => t.id === match.awayTeamId) : undefined;
+  // A lineup names everyone who was on the teamsheet; only those with season
+  // stats in this snapshot have a page to link to.
+  const knownPlayerIds = new Set((snapshot?.players ?? []).map((p) => p.id));
 
   return (
     <AppShell
@@ -50,6 +53,7 @@ export default function MatchPage({
             away={away}
             competitionName={snapshot.competition.name}
             hasMomentum={snapshot.meta.capabilities.hasMomentum}
+            knownPlayerIds={knownPlayerIds}
           />
         )}
       </div>
@@ -58,13 +62,15 @@ export default function MatchPage({
 }
 
 function MatchDetail({
-  match, home, away, competitionName, hasMomentum,
+  match, home, away, competitionName, hasMomentum, knownPlayerIds,
 }: {
   match: Match;
   home: Team | undefined;
   away: Team | undefined;
   competitionName: string;
   hasMomentum: boolean;
+  /** Ids with a player page in this snapshot; a teamsheet names more than that. */
+  knownPlayerIds: Set<string>;
 }) {
   const isLive = match.status === 'LIVE' || match.status === 'HALFTIME';
   const played = match.homeScore !== null && match.awayScore !== null;
@@ -136,6 +142,7 @@ function MatchDetail({
               home={home}
               away={away}
               competitionId={match.competitionId}
+              knownPlayerIds={knownPlayerIds}
             />
           </div>
         </Card>
@@ -238,6 +245,7 @@ function MatchDetail({
               lineups={match.lineups}
               formations={match.formations}
               competitionId={match.competitionId}
+              knownPlayerIds={knownPlayerIds}
             />
           </div>
         </Card>

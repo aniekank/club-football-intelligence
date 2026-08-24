@@ -8,6 +8,7 @@ import {
   teamRows, playerRows, grouped, minutesDefault,
 } from '@/lib/metrics';
 import type { Position } from '@/domain/types';
+import { entitySuffix } from '@/lib/entityLink';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Explore' };
@@ -31,9 +32,7 @@ export default function ExplorePage({
   const { competition, snapshot, available, editions, edition } =
     resolveActive(searchParams.competition, searchParams.season);
   const seasonParam = searchParams.season ?? '';
-  const suffix = seasonParam
-    ? `?competition=${competition.id}&season=${seasonParam}`
-    : `?competition=${competition.id}`;
+  const suffix = entitySuffix(competition.id, seasonParam);
 
   const scope = searchParams.scope === 'players' ? 'players' : 'clubs';
   const hasPlayers = Boolean(snapshot?.meta.capabilities.hasPlayerStats);

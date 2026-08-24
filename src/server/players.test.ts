@@ -147,3 +147,32 @@ describe('leaderboards', () => {
     expect(board.map((r) => r.player.id)).toEqual(['p0', 'cameo']);
   });
 });
+
+describe('a squad member with no stats row', () => {
+  /**
+   * REGRESSION: this returned undefined, the page called notFound(), and every
+   * unused substitute 404'd — 40 dead links on one match page. An unused sub is
+   * a real player with a club, a shirt number and a position; a 404 asserts they
+   * do not exist. The view degrades to identity-only instead.
+   */
+  const p = player('sub1', 'GK');
+  const snap = snapshot([p, player('p1'), player('p2')], [stats('p1'), stats('p2')]);
+
+  it('still resolves to a view', () => {
+    const view = buildPlayerView(snap, 'sub1');
+    expect(view).toBeDefined();
+    expect(view!.player.id).toBe('sub1');
+  });
+
+  it('reports no stats rather than fabricating zeroes', () => {
+    const view = buildPlayerView(snap, 'sub1')!;
+    expect(view.stats).toBeUndefined();
+    expect(view.per90).toEqual({});
+    expect(view.percentiles).toEqual({});
+    expect(view.peerCount).toBe(0);
+  });
+
+  it('still returns undefined for an id that is genuinely absent', () => {
+    expect(buildPlayerView(snap, 'nobody')).toBeUndefined();
+  });
+});

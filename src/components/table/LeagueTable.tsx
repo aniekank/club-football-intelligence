@@ -45,9 +45,15 @@ const BAND_TOKEN: Record<ZoneKind, string> = {
 
 export function LeagueTable({
   competition, standings, teams, showModel = true, highlightTeamId, compact = false,
-  sort, dir, sortable = false,
+  sort, dir, sortable = false, suffix,
 }: {
   competition: Competition;
+  /**
+   * Query string for club links. Carries the season as well as the competition —
+   * team 40 is a 2015/16 club and does not exist in the live snapshot, so an
+   * archive table whose links omitted the season 404'd on every row.
+   */
+  suffix: string;
   standings: StandingRow[];
   teams: Team[];
   showModel?: boolean;
@@ -191,7 +197,7 @@ export function LeagueTable({
                     <div className="flex items-center gap-2">
                       {team ? (
                         <Link
-                          href={`/teams/${team.id}?competition=${competition.id}`}
+                          href={`/teams/${team.id}${suffix}`}
                           className="min-w-0 rounded-sm underline-offset-2 hover:underline"
                         >
                           <TeamLabel

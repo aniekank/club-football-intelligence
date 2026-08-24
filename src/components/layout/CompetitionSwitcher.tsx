@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/cn';
+import { sectionRoot } from '@/lib/sectionRoot';
 import type { Competition } from '@/domain/types';
 
 /**
@@ -30,7 +31,11 @@ export function CompetitionSwitcher({
   function hrefFor(id: string): string {
     const next = new URLSearchParams(params.toString());
     next.set('competition', id);
-    return `${pathname}?${next.toString()}`;
+    // Changing competition invalidates any entity id in the path just as a
+    // season change does — an EPL match id is not a LaLiga match id — so this
+    // drops to the section's list route instead of carrying a dead id across.
+    next.delete('season');
+    return `${sectionRoot(pathname)}?${next.toString()}`;
   }
 
   return (

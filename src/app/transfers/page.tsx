@@ -6,6 +6,7 @@ import { summariseForTeam } from '@/data/providers/fotmobTransfers';
 import { eur } from '@/lib/money';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/cn';
+import { playerHref, entitySuffix } from '@/lib/entityLink';
 import type { Transfer, TransferKind } from '@/domain/types';
 
 export const dynamic = 'force-dynamic';
@@ -33,9 +34,7 @@ export default function TransfersPage({
   const { competition, snapshot, available, editions, edition } =
     resolveActive(searchParams.competition, searchParams.season);
   const seasonParam = searchParams.season ?? '';
-  const suffix = seasonParam
-    ? `?competition=${competition.id}&season=${seasonParam}`
-    : `?competition=${competition.id}`;
+  const suffix = entitySuffix(competition.id, seasonParam);
 
   const all = snapshot?.transfers ?? [];
   const kind = searchParams.kind ?? 'all';
@@ -47,6 +46,8 @@ export default function TransfersPage({
   });
 
   const teamById = new Map((snapshot?.teams ?? []).map((t) => [t.id, t]));
+  // Only these ids have a player page in this snapshot; the rest are named only.
+  const knownPlayerIds = new Set((snapshot?.players ?? []).map((p) => p.id));
 
   // Disclosed fees only — the caveat is stated wherever the number appears.
   const disclosed = filtered.filter((t) => t.feeEur !== null);
@@ -142,7 +143,7 @@ export default function TransfersPage({
                   </thead>
                   <tbody>
                     {filtered.slice(0, 120).map((t) => (
-                      <Row key={t.id} t={t} suffix={suffix} teamById={teamById} />
+                      <Row key={t.id} t={t} suffix={suffix} teamById={teamById} knownPlayerIds={knownPlayerIds} />
                     ))}
                   </tbody>
                 </table>
@@ -207,10 +208,11 @@ export default function TransfersPage({
 }
 
 function Row({
-  t, suffix, teamById,
+  t, suffix, teamById, knownPlayerIds,
 }: {
   t: Transfer;
   suffix: string;
+  knownPlayerIds: Set<string>;
   teamById: Map<string, { id: string; code: string; name: string; shortName: string; crestUrl: string | null }>;
 }) {
   const club = (id: string | null, name: string) => {
@@ -231,9 +233,19 @@ function Row({
   return (
     <tr className="border-b border-border-subtle/60 transition-colors duration-fast ease-standard hover:bg-surface-2">
       <td className="px-4 py-2 font-medium">
-        <Link href={`/players/${t.playerId}${suffix}`} className="underline-offset-2 hover:underline">
-          {t.playerName}
-        </Link>
+        {(() => {
+          // Same rule the club columns already follow: a player with no page in
+          // this snapshot is named, not linked. Most transfers name at least one
+          // party who is not in this competition's squad list.
+          const href = playerHref(t.playerId, knownPlayerIds, suffix);
+          return href ? (
+            <Link href={href} className="underline-offset-2 hover:underline">
+              {t.playerName}
+            </Link>
+          ) : (
+            <span>{t.playerName}</span>
+          );
+        })()}
       </td>
       <td className="px-2 py-2 text-2xs uppercase tracking-caps text-ink-muted">{t.position ?? '—'}</td>
       <td className="px-2 py-2">{club(t.fromTeamId, t.fromTeamName)}</td>

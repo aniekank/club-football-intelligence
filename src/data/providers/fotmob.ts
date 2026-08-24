@@ -857,13 +857,27 @@ export async function buildSnapshot(
   const players = [...fold.players.values()];
   const playerStats = finaliseFold(fold);
   coveredKickoffs.sort();
-  const playedCount = matches.filter((m) => m.status === 'FINISHED').length;
+  /**
+   * The denominator is every match that COULD have detail, not every finished
+   * one.
+   *
+   * Detail is fetched for anything in progress as well as anything finished,
+   * and a live match's minutes and shots are genuinely folded into the running
+   * totals. Counting only finished matches made coverage exceed the total the
+   * moment a game kicked off — which the conformance gate caught, and which
+   * rejected the whole EPL refresh mid-matchday.
+   */
+  const withData = matches.filter(
+    (m) => m.status === 'FINISHED' || m.status === 'LIVE' || m.status === 'HALFTIME',
+  ).length;
   const coverage = players.length
     ? {
-        matchesCovered: coveredKickoffs.length,
-        matchesPlayed: playedCount,
+        // Clamped as well as counted. The invariant is load-bearing enough that
+        // it should not depend on two filters agreeing forever.
+        matchesCovered: Math.min(coveredKickoffs.length, withData),
+        matchesPlayed: withData,
         from: coveredKickoffs[0] ?? null,
-        complete: coveredKickoffs.length >= playedCount,
+        complete: coveredKickoffs.length >= withData,
       }
     : undefined;
 

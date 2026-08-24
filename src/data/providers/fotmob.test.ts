@@ -211,3 +211,59 @@ describe('capability honesty', () => {
     expect(checkSnapshot(snap).ok).toBe(true);
   });
 });
+
+describe('stats coverage while a match is in progress', () => {
+  /**
+   * REGRESSION (found live, mid-matchday): detail is fetched for LIVE matches as
+   * well as finished ones, but coverage counted only finished matches as the
+   * denominator. The moment a game kicked off, matchesCovered exceeded
+   * matchesPlayed, conformance rejected the snapshot, and the entire EPL refresh
+   * failed. The previous snapshot kept serving, so nothing broke visibly — which
+   * is exactly why it needs a test.
+   */
+  const league = {
+    details: { id: 47, name: 'Premier League', selectedSeason: '2026/2027' },
+    table: [{ data: {
+      legend: [],
+      table: { all: [tableRow(10, 'Alpha', 1), tableRow(20, 'Beta', 2)] },
+      isCurrentSeason: true, selectedSeason: '2026/2027',
+    } }],
+    fixtures: {
+      allMatches: [
+        fixture(1, [10, 'Alpha'], [20, 'Beta'], 1, 1, '1 - 0'),
+        // In progress: started, not finished.
+        {
+          ...fixture(2, [20, 'Beta'], [10, 'Alpha'], 2, 2, null),
+          status: {
+            utcTime: '2026-09-16T19:00:00Z',
+            started: true, finished: false, cancelled: false,
+            liveTime: { short: "63'" },
+          },
+        },
+      ],
+    },
+  };
+
+  it('counts an in-progress match in the denominator', async () => {
+    const details = {
+      content: {
+        playerStats: {
+          '1': {
+            id: 1, teamId: '10', name: 'Someone', usualPosition: 2,
+            stats: [{ stats: { 'Minutes played': { key: 'minutes_played', stat: { value: 63 } } } }],
+          },
+        },
+      },
+    };
+    const snap = await buildSnapshot('epl', league, {
+      maxDetailRequests: 5,
+      fetchDetails: async () => details,
+    });
+
+    const coverage = snap.meta.playerStatsCoverage!;
+    expect(coverage.matchesCovered).toBeLessThanOrEqual(coverage.matchesPlayed);
+    // Both the finished match and the live one are counted.
+    expect(coverage.matchesPlayed).toBe(2);
+    expect(checkSnapshot(snap).errors).toEqual([]);
+  });
+});

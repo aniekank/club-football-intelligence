@@ -6,6 +6,7 @@ import { resolveActive } from '@/server/active';
 import { leaderboard, METRIC_LABELS, PEER_MINUTES_FLOOR } from '@/server/players';
 import { num, int } from '@/lib/format';
 import { cn } from '@/lib/cn';
+import { entitySuffix } from '@/lib/entityLink';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Players' };
@@ -29,6 +30,7 @@ export default function PlayersPage({
   searchParams: { competition?: string; season?: string };
 }) {
   const { competition, snapshot, available, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
+  const suffix = entitySuffix(competition.id, searchParams.season);
   const coverage = snapshot?.meta.playerStatsCoverage;
   const hasPlayers = Boolean(snapshot?.meta.capabilities.hasPlayerStats);
 
@@ -78,7 +80,7 @@ export default function PlayersPage({
                     {rows.map((r, i) => (
                       <li key={r.player.id}>
                         <Link
-                          href={`/players/${r.player.id}?competition=${competition.id}`}
+                          href={`/players/${r.player.id}${suffix}`}
                           className={cn(
                             'group grid grid-cols-[1.25rem_1fr_auto] items-center gap-2 rounded-sm px-1 py-1.5',
                             'transition-colors duration-fast ease-standard hover:bg-surface-2',

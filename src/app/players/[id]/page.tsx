@@ -8,6 +8,7 @@ import { Card, CardHeader, Crest, Figure, StatTile, EmptyState, Badge } from '@/
 import { resolveActive } from '@/server/active';
 import { buildPlayerView } from '@/server/players';
 import { num, int, signed } from '@/lib/format';
+import { entitySuffix } from '@/lib/entityLink';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,7 @@ export default function PlayerPage({
   searchParams: { competition?: string; season?: string };
 }) {
   const { competition, snapshot, available, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
+  const suffix = entitySuffix(competition.id, searchParams.season);
   const view = snapshot ? buildPlayerView(snapshot, params.id) : undefined;
   if (snapshot && !view) notFound();
 
@@ -35,6 +37,8 @@ export default function PlayerPage({
     : [];
 
   const coverage = snapshot?.meta.playerStatsCoverage;
+  // Absent for a squad member with no aggregated stats row — see buildPlayerView.
+  const stats = view?.stats;
 
   return (
     <AppShell
@@ -64,7 +68,7 @@ export default function PlayerPage({
                   <p className="eyebrow flex items-center gap-2">
                     {view.team ? (
                       <Link
-                        href={`/teams/${view.team.id}?competition=${competition.id}`}
+                        href={`/teams/${view.team.id}${suffix}`}
                         className="inline-flex items-center gap-1 hover:text-ink"
                       >
                         <Crest url={view.team.crestUrl} code={view.team.code} name={view.team.name} size={14} />
@@ -88,11 +92,11 @@ export default function PlayerPage({
                     <CoverageNote coverage={coverage} />
                   </div>
                 </div>
-                {view.stats.averageRating !== null ? (
+                {stats && stats.averageRating !== null ? (
                   <div className="text-right">
                     <p className="eyebrow">Rating</p>
                     <p className="figure text-4xl font-bold leading-none">
-                      {num(view.stats.averageRating, 2)}
+                      {num(stats.averageRating, 2)}
                     </p>
                     <p className="text-2xs text-ink-muted">minutes-weighted</p>
                   </div>
@@ -103,12 +107,22 @@ export default function PlayerPage({
               </div>
             </Card>
 
+            {!stats ? (
+              <Card>
+                <CardHeader
+                  eyebrow="No stats yet"
+                  title="Named in the squad, no minutes recorded"
+                  description="This player appears on a teamsheet in this competition but has no aggregated stats in the current snapshot — typically an unused substitute or a recent signing. Identity is shown; rates and percentiles are not, because there is nothing to compute them from."
+                />
+              </Card>
+            ) : (
+            <>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-              <StatTile label="Minutes" value={int(view.stats.minutes)} sub={`${view.stats.appearances} ${view.stats.appearances === 1 ? 'app' : 'apps'}, ${view.stats.starts} ${view.stats.starts === 1 ? 'start' : 'starts'}`} />
-              <StatTile label="Goals" value={int(view.stats.goals)} />
-              <StatTile label="Assists" value={int(view.stats.assists)} />
-              <StatTile label="xG" value={num(view.stats.xG, 2)} />
-              <StatTile label="xA" value={num(view.stats.xA, 2)} />
+              <StatTile label="Minutes" value={int(stats.minutes)} sub={`${stats.appearances} ${stats.appearances === 1 ? 'app' : 'apps'}, ${stats.starts} ${stats.starts === 1 ? 'start' : 'starts'}`} />
+              <StatTile label="Goals" value={int(stats.goals)} />
+              <StatTile label="Assists" value={int(stats.assists)} />
+              <StatTile label="xG" value={num(stats.xG, 2)} />
+              <StatTile label="xA" value={num(stats.xA, 2)} />
               <StatTile
                 label="Goals − xG"
                 value={signed(view.per90.goalsMinusXg ?? 0, 2)}
@@ -161,7 +175,7 @@ export default function PlayerPage({
                   </thead>
                   <tbody>
                     {DETAIL_ROWS.map((r) => {
-                      const total = (view.stats as unknown as Record<string, number>)[r.key];
+                      const total = (stats as unknown as Record<string, number>)[r.key];
                       if (total === undefined) return null;
                       const p90 = view.per90[r.key];
                       const pctl = view.percentiles[r.key];
@@ -184,6 +198,8 @@ export default function PlayerPage({
                 </table>
               </div>
             </Card>
+            </>
+            )}
           </>
         )}
       </div>

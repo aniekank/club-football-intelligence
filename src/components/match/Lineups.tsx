@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Figure, Badge } from '@/components/ui';
 import { cn } from '@/lib/cn';
+import { playerHref } from '@/lib/entityLink';
 import type { LineupSlot, Team } from '@/domain/types';
 
 /**
@@ -16,13 +17,15 @@ import type { LineupSlot, Team } from '@/domain/types';
  * the tint is reinforcement rather than the carrier.
  */
 export function Lineups({
-  home, away, lineups, formations, competitionId,
+  home, away, lineups, formations, competitionId, knownPlayerIds,
 }: {
   home: Team | undefined;
   away: Team | undefined;
   lineups: Record<string, LineupSlot[]>;
   formations?: { home: string | null; away: string | null };
   competitionId: string;
+  /** Ids that actually have a player page in this snapshot. */
+  knownPlayerIds: Set<string>;
 }) {
   const sides = [
     { team: home, slots: home ? lineups[home.id] : undefined, formation: formations?.home },
@@ -43,7 +46,7 @@ export function Lineups({
             {(slots ?? [])
               .filter((s) => s.isStarter)
               .map((s) => (
-                <PlayerRow key={s.playerId} slot={s} competitionId={competitionId} />
+                <PlayerRow key={s.playerId} slot={s} competitionId={competitionId} known={knownPlayerIds} />
               ))}
           </ul>
           {(slots ?? []).some((s) => !s.isStarter) ? (
@@ -53,7 +56,7 @@ export function Lineups({
                 {(slots ?? [])
                   .filter((s) => !s.isStarter)
                   .map((s) => (
-                    <PlayerRow key={s.playerId} slot={s} competitionId={competitionId} muted />
+                    <PlayerRow key={s.playerId} slot={s} competitionId={competitionId} known={knownPlayerIds} muted />
                   ))}
               </ul>
             </>
@@ -65,19 +68,29 @@ export function Lineups({
 }
 
 function PlayerRow({
-  slot, competitionId, muted,
-}: { slot: LineupSlot; competitionId: string; muted?: boolean }) {
+  slot, competitionId, known, muted,
+}: { slot: LineupSlot; competitionId: string; known: Set<string>; muted?: boolean }) {
   const r = slot.rating;
+  const href = playerHref(slot.playerId, known, `?competition=${competitionId}`);
+  const layout = cn(
+    'grid grid-cols-[1.75rem_2rem_1fr_auto] items-center gap-2 rounded-sm px-1 py-1',
+    muted && 'opacity-75',
+  );
+  // A named player with no page in this snapshot still belongs in the lineup —
+  // the row renders identically, minus the affordance that would 404.
+  const Row = href
+    ? ({ children }: { children: React.ReactNode }) => (
+        <Link
+          href={href}
+          className={cn(layout, 'transition-colors duration-fast ease-standard hover:bg-surface-2')}
+        >
+          {children}
+        </Link>
+      )
+    : ({ children }: { children: React.ReactNode }) => <div className={layout}>{children}</div>;
   return (
     <li>
-      <Link
-        href={`/players/${slot.playerId}?competition=${competitionId}`}
-        className={cn(
-          'grid grid-cols-[1.75rem_2rem_1fr_auto] items-center gap-2 rounded-sm px-1 py-1',
-          'transition-colors duration-fast ease-standard hover:bg-surface-2',
-          muted && 'opacity-75',
-        )}
-      >
+      <Row>
         <Figure tone="muted" className="text-2xs">
           {slot.shirtNumber ?? '—'}
         </Figure>
@@ -98,7 +111,7 @@ function PlayerRow({
         ) : (
           <span className="text-2xs text-ink-muted">—</span>
         )}
-      </Link>
+      </Row>
     </li>
   );
 }
