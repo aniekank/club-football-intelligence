@@ -1,5 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  /**
+   * Build output directory, overridable per-invocation.
+   *
+   * `next build` and `next dev` share `.next` by default, so a verification
+   * build run while the dev server is up overwrites the chunks that server is
+   * still referencing. The site keeps serving HTML, the stylesheet 404s, and
+   * every page renders as unstyled markup — which looks like a catastrophic CSS
+   * regression rather than a local collision. `npm run build:verify` writes
+   * elsewhere so the two cannot collide; deploys use the default.
+   */
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   reactStrictMode: true,
   poweredByHeader: false,
   experimental: {

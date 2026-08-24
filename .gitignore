@@ -12,3 +12,4 @@ out/
 !/src/data/cache/.gitkeep
 !/src/data/cache/statsbomb-*.json
 .snapshot-cache/
+.next-verify/

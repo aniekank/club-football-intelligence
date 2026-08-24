@@ -2,7 +2,7 @@
   "name": "club-football-intelligence",
   "version": "0.1.0",
   "private": true,
-  "description": "Club Football Intelligence — cross-league club football analytics, forecasting and betting intelligence",
+  "description": "Club Football Intelligence \u2014 cross-league club football analytics, forecasting and betting intelligence",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,7 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "data:statsbomb": "node scripts/fetch-statsbomb.mjs",
-    "palette:validate": "node scripts/validate-palette.mjs"
+    "palette:validate": "node scripts/validate-palette.mjs",
+    "build:verify": "NEXT_DIST_DIR=.next-verify next build",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run build:verify"
   },
   "dependencies": {
     "clsx": "2.1.1",
