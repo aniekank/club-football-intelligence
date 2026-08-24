@@ -1,6 +1,8 @@
 import { Suspense } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { CountryRail } from '@/components/nav/CountryRail';
+import { InternationalBar } from '@/components/nav/InternationalBar';
 import { liveAcrossCompetitions } from '@/server/active';
 import type { Competition } from '@/domain/types';
 import type { Edition } from '@/data/editions';
@@ -24,6 +26,15 @@ export function AppShell({
   const key = accentKey ?? active?.accentKey ?? 'default';
   const liveCount = liveAcrossCompetitions().length;
 
+  /**
+   * The split is `tier`, which the registry already carried — a domestic league
+   * has a country and belongs in the flag rail; a continental competition does
+   * not and belongs in the centred bar. Deriving it means adding a competition
+   * is a registry edit and nothing else.
+   */
+  const domestic = competitions.filter((c) => c.tier === 'domestic-league');
+  const international = competitions.filter((c) => c.tier !== 'domestic-league');
+
   return (
     <div
       className="flex min-h-screen flex-col bg-canvas"
@@ -32,14 +43,33 @@ export function AppShell({
       {/* useSearchParams in the switcher requires a Suspense boundary. */}
       <Suspense fallback={<div className="h-header border-b border-border-subtle" />}>
         <Header
-          competitions={competitions}
           activeId={activeId}
           liveCount={liveCount}
           editions={editions}
           activeEditionKey={activeEditionKey}
         />
       </Suspense>
-      <main id="main" className="flex-1">{children}</main>
+
+      {/*
+        Rail and content sit side by side from `lg`. Below that the rail
+        collapses to a horizontal scroller above the content, because a phone
+        has no left margin to spend on permanent navigation.
+      */}
+      <div className="flex flex-1 flex-col lg:flex-row lg:items-start">
+        <Suspense fallback={<div className="border-b border-border-subtle lg:w-[6rem] lg:border-b-0 lg:border-r" />}>
+          <div className="lg:w-[6rem] lg:shrink-0">
+            <CountryRail competitions={domestic} activeId={activeId} />
+          </div>
+        </Suspense>
+
+        <div className="min-w-0 flex-1">
+          <Suspense fallback={<div className="h-10 border-b border-border-subtle" />}>
+            <InternationalBar competitions={international} activeId={activeId} />
+          </Suspense>
+          <main id="main">{children}</main>
+        </div>
+      </div>
+
       <Footer competitions={competitions} />
     </div>
   );

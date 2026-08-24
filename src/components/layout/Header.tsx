@@ -1,24 +1,21 @@
 import Link from 'next/link';
 import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemeToggle } from './ThemeToggle';
-import { CompetitionSwitcher } from './CompetitionSwitcher';
 import { SeasonPicker } from './SeasonPicker';
 import { LiveDot } from '@/components/ui';
-import type { Competition } from '@/domain/types';
 import type { Edition } from '@/data/editions';
 
 /**
  * The application shell's top bar.
  *
- * Sticky, one row on mobile and two on desktop, with the competition switcher
- * given its own rail — a club product is navigated BY competition far more
- * often than by section, so that control earns permanent space rather than
- * living in a menu.
+ * Sticky. Sections, search and theme only — competition selection moved OUT of
+ * here, into a country rail down the left edge and a centred international bar,
+ * because a club product is navigated by competition far more often than by
+ * section and a single horizontal strip could not carry fourteen of them.
  */
 export function Header({
-  competitions, activeId, liveCount, editions, activeEditionKey,
+  activeId, liveCount, editions, activeEditionKey,
 }: {
-  competitions: Competition[];
   activeId: string | null;
   liveCount: number;
   editions?: Edition[];
@@ -71,18 +68,13 @@ export function Header({
         </div>
       </div>
 
-      <div className="border-t border-border-subtle/60">
-        <div className="mx-auto flex max-w-container items-center gap-4 px-4">
-          <div className="min-w-0 flex-1">
-            <CompetitionSwitcher competitions={competitions} activeId={activeId} />
+      {editions && editions.length > 1 ? (
+        <div className="border-t border-border-subtle/60">
+          <div className="mx-auto flex max-w-container items-center justify-end gap-4 px-4 py-1">
+            <SeasonPicker editions={editions} activeKey={activeEditionKey} />
           </div>
-          {editions && editions.length > 1 ? (
-            <div className="shrink-0 py-1">
-              <SeasonPicker editions={editions} activeKey={activeEditionKey} />
-            </div>
-          ) : null}
         </div>
-      </div>
+      ) : null}
     </header>
   );
 }

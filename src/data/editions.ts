@@ -38,7 +38,10 @@ export interface Edition {
 
 /** Competitions loaded live at boot, in priority order. */
 export const BOOT_COMPETITIONS = [
-  'epl', 'laliga', 'seriea', 'bundesliga', 'ligue1', 'ucl', 'mls', 'ligamx',
+  // Domestic leagues, then the continental competitions. Order matters only for
+  // boot sequencing — the navigation groups them by `tier`, not by this list.
+  'epl', 'laliga', 'seriea', 'bundesliga', 'ligue1', 'mls', 'ligamx',
+  'ucl', 'uel', 'uecl', 'cwc', 'libertadores', 'concacaf', 'afc',
 ];
 
 const LIVE_EDITIONS: Edition[] = BOOT_COMPETITIONS.map((competitionId) => ({

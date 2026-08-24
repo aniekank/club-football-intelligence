@@ -326,3 +326,73 @@ each match's own competition, not the active page's.
 The guard that matters most is `sectionRoot.test.ts`: it walks `src/app`, and
 fails if a new `[id]` route appears without a list-route mapping, or if a mapping
 points at a directory with no `page.tsx`. Mutation-tested both ways.
+
+---
+
+## CFI-011 — a group stage loaded as a four-club competition
+
+**Status:** fixed · **Found:** health output after adding the international
+competitions · **Severity:** high — three competitions silently wrong
+
+**Symptom.** FIFA Club World Cup loaded with **4 teams**, Copa Libertadores with
+4, and AFC Champions League Elite with 16. All three reported `ready`, with no
+error, and rendered a perfectly plausible small table.
+
+**Root cause.** Composite tables were parsed on the assumption that they are
+always "several conferences PLUS one combined overall", which is true of MLS
+(Eastern 15, Western 15, Shield 30). The combined table was found by taking the
+**widest** block. A group stage is eight groups of four and has no combined table
+at all, so the widest was simply the first group — and the roster became Group A.
+
+**The fix that did not work.** Comparing sizes: a combined table should be half
+the total. That works for MLS and fails for AFC, where West-16 plus East-16 is
+arithmetically identical to a combined-16 plus one group of 16.
+
+**Fix.** A semantic test instead: the combined table is the one that *contains
+exactly the clubs of all the others*. True of the Shield table, false of West, of
+Group A, and of every real group. When none matches, the roster is the union of
+every block and each block is a genuine group.
+
+**Lesson.** "Take the widest" is a heuristic standing in for a definition. It
+survived because MLS was the only composite competition in the product, and it
+broke the moment a second shape arrived. The regression test now covers all
+three shapes — combined-plus-groups, groups-with-no-combined, and two equal
+regions — because the third is what makes the arithmetic shortcut wrong.
+
+---
+
+## CFI-012 — three ways a competition claimed something it had not won
+
+**Status:** fixed · **Found:** reading the rendered tables · **Severity:**
+medium — misleading, not incorrect arithmetic
+
+Three separate misstatements, all surfaced by adding knockout competitions.
+
+**A pure knockout rendered a table of zeroes.** Named rounds are excluded from
+tallying — a final is not a matchweek, which is the CFI-001 fix — but a
+competition made *entirely* of named rounds then produced a full standings table
+with every club on played 0, points 0. CONCACAF Champions Cup looked like an
+authoritative ranking of nothing. It now produces no standings, and the format
+already had an honest empty state to fall back to.
+
+**A group winner was labelled "Champions".** The adapter prefers the feed's
+qualification legend over the registry, which is right for a league — it tracks
+that season's real European allocation. FotMob labels position 1 of every block
+"Champions", so Palmeiras topping Group A of the Club World Cup was captioned as
+champions of it. The registry's own bands now win for group formats.
+
+**A projection described a table that was not on screen.** The season model
+ranks ONE combined table and reports P(finish 1st overall). Under a partitioned
+table that is not what the column says: it read as "64% to win the Eastern
+Conference" when it was really P(top all thirty MLS clubs), and as a flat 0% for
+every club in a completed Club World Cup group that somebody had plainly won.
+Model columns are now suppressed on grouped tables, with a line saying why.
+
+**Lesson.** Each of these was a *label* problem rather than a maths problem, and
+none would fail a test that only checked numbers. The product already spends
+real effort refusing to call a league leader "champions"
+(`titleDecidedByPlayoff`); the same claim walked back in through a vendor legend
+and through a probability whose denominator had quietly changed.
+
+**Still open:** the simulator cannot rank within a group. Suppressing the column
+is honest but it is not the feature — per-group projection is the real fix.

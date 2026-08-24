@@ -64,8 +64,20 @@ export default function TablePage({
                 description="This competition has not started, or its format has no league table."
               />
             ) : hasConferences(snapshot.competition) ? (
-              // One table per conference. A combined ranking would be wrong:
-              // a play-off place is earned against your own conference.
+              /*
+                One table per conference or group. A combined ranking would be
+                wrong: a play-off place is earned against your own conference,
+                and a group is won against your own group.
+
+                `showModel={false}` is a correctness fix, not a layout choice.
+                The season simulation ranks ONE global table and reports
+                P(finish 1st overall). Under a partitioned table that number
+                does not mean what the column label says — it read as "64% to
+                win the Eastern Conference" when it was really the probability
+                of topping all thirty clubs, and as a flat 0% for every club in
+                a completed Club World Cup group that somebody plainly won.
+                Suppressed until the simulator can rank within a group.
+              */
               <div className="space-y-6">
                 {(snapshot.competition.conferences ?? []).map((conference) => {
                   const rows = snapshot.standings.filter((r) => r.groupId === conference);
@@ -77,7 +89,8 @@ export default function TablePage({
                         competition={snapshot.competition}
                         standings={rows}
                         teams={snapshot.teams}
-                suffix={suffix}
+                        suffix={suffix}
+                        showModel={false}
                         sortable
                         sort={searchParams.sort}
                         dir={searchParams.dir}
@@ -85,6 +98,11 @@ export default function TablePage({
                     </section>
                   );
                 })}
+                <p className="px-3 text-xs text-ink-muted">
+                  Projections are not shown for a competition played in groups.
+                  The season model ranks one combined table, so its numbers would
+                  not describe the group you are looking at.
+                </p>
               </div>
             ) : (
               <LeagueTable

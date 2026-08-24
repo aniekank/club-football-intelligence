@@ -191,6 +191,110 @@ export const EUROPA_LEAGUE: Competition = {
 };
 
 /**
+ * Conference League — the third tier of the same Swiss model.
+ *
+ * Structurally identical to the Champions League: one 36-club league phase,
+ * eight matches each, top eight straight to the last 16 and 9th–24th into a
+ * play-off. Sharing the definition is right here, and would be wrong for the
+ * competitions below — see Copa Libertadores.
+ */
+export const CONFERENCE_LEAGUE: Competition = {
+  ...CHAMPIONS_LEAGUE,
+  id: 'uecl',
+  name: 'Conference League',
+  shortName: 'UECL',
+  accentKey: 'uecl',
+};
+
+/**
+ * FIFA Club World Cup — eight groups of four, then a bracket.
+ *
+ * The OLD format, and the tiebreakers with it: FIFA resolves a level group on
+ * goal difference before head-to-head, the opposite of the Champions League's
+ * Swiss chain. Copying UCL's tiebreakers here would silently reorder groups.
+ */
+export const CLUB_WORLD_CUP: Competition = {
+  id: 'cwc',
+  name: 'FIFA Club World Cup',
+  shortName: 'CWC',
+  format: 'group-knockout',
+  tier: 'continental',
+  country: 'World',
+  countryCode: 'INT',
+  accentKey: 'cwc',
+  tiebreakers: ['points', 'goal-difference', 'goals-for', 'head-to-head', 'disciplinary'],
+  headToHeadChain: ['points', 'goal-difference', 'goals-for'],
+  zones: [
+    { kind: 'knockout-direct', fromRank: 1, toRank: 2, label: 'Round of 16', shortLabel: 'R16' },
+    { kind: 'eliminated', fromRank: 3, toRank: 4, label: 'Eliminated', shortLabel: 'OUT' },
+  ],
+  pointsForWin: 3,
+  pointsForDraw: 1,
+};
+
+/**
+ * Copa Libertadores — CONMEBOL's eight groups of four.
+ *
+ * CONMEBOL puts goal difference ahead of head-to-head too, and adds goals
+ * scored AWAY as a live criterion in the group stage, which UEFA dropped.
+ */
+export const LIBERTADORES: Competition = {
+  ...CLUB_WORLD_CUP,
+  id: 'libertadores',
+  name: 'Copa Libertadores',
+  shortName: 'LIB',
+  country: 'South America',
+  accentKey: 'libertadores',
+  tiebreakers: ['points', 'goal-difference', 'goals-for', 'away-goals', 'disciplinary'],
+  headToHeadChain: undefined,
+};
+
+/**
+ * CONCACAF Champions Cup — a pure bracket.
+ *
+ * No group stage at all, so no table: `zones` is empty and the standings page
+ * degrades to "no table for this format" rather than inventing a ranking. The
+ * fixtures and the model still work, which is the whole point of keeping format
+ * as data rather than as an assumption.
+ */
+export const CONCACAF_CHAMPIONS_CUP: Competition = {
+  id: 'concacaf',
+  name: 'CONCACAF Champions Cup',
+  shortName: 'CCC',
+  format: 'knockout',
+  tier: 'continental',
+  country: 'North America',
+  countryCode: 'INT',
+  accentKey: 'concacaf',
+  tiebreakers: ['points', 'goal-difference', 'goals-for'],
+  zones: [],
+  pointsForWin: 3,
+  pointsForDraw: 1,
+};
+
+/**
+ * AFC Champions League Elite — a league phase split West and East.
+ *
+ * The clubs never cross regions in the league phase, so this is the MLS problem
+ * again in different clothing: rank WITHIN a region, and never merge the two
+ * into one ranking. `conferences` is what drives that, and the machinery is
+ * already there.
+ */
+export const AFC_CHAMPIONS_ELITE: Competition = {
+  ...CHAMPIONS_LEAGUE,
+  id: 'afc',
+  name: 'AFC Champions League Elite',
+  shortName: 'AFC',
+  country: 'Asia',
+  accentKey: 'afc',
+  conferences: ['West', 'East'],
+  zones: [
+    { kind: 'knockout-direct', fromRank: 1, toRank: 8, label: 'Round of 16', shortLabel: 'R16' },
+    { kind: 'eliminated', fromRank: 9, toRank: 16, label: 'Eliminated', shortLabel: 'OUT' },
+  ],
+};
+
+/**
  * Major League Soccer.
  *
  * Two things make this genuinely different from every European league here, and
@@ -263,6 +367,11 @@ export const COMPETITIONS: Competition[] = [
   LIGUE_1,
   CHAMPIONS_LEAGUE,
   EUROPA_LEAGUE,
+  CONFERENCE_LEAGUE,
+  CLUB_WORLD_CUP,
+  LIBERTADORES,
+  CONCACAF_CHAMPIONS_CUP,
+  AFC_CHAMPIONS_ELITE,
   MLS,
   LIGA_MX,
 ];

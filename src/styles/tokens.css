@@ -121,6 +121,11 @@
   --comp-uel: #f08a2e;
   --comp-mls: #4ac2c9;
   --comp-ligamx: #59c26e;
+  --comp-uecl: #4fb477;
+  --comp-cwc: #d4a54a;
+  --comp-libertadores: #6fbf5e;
+  --comp-concacaf: #4aa8c9;
+  --comp-afc: #c76ba8;
   --comp-default: #c8f751;
 
   /* ── Typography ─────────────────────────────────────────────────────────
@@ -310,6 +315,11 @@
     --comp-uel: #c2620d;
     --comp-mls: #14808a;
     --comp-ligamx: #1f8a3c;
+    --comp-uecl: #167a45;
+    --comp-cwc: #8c6410;
+    --comp-libertadores: #2e8a20;
+    --comp-concacaf: #16708c;
+    --comp-afc: #97367a;
     --comp-default: #6f9410;
 
     --shadow-sm: 0 1px 2px rgb(16 20 24 / 0.06);
@@ -396,6 +406,11 @@
   --comp-uel: #c2620d;
   --comp-mls: #14808a;
   --comp-ligamx: #1f8a3c;
+  --comp-uecl: #167a45;
+  --comp-cwc: #8c6410;
+  --comp-libertadores: #2e8a20;
+  --comp-concacaf: #16708c;
+  --comp-afc: #97367a;
   --comp-default: #6f9410;
 
   --shadow-sm: 0 1px 2px rgb(16 20 24 / 0.06);

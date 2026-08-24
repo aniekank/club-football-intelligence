@@ -267,3 +267,141 @@ describe('stats coverage while a match is in progress', () => {
     expect(checkSnapshot(snap).errors).toEqual([]);
   });
 });
+
+describe('composite tables without a combined block', () => {
+  /**
+   * REGRESSION: the combined table was found by taking the WIDEST block, which
+   * assumes one exists. A group stage has eight groups of four and no combined
+   * table, so the widest was simply the first group — the Club World Cup loaded
+   * as a four-club competition and looked entirely plausible.
+   *
+   * Comparing sizes does not fix it: AFC's West-16 + East-16 is arithmetically
+   * identical to a combined-16 + one group of 16. The test has to be semantic.
+   */
+  const group = (name: string, ids: number[]) => ({
+    leagueName: name,
+    table: { all: ids.map((id, i) => tableRow(id, `T${id}`, i + 1)) },
+  });
+
+  const composite = (tables: ReturnType<typeof group>[], fixtures: ReturnType<typeof fixture>[]) => ({
+    details: { id: 78, name: 'FIFA Club World Cup', selectedSeason: '2025' },
+    table: [{ data: { composite: true, tables, isCurrentSeason: true, selectedSeason: '2025' } }],
+    fixtures: { allMatches: fixtures },
+  });
+
+  it('takes the union of the groups when no combined table exists', async () => {
+    const league = composite(
+      [group('Grp. A', [1, 2, 3, 4]), group('Grp. B', [5, 6, 7, 8])],
+      [
+        fixture(1, [1, 'T1'], [2, 'T2'], 1, 1, '1 - 0'),
+        fixture(2, [5, 'T5'], [6, 'T6'], 1, 1, '2 - 2'),
+      ],
+    );
+    const snap = await buildSnapshot('cwc', league, { maxDetailRequests: 0 });
+    // Eight clubs, not the four of the first group.
+    expect(snap.teams).toHaveLength(8);
+    expect(snap.standings).toHaveLength(8);
+    // Each group is ranked on its own, so both groups have a rank 1.
+    const firsts = snap.standings.filter((r) => r.rank === 1);
+    expect(firsts).toHaveLength(2);
+  });
+
+  it('still finds a genuine combined table and does not double-count it', async () => {
+    // MLS: East, West, and a Shield table containing every club in both.
+    const league = composite(
+      [
+        group('Eastern', [1, 2]),
+        group('Western', [3, 4]),
+        group('Overall', [1, 2, 3, 4]),
+      ],
+      [fixture(1, [1, 'T1'], [3, 'T3'], 1, 1, '1 - 0')],
+    );
+    const snap = await buildSnapshot('mls', league, { maxDetailRequests: 0 });
+    // Four clubs — the Shield table is the roster, not a fifth group.
+    expect(snap.teams).toHaveLength(4);
+    expect(snap.standings).toHaveLength(4);
+    expect(snap.competition.conferences).toEqual(['Eastern', 'Western']);
+  });
+
+  it('does not mistake two equal-sized regions for a combined table', async () => {
+    // AFC: West and East are the same size and share no clubs.
+    const league = composite(
+      [group('West', [1, 2]), group('East', [3, 4])],
+      [fixture(1, [1, 'T1'], [2, 'T2'], 1, 1, '1 - 0')],
+    );
+    const snap = await buildSnapshot('afc', league, { maxDetailRequests: 0 });
+    expect(snap.teams).toHaveLength(4);
+    expect(snap.competition.conferences).toEqual(['West', 'East']);
+  });
+});
+
+describe('pure knockout competitions', () => {
+  /**
+   * REGRESSION: named rounds are excluded from the table (a final is not a
+   * matchweek), which is correct — but a competition made entirely of named
+   * rounds then produced a full standings table with every club on played 0,
+   * points 0. CONCACAF Champions Cup rendered as an authoritative-looking
+   * ranking of nothing. An empty table is the honest answer, and the format
+   * already supports saying so.
+   */
+  const league = {
+    details: { id: 297, name: 'CONCACAF Champions Cup', selectedSeason: '2026' },
+    table: [{ data: {
+      legend: [],
+      table: { all: [tableRow(10, 'Alpha', 1), tableRow(20, 'Beta', 2)] },
+      isCurrentSeason: true, selectedSeason: '2026',
+    } }],
+    fixtures: {
+      allMatches: [
+        fixture(1, [10, 'Alpha'], [20, 'Beta'], 'quarter', 'Quarter-final', '2 - 1'),
+        fixture(2, [20, 'Beta'], [10, 'Alpha'], 'semi', 'Semi-final', '0 - 3'),
+      ],
+    },
+  };
+
+  it('produces no standings at all', async () => {
+    const snap = await buildSnapshot('concacaf', league, { maxDetailRequests: 0 });
+    expect(snap.standings).toEqual([]);
+  });
+
+  it('still carries the clubs and the matches', async () => {
+    const snap = await buildSnapshot('concacaf', league, { maxDetailRequests: 0 });
+    expect(snap.teams).toHaveLength(2);
+    expect(snap.matches).toHaveLength(2);
+    expect(snap.matches.every((m) => m.matchweek === null)).toBe(true);
+    expect(checkSnapshot(snap).errors).toEqual([]);
+  });
+});
+
+describe('group-stage qualification labels', () => {
+  /**
+   * REGRESSION: the feed's legend labels position 1 of every block "Champions".
+   * That is right for the Premier League and wrong for Group A of the Club
+   * World Cup — topping a group of four wins nothing, and the product spends
+   * real effort elsewhere (`titleDecidedByPlayoff`) refusing to call a leader
+   * champions. The legend must not reintroduce it.
+   */
+  const league = {
+    details: { id: 78, name: 'FIFA Club World Cup', selectedSeason: '2025' },
+    table: [{ data: {
+      composite: true,
+      legend: [{ title: 'Champions', tKey: 'champion', indices: [0] }],
+      tables: [
+        { leagueName: 'Grp. A', legend: [{ title: 'Champions', tKey: 'champion', indices: [0] }],
+          table: { all: [tableRow(1, 'A1', 1), tableRow(2, 'A2', 2)] } },
+        { leagueName: 'Grp. B', table: { all: [tableRow(3, 'B1', 1), tableRow(4, 'B2', 2)] } },
+      ],
+      isCurrentSeason: true, selectedSeason: '2025',
+    } }],
+    fixtures: { allMatches: [fixture(1, [1, 'A1'], [2, 'A2'], 1, 1, '1 - 0')] },
+  };
+
+  it('never labels a group winner "champions"', async () => {
+    const snap = await buildSnapshot('cwc', league, { maxDetailRequests: 0 });
+    const kinds = snap.competition.zones.map((z) => z.kind);
+    expect(kinds).not.toContain('champion');
+    // The registry's own bands survive instead.
+    expect(kinds).toContain('knockout-direct');
+    expect(snap.competition.zones.find((z) => z.fromRank === 1)?.label).toBe('Round of 16');
+  });
+});

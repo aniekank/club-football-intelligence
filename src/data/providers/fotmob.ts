@@ -53,6 +53,11 @@ export const FOTMOB_LEAGUES: Record<string, number> = {
   ligue1: 53,
   ucl: 42,
   uel: 73,
+  uecl: 10216,
+  cwc: 78,
+  libertadores: 45,
+  concacaf: 297,
+  afc: 525,
   mls: 130,
   ligamx: 230,
 };
@@ -572,17 +577,50 @@ export async function buildSnapshot(
   );
   const isComposite = Boolean(tableData?.composite) && conferenceTables.length > 1;
 
-  // The combined table is the widest one; the conferences are the rest.
+  /**
+   * Find the COMBINED table, if there is one — and there often is not.
+   *
+   * MLS ships Eastern, Western and a Supporters' Shield table that contains
+   * every club in both. A group stage ships eight groups of four and no
+   * combined table at all.
+   *
+   * Picking "the widest" gave a four-club Club World Cup, because with eight
+   * equal groups the widest is just the first one. Comparing sizes does not
+   * rescue it either: AFC's West-16 plus East-16 is arithmetically identical to
+   * a combined-16 plus one group of 16.
+   *
+   * So the test is semantic rather than numeric — a combined table is one that
+   * CONTAINS exactly the clubs of all the others. That is true of the Shield
+   * table, and false of West, of Group A, and of every real group.
+   */
+  const idsOf = (t: { table?: { all?: { id: number | string }[] } }) =>
+    new Set((t.table?.all ?? []).map((r) => String(r.id)));
+
   const overall = isComposite
-    ? conferenceTables.reduce((a, b) =>
-        (b.table?.all?.length ?? 0) > (a.table?.all?.length ?? 0) ? b : a)
+    ? conferenceTables.find((candidate) => {
+        const mine = idsOf(candidate);
+        const others = conferenceTables.filter((o) => o !== candidate);
+        if (!others.length) return false;
+        const union = new Set(others.flatMap((o) => [...idsOf(o)]));
+        return union.size === mine.size && [...union].every((id) => mine.has(id));
+      })
     : undefined;
+
+  // Without a combined table every block is a real group, and the roster is
+  // their union — not one of them.
   const conferences = isComposite
     ? conferenceTables.filter((t) => t !== overall)
     : [];
 
-  const rows = (isComposite ? overall?.table?.all : tableData?.table?.all) ?? [];
-  const xgRows = (isComposite ? overall?.table?.xg : tableData?.table?.xg) ?? [];
+  const compositeRows = overall
+    ? overall.table?.all ?? []
+    : conferenceTables.flatMap((t) => t.table?.all ?? []);
+  const compositeXg = overall
+    ? overall.table?.xg ?? []
+    : conferenceTables.flatMap((t) => t.table?.xg ?? []);
+
+  const rows = (isComposite ? compositeRows : tableData?.table?.all) ?? [];
+  const xgRows = (isComposite ? compositeXg : tableData?.table?.xg) ?? [];
   const fixtures = league.fixtures?.allMatches ?? [];
   const seasonLabel = league.details?.selectedSeason ?? tableData?.selectedSeason ?? 'current';
 
@@ -754,7 +792,19 @@ export async function buildSnapshot(
     zones: zonesFromLegend(
       // A conference league's legend sits on the conference table, since the
       // play-off cutoff applies within a conference and not to the combined one.
-      (isComposite ? conferences[0]?.legend : tableData?.legend) ?? tableData?.legend,
+      /*
+        The feed's legend wins for a LEAGUE, where it reflects that season's
+        real European allocation better than any static registry can.
+
+        It loses for a group stage. FotMob labels position 1 of every block
+        "Champions", which is true of the Premier League and false of Group A of
+        the Club World Cup — topping a group of four wins nothing. That is
+        precisely the claim `titleDecidedByPlayoff` exists to stop the rest of
+        the product making, so it must not sneak back in through the legend.
+      */
+      competition.format === 'group-knockout'
+        ? undefined
+        : (isComposite ? conferences[0]?.legend : tableData?.legend) ?? tableData?.legend,
       competition.zones,
     ),
     ...(isComposite
@@ -803,7 +853,18 @@ export async function buildSnapshot(
     deductions,
   });
 
-  const standings: StandingRow[] = conferences.length
+  /**
+   * A pure knockout has no table, and must not be given one.
+   *
+   * Named rounds are excluded from tallying (a Champions League final is not a
+   * matchweek), which is right — but for a competition made ENTIRELY of named
+   * rounds it leaves every club on played 0, points 0. That renders as a full
+   * standings table of zeroes: an authoritative-looking ranking of nothing,
+   * which is worse than the honest empty state the format already supports.
+   */
+  const standings: StandingRow[] = effectiveCompetition.format === 'knockout'
+    ? []
+    : conferences.length
     ? conferences.flatMap((conf) => {
         const members = new Set((conf.table?.all ?? []).map((r) => String(r.id)));
         return globalStandings
