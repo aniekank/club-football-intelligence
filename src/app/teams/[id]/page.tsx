@@ -13,6 +13,7 @@ import { teamAcrossCompetitions } from '@/server/teams';
 import { pct, num, signed, int, ordinal } from '@/lib/format';
 import { zoneForRank } from '@/domain/competitions';
 import { entitySuffix } from '@/lib/entityLink';
+import { Disclosure } from '@/components/ui/Disclosure';
 
 export const dynamic = 'force-dynamic';
 
@@ -197,12 +198,19 @@ export default function TeamPage({
             ) : null}
 
             {teamForecast ? (
-              <Card>
-                <CardHeader
-                  eyebrow={`${forecast?.runs.toLocaleString()} simulated seasons`}
-                  title="Where the season ends"
-                />
-                <div className="grid grid-cols-2 gap-3 p-4 md:grid-cols-4">
+              <Disclosure
+                title="Where the season ends"
+                hint={
+                  <span className="flex items-center gap-2">
+                    <span className="figure">{pct(teamForecast.winTitle, 0)}</span>
+                    <span>to win it</span>
+                  </span>
+                }
+              >
+                <p className="mb-3 text-2xs text-ink-muted">
+                  From {forecast?.runs.toLocaleString()} simulated seasons.
+                </p>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                   <StatTile label="Win the league" value={pct(teamForecast.winTitle, 1)} estimate />
                   <StatTile label="Top four" value={pct(teamForecast.top4, 1)} estimate />
                   <StatTile label="European place" value={pct(teamForecast.europeanQualification, 1)} estimate />
@@ -232,7 +240,7 @@ export default function TeamPage({
                     estimate
                   />
                 </div>
-              </Card>
+              </Disclosure>
             ) : null}
 
             <div className="grid items-start gap-6 lg:grid-cols-2">
@@ -276,22 +284,25 @@ export default function TeamPage({
             </div>
 
             {shots.length ? (
-              <Card>
-                <CardHeader
-                  eyebrow="Shooting"
-                  title="Where the chances come from"
-                  description="Every shot taken, filterable by situation, body part and outcome."
-                />
-                <div className="mx-auto max-w-2xl p-4">
+              <Disclosure
+                title="Where the chances come from"
+                hint={`${shots.length} shots`}
+              >
+                <p className="mb-3 text-sm text-ink-secondary">
+                  Every shot taken, filterable by situation, body part and outcome.
+                </p>
+                <div className="mx-auto max-w-2xl">
                   <SeasonShotMap shots={shots} subjectLabel={team.name} />
                 </div>
-              </Card>
+              </Disclosure>
             ) : null}
 
             {snapshot.standings.length ? (
-              <Card>
-                <CardHeader eyebrow="Context" title="In the table" />
-                <div className="mt-3">
+              <Disclosure
+                title="In the table"
+                hint={standing ? `${ordinal(standing.rank)} on ${standing.points}` : undefined}
+              >
+                <div className="-mx-4 -mb-4">
                   <LeagueTable
                     competition={snapshot.competition}
                     standings={aroundRank(snapshot.standings, standing?.rank ?? 1)}
@@ -300,7 +311,7 @@ export default function TeamPage({
                     highlightTeamId={team.id}
                   />
                 </div>
-              </Card>
+              </Disclosure>
             ) : null}
           </>
         )}

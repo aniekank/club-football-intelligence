@@ -15,6 +15,7 @@ import { predictMatch } from '@/analytics/poisson';
 import { EmbossedCrest } from '@/components/team/EmbossedCrest';
 import { clubWash, tooSimilar } from '@/lib/clubColor';
 import { cn } from '@/lib/cn';
+import { Disclosure } from '@/components/ui/Disclosure';
 import type { Match, MatchTeamStats, Team } from '@/domain/types';
 
 export const dynamic = 'force-dynamic';
@@ -246,9 +247,11 @@ function MatchDetail({
           fixture without detail hides these rather than drawing empty axes. */}
       {hasShots && home && away ? (
         <div className="grid items-start gap-6 xl:grid-cols-2">
-          <Card>
-            <CardHeader eyebrow="Expected goals" title="The xG race" />
-            <div className="p-4">
+          <Disclosure
+            title="The xG race"
+            hint={`${match.shots.length} shots`}
+          >
+            <div>
               <XgRace
                 shots={match.shots}
                 homeTeamId={home.id}
@@ -260,11 +263,13 @@ function MatchDetail({
                 height={260}
               />
             </div>
-          </Card>
+          </Disclosure>
 
-          <Card>
-            <CardHeader eyebrow="Chances" title="Shot map" />
-            <div className="p-4">
+          <Disclosure
+            title="Shot map"
+            hint={`${match.shots.filter((sh) => sh.outcome === 'goal').length} scored`}
+          >
+            <div>
               <ShotMap
                 shots={match.shots}
                 homeTeamId={home.id}
@@ -272,27 +277,28 @@ function MatchDetail({
                 awayName={away.shortName}
               />
             </div>
-          </Card>
+          </Disclosure>
         </div>
       ) : null}
 
       {hasMomentum && match.momentum?.length && home && away ? (
-        <Card>
-          <CardHeader eyebrow="Flow" title="Momentum" />
-          <div className="p-4">
+        <Disclosure title="Momentum" hint="Who was on top, minute by minute">
+          <div>
             <Momentum
               data={match.momentum}
               homeName={home.shortName}
               awayName={away.shortName}
             />
           </div>
-        </Card>
+        </Disclosure>
       ) : null}
 
       {match.lineups && Object.keys(match.lineups).length && home && away ? (
-        <Card>
-          <CardHeader eyebrow="Teams" title="Line-ups" />
-          <div className="p-4">
+        <Disclosure
+          title="Line-ups"
+          hint={`${Object.values(match.lineups).flat().length} players`}
+        >
+          <div>
             <Lineups
               home={home}
               away={away}
@@ -302,13 +308,12 @@ function MatchDetail({
               knownPlayerIds={knownPlayerIds}
             />
           </div>
-        </Card>
+        </Disclosure>
       ) : null}
 
       {homeStats && awayStats ? (
-        <Card>
-          <CardHeader eyebrow="Match stats" title="Head to head" />
-          <div className="max-w-2xl p-4">
+        <Disclosure title="Head to head" hint="Possession, shots, discipline">
+          <div className="max-w-2xl">
             <StatComparison
               homeName={home?.shortName ?? 'Home'}
               awayName={away?.shortName ?? 'Away'}
@@ -316,7 +321,7 @@ function MatchDetail({
               away={awayStats}
             />
           </div>
-        </Card>
+        </Disclosure>
       ) : null}
     </div>
   );

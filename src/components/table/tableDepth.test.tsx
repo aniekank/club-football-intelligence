@@ -16,16 +16,21 @@ import type { StandingRow, Team } from '@/domain/types';
 const team = (id: string, name: string): Team => ({
   id, name, shortName: name, code: name.slice(0, 3).toUpperCase(),
   country: 'England', countryCode: 'ENG', crestUrl: null, primaryColor: null,
-  venue: null, manager: null, founded: null, rating: 1500, attack: 100, defence: 100,
+  secondaryColor: null, venue: null, manager: null,
+  elo: 1500, attackRating: 60, defenseRating: 60,
 });
 
+const split = () => ({ played: 5, won: 3, drawn: 1, lost: 1, goalsFor: 9, goalsAgainst: 5, points: 10 });
+
 const row = (teamId: string, rank: number): StandingRow => ({
+  seasonId: 's', competitionId: 'epl', disciplinaryPoints: 0,
   teamId, rank, played: 10, won: 6, drawn: 2, lost: 2,
   goalsFor: 18, goalsAgainst: 10, goalDifference: 8, points: 20,
   xGFor: 17.5, xGAgainst: 9.4, expectedPoints: 19.1,
   form: ['W', 'W', 'D', 'L', 'W'], groupId: null, zone: null,
   titleProbability: 0.3, top4Probability: 0.6, relegationProbability: 0.01,
-  tiebreakerNote: null, homeRecord: null, awayRecord: null,
+  tiebreakerNote: null,
+  homeRecord: split(), awayRecord: split(),
 });
 
 const render = (detail: 'essential' | 'full') =>
