@@ -2,6 +2,11 @@ import { LeagueTable } from '@/components/table/LeagueTable';
 import { Card, CardHeader, EmptyState, Skeleton, Badge } from '@/components/ui';
 import { AppShell } from '@/components/layout/AppShell';
 import { resolveActive } from '@/server/active';
+import { LeagueBriefing } from '@/components/ai/LeagueBriefing';
+import { generateInsights } from '@/ai/narratives';
+import { predictMatch } from '@/analytics/poisson';
+import { minutesFloor } from '@/server/players';
+import type { Team, VenueKind } from '@/domain/types';
 import { hasConferences } from '@/domain/competitions';
 import { relativeTime } from '@/lib/format';
 import { entitySuffix } from '@/lib/entityLink';
@@ -13,8 +18,24 @@ export default function TablePage({
 }: {
   searchParams: { competition?: string; season?: string; sort?: string; dir?: string };
 }) {
-  const { competition, snapshot, available, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
+  const { competition, snapshot, available, editions, edition, forecast } = resolveActive(searchParams.competition, searchParams.season);
   const suffix = entitySuffix(competition.id, searchParams.season);
+
+  /**
+   * The briefing is generated per COMPETITION, which is what makes it take the
+   * shape of the data: the same engine over the Championship and over the
+   * Champions League produces different sections, because one has players and
+   * a relegation fight and the other has neither.
+   */
+  const insights = snapshot
+    ? generateInsights({
+        snapshot,
+        forecasts: forecast?.forecasts ?? [],
+        predict: (home: Team, away: Team, venueKind: VenueKind) =>
+          predictMatch(home, away, { venueKind }),
+        minutesFloor: minutesFloor(snapshot),
+      })
+    : [];
 
   return (
     <AppShell
@@ -117,6 +138,10 @@ export default function TablePage({
             )}
           </div>
         </Card>
+
+        {snapshot ? (
+          <LeagueBriefing insights={insights} snapshot={snapshot} suffix={suffix} />
+        ) : null}
       </div>
     </AppShell>
   );

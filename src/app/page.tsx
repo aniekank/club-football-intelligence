@@ -6,9 +6,11 @@ import { SeasonProjection } from '@/components/charts/SeasonProjection';
 import { Card, CardHeader, Skeleton, EmptyState, Badge, StatTile } from '@/components/ui';
 import { InsightCard } from '@/components/ai/InsightCard';
 import { generateInsights, generateBriefing } from '@/ai/narratives';
+import { predictMatch } from '@/analytics/poisson';
+import { minutesFloor } from '@/server/players';
 import { resolveActive, liveAcrossCompetitions } from '@/server/active';
 import { formatDate, dayKey, pct, relativeTime, num } from '@/lib/format';
-import type { Match } from '@/domain/types';
+import type { Match, Team, VenueKind } from '@/domain/types';
 import { entitySuffix } from '@/lib/entityLink';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +35,17 @@ export default function HomePage({
   ).map(([competitionName, count]) => ({ competitionName, count }));
 
   const narrativeCtx = snapshot
-    ? { snapshot, forecasts: forecast?.forecasts ?? [] }
+    ? {
+        snapshot,
+        forecasts: forecast?.forecasts ?? [],
+        // The model is injected rather than imported by the engine, so the
+        // engine decides which games matter and this decides what they look
+        // like. Same `predictMatch` the match pages use, so a fixture card and
+        // the page it links to can never disagree.
+        predict: (home: Team, away: Team, venueKind: VenueKind) =>
+          predictMatch(home, away, { venueKind }),
+        minutesFloor: minutesFloor(snapshot),
+      }
     : null;
   const insights = narrativeCtx ? generateInsights(narrativeCtx) : [];
   const briefing = narrativeCtx ? generateBriefing(narrativeCtx, liveElsewhere) : null;

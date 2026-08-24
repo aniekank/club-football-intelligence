@@ -1,4 +1,20 @@
-import type { DatasetSnapshot, Insight, SeasonForecast, StandingRow, Team } from '@/domain/types';
+import type {
+  DatasetSnapshot, Insight, SeasonForecast, StandingRow, Team, VenueKind,
+} from '@/domain/types';
+
+/**
+ * How a match forecast is obtained, injected rather than imported.
+ *
+ * The narrative engine stays free of the model: it decides WHICH games matter
+ * and the caller supplies what the model thinks of them. That keeps this file
+ * deterministic and testable with a stub, and stops a story generator quietly
+ * becoming a second place where predictions are made.
+ */
+export type MatchPredictor = (
+  home: Team,
+  away: Team,
+  venueKind: VenueKind,
+) => { homeWin: number; draw: number; awayWin: number };
 
 /**
  * The narrative engine.
@@ -24,6 +40,10 @@ import type { DatasetSnapshot, Insight, SeasonForecast, StandingRow, Team } from
 export interface NarrativeContext {
   snapshot: DatasetSnapshot;
   forecasts: SeasonForecast[];
+  /** Absent for callers that only want table-level stories. */
+  predict?: MatchPredictor;
+  /** Minutes a player needs before appearing in a leaderboard-style story. */
+  minutesFloor?: number;
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -361,6 +381,9 @@ export function generateInsights(input: NarrativeContext): Insight[] {
     promotedSurprise(ctx),
     ...xgOutliers(ctx),
     ...formRuns(ctx),
+    ...(input.predict ? keyFixtures(ctx, input.predict) : []),
+    ...keyPlayers(ctx, input.minutesFloor ?? 0),
+    ...coachingHeadlines(ctx),
   ].filter((i): i is Insight => i !== null);
 
   const weight: Record<Insight['severity'], number> = { high: 0, medium: 1, low: 2 };
@@ -420,4 +443,235 @@ function ordinal(n: number): string {
   const s = ['th', 'st', 'nd', 'rd'];
   const v = n % 100;
   return n + (s[(v - 20) % 10] ?? s[v] ?? s[0] ?? 'th');
+}
+
+// ── Fixtures, players and dugouts ───────────────────────────────────────────
+
+/**
+ * The games that will actually move the table.
+ *
+ * "Key fixture" is easy to fake and hard to define. The next match is not a key
+ * match; the biggest club playing is not a key match. What makes a game matter
+ * is the product of three things, and all three are already in the snapshot:
+ *
+ *   STAKES — how unsettled the two clubs' seasons are. A probability of 0.5 is
+ *   maximally unsettled and 0.02 or 0.98 barely moves whatever the result;
+ *   `4p(1-p)` peaks at a coin-flip and vanishes at both certainties.
+ *
+ *   BALANCE — how close the match itself is. A game one side wins 80% of the
+ *   time carries less information than a toss-up, because the likely result is
+ *   already priced into both clubs' projections.
+ *
+ *   PROXIMITY — whether they are near each other in the table. A six-pointer
+ *   swings the gap by twice what an ordinary win does, which is exactly why the
+ *   phrase exists.
+ *
+ * Multiplied rather than added, so a game has to be interesting on every axis:
+ * two dead-rubber clubs in a thriller still cannot move a table.
+ */
+function keyFixtures(ctx: Ctx, predict: MatchPredictor): Insight[] {
+  const upcoming = ctx.snapshot.matches
+    .filter((m) => m.status === 'SCHEDULED')
+    .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
+    // A month out. Beyond that the ratings that produced the forecast will have
+    // moved more than the forecast is worth.
+    .slice(0, 40);
+  if (!upcoming.length || ctx.played < 2) return [];
+
+  const rankOf = new Map(ctx.standings.map((r) => [r.teamId, r.rank]));
+  const unsettled = (teamId: string): number => {
+    const f = ctx.forecasts.get(teamId);
+    if (!f) return 0;
+    // Whichever question is live for this club — the title or the drop.
+    const p = Math.max(4 * f.winTitle * (1 - f.winTitle), 4 * f.relegation * (1 - f.relegation));
+    return p;
+  };
+
+  const scored = upcoming.flatMap((m) => {
+    const home = ctx.teamById.get(m.homeTeamId);
+    const away = ctx.teamById.get(m.awayTeamId);
+    if (!home || !away) return [];
+
+    const stakes = Math.max(unsettled(m.homeTeamId), unsettled(m.awayTeamId));
+    if (stakes <= 0) return [];
+
+    const p = predict(home, away, m.venueKind);
+    const balance = 1 - Math.abs(p.homeWin - p.awayWin);
+
+    const rh = rankOf.get(m.homeTeamId);
+    const ra = rankOf.get(m.awayTeamId);
+    const gap = rh && ra ? Math.abs(rh - ra) : 99;
+    // Within four places is a six-pointer in any division.
+    const proximity = gap <= 4 ? 1.5 : gap <= 8 ? 1.15 : 1;
+
+    return [{ m, home, away, p, score: stakes * (0.4 + 0.6 * balance) * proximity, rh, ra }];
+  });
+
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(({ m, home, away, p, rh, ra }) =>
+      insight('fixture', 'high', {
+        id: `key-fixture-${m.id}`,
+        title: `${home.shortName} v ${away.shortName}`,
+        body:
+          rh && ra && Math.abs(rh - ra) <= 4
+            ? `${ordinal(rh)} against ${ordinal(ra)} — the sort of game that moves the gap by two results, not one.`
+            : `Close on the model, and both sides still have a season to settle.`,
+        entityType: 'match',
+        entityId: m.id,
+        metrics: [
+          { label: home.code, value: pct(p.homeWin) },
+          { label: 'Draw', value: pct(p.draw) },
+          { label: away.code, value: pct(p.awayWin) },
+        ],
+      }),
+    );
+}
+
+/**
+ * The players most likely to decide one of them.
+ *
+ * Goal involvement per 90 rather than totals, so a player who has started every
+ * game is not automatically ahead of one who has been decisive in fewer. The
+ * minutes floor is the same season-scaled one the leaderboards use — without it
+ * this is a list of substitutes with one goal in twenty minutes.
+ *
+ * Returns nothing at all where the competition has no player data, which is the
+ * honest answer for the continental competitions rather than an empty heading.
+ *
+ * ── The window has to be stated ────────────────────────────────────────────
+ * Player stats cover only the matches detail was fetched for — 29 of
+ * Brasileirão's 234 when this was written. The rest of the product says so
+ * (`CoverageNote` puts "Last 29 of 234 matches" on every player page); this
+ * generator did not, so "2 goals and 1 assist" read as a season total and made
+ * the league's top scorer look like a squad player. The card now carries its
+ * own window, because a card travels away from the page that framed it.
+ */
+function keyPlayers(ctx: Ctx, floor: number): Insight[] {
+  const stats = ctx.snapshot.playerStats;
+  if (!stats.length) return [];
+
+  const cov = ctx.snapshot.meta.playerStatsCoverage;
+  const partial = cov && cov.matchesCovered < cov.matchesPlayed;
+  const window = partial
+    ? ` Over the last ${cov!.matchesCovered} of ${cov!.matchesPlayed} matches.`
+    : '';
+
+  const playerById = new Map(ctx.snapshot.players.map((p) => [p.id, p]));
+
+  /**
+   * The floor is RELATIVE to the pool, not to the season.
+   *
+   * A season-scaled floor assumes stats cover the season, and here they cover a
+   * three-week window — so it let anyone with an hour of football onto a list of
+   * players who decide games. Igor Gomes led Brasileirão's on nought goals and
+   * one assist, at 1.6 per 90, off about fifty minutes.
+   *
+   * Requiring 45% of the most-used player's minutes is window-agnostic: it
+   * means "a regular", whether the pool covers 29 matches or 380, and it needs
+   * no knowledge of how long the season is or how much of it was ingested.
+   */
+  const maxMinutes = Math.max(...stats.map((s) => s.minutes), 0);
+  const relativeFloor = Math.max(floor, maxMinutes * 0.45);
+
+  const ranked = stats
+    .filter((s) => s.minutes >= relativeFloor)
+    .map((s) => {
+      const per90 = (v: number) => (s.minutes > 0 ? (v * 90) / s.minutes : 0);
+      return { s, involvement: per90(s.goals + s.assists), goals: s.goals, assists: s.assists };
+    })
+    .filter((r) => r.goals + r.assists >= 2)
+    .sort((a, b) => b.involvement - a.involvement)
+    .slice(0, 3);
+
+  return ranked.flatMap(({ s, involvement, goals, assists }) => {
+    const player = playerById.get(s.playerId);
+    if (!player) return [];
+    const team = ctx.teamById.get(player.teamId);
+    const overP = s.xG > 0 ? goals - s.xG : null;
+
+    return [
+      insight('player', 'medium', {
+        id: `key-player-${player.id}`,
+        title: player.name,
+        body:
+          `${goals} ${goals === 1 ? 'goal' : 'goals'} and ${assists} ${assists === 1 ? 'assist' : 'assists'}` +
+          `${team ? ` for ${team.shortName}` : ''}, ` +
+          `${one(involvement)} involvements per 90.` +
+          (overP !== null && Math.abs(overP) >= 2
+            ? ` ${overP > 0 ? 'Ahead of' : 'Behind'} their expected goals by ${one(Math.abs(overP))}.`
+            : '') +
+          window,
+        entityType: 'player',
+        entityId: player.id,
+        metrics: [
+          { label: 'Goals', value: String(goals) },
+          { label: 'Assists', value: String(assists) },
+          { label: 'Per 90', value: one(involvement) },
+        ],
+      }),
+    ];
+  });
+}
+
+/**
+ * The dugout.
+ *
+ * Two stories worth telling and both are checkable. A new appointment is a fact
+ * with a date, so "N games into the job" is arithmetic rather than opinion. A
+ * manager under pressure is stated only as the gap between results and the
+ * underlying numbers — the product should not be in the business of predicting
+ * sackings, but "this side is losing games it is playing well enough to draw"
+ * is a real observation with a real number behind it.
+ */
+function coachingHeadlines(ctx: Ctx): Insight[] {
+  const out: Insight[] = [];
+  const now = Date.parse(ctx.snapshot.meta.fetchedAt);
+
+  for (const row of ctx.standings) {
+    const team = ctx.teamById.get(row.teamId);
+    const manager = team?.manager;
+    if (!team || !manager?.appointedAt) continue;
+
+    const days = (now - Date.parse(manager.appointedAt)) / 86_400_000;
+    if (!Number.isFinite(days) || days < 0 || days > 150) continue;
+
+    out.push(insight('coach', 'medium', {
+      id: `coach-new-${team.id}`,
+      title: `${manager.name} is new at ${team.shortName}`,
+      body: `Appointed ${Math.round(days)} days ago, with the club ${ordinal(row.rank)} on ${row.points} points from ${row.played}.`,
+      entityType: 'team',
+      entityId: team.id,
+      metrics: [
+        { label: 'Position', value: ordinal(row.rank) },
+        { label: 'Form', value: row.form.slice(-5).join(' ') || '—' },
+      ],
+    }));
+  }
+
+  // A side losing games it plays well enough not to lose.
+  const undershoot = ctx.standings
+    .filter((r) => r.expectedPoints !== null && r.played >= 5)
+    .map((r) => ({ r, delta: r.points - (r.expectedPoints as number) }))
+    .sort((a, b) => a.delta - b.delta)[0];
+
+  if (undershoot && undershoot.delta <= -4) {
+    const team = ctx.teamById.get(undershoot.r.teamId);
+    if (team?.manager) {
+      out.push(insight('coach', 'low', {
+        id: `coach-pressure-${team.id}`,
+        title: `${team.manager.name} is ${one(Math.abs(undershoot.delta))} points short of the performances`,
+        body: `${team.shortName} sit ${ordinal(undershoot.r.rank)} on ${undershoot.r.points}, where the underlying numbers argue for ${one(undershoot.r.expectedPoints as number)}. That gap usually closes; it is not a prediction about anyone's job.`,
+        entityType: 'team',
+        entityId: team.id,
+        metrics: [
+          { label: 'Points', value: String(undershoot.r.points) },
+          { label: 'Expected', value: one(undershoot.r.expectedPoints as number) },
+        ],
+      }));
+    }
+  }
+
+  return out.slice(0, 2);
 }

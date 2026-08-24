@@ -223,6 +223,21 @@ const config: Config = {
           from: { opacity: '0', transform: 'translateY(-60%)' },
           to: { opacity: '1', transform: 'none' },
         },
+        // Spotlight: the incoming card enters from the side the reader moved
+        // toward, so the gesture matches a strip of cards rather than a shuffle.
+        'slide-in-right': {
+          from: { opacity: '0', transform: 'translate3d(24px,0,0)' },
+          to: { opacity: '1', transform: 'none' },
+        },
+        'slide-in-left': {
+          from: { opacity: '0', transform: 'translate3d(-24px,0,0)' },
+          to: { opacity: '1', transform: 'none' },
+        },
+        // The dwell timer, drawn as a bar that fills over the hold.
+        dwell: {
+          from: { transform: 'scaleX(0)' },
+          to: { transform: 'scaleX(1)' },
+        },
       },
       animation: {
         'fade-up': 'fade-up var(--duration-normal) var(--ease-decelerate) both',
@@ -230,6 +245,9 @@ const config: Config = {
         shimmer: 'shimmer 1.6s linear infinite',
         'tick-up': 'tick-up var(--duration-normal) var(--ease-decelerate) both',
         'tick-down': 'tick-down var(--duration-normal) var(--ease-decelerate) both',
+        'slide-in-right': 'slide-in-right var(--duration-slow) var(--ease-decelerate) both',
+        'slide-in-left': 'slide-in-left var(--duration-slow) var(--ease-decelerate) both',
+        dwell: 'dwell linear both',
       },
     },
   },

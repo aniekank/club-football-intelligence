@@ -598,6 +598,9 @@ export type InsightKind =
   | 'form'            // a run worth naming
   | 'breakout'        // a club or player exceeding their station
   | 'wall'            // a fight to avoid something
+  | 'fixture'         // a game that will move the table
+  | 'player'          // someone likely to decide one
+  | 'coach'           // a dugout story
   | 'tactical';
 
 export interface Insight {

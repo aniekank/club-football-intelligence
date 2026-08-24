@@ -11,6 +11,10 @@ const TONE: Record<Insight['kind'], 'brand' | 'good' | 'warning' | 'critical' | 
   form: 'neutral',
   breakout: 'good',
   wall: 'critical',
+  // A fixture is a question, not a verdict — `info`, like `prediction`.
+  fixture: 'info',
+  player: 'brand',
+  coach: 'neutral',
   tactical: 'neutral',
 };
 

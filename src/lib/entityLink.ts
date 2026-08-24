@@ -40,3 +40,27 @@ export function entitySuffix(competitionId: string, seasonParam?: string | null)
     ? `?competition=${competitionId}&season=${seasonParam}`
     : `?competition=${competitionId}`;
 }
+
+/**
+ * Where an insight points.
+ *
+ * Insights name teams, matches and players, and each has its own route. Three
+ * components render insights, and having each derive this independently is how
+ * the link rules drifted last time — see CFI-010. One function.
+ *
+ * Returns null for a competition-level insight, which has no page of its own:
+ * the card then renders unlinked rather than pointing somewhere arbitrary.
+ */
+export function insightHref(
+  entityType: 'team' | 'player' | 'match' | 'competition',
+  entityId: string | null,
+  suffix: string,
+): string | null {
+  if (!entityId) return null;
+  switch (entityType) {
+    case 'team': return `/teams/${entityId}${suffix}`;
+    case 'match': return `/matches/${entityId}${suffix}`;
+    case 'player': return `/players/${entityId}${suffix}`;
+    case 'competition': return null;
+  }
+}
