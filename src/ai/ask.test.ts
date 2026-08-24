@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { ask } from './ask';
-import { extractTeams, extractPlayers, rankTeams } from './resolver';
+import { extractTeams, extractPlayers, rankTeams, search } from './resolver';
 import { buildFromEdition, type StatsBombEdition } from '@/data/providers/statsbomb';
 
 /**
@@ -116,5 +116,37 @@ describe.runIf(edition)('ask, over the 2015/16 Premier League', () => {
     const leader = snapshot.players.find((p) => p.name === r.rows[0]?.[1]);
     const stats = snapshot.playerStats.find((s) => s.playerId === leader?.id);
     expect(stats!.minutes).toBeGreaterThan(400);
+  });
+});
+
+describe.runIf(edition)('search, over the 2015/16 Premier League', () => {
+  const snapshot = buildFromEdition(edition!);
+  const go = (q: string) => search(snapshot, q, 'epl', '2015-2016');
+
+  it('finds a club despite a typo', () => {
+    const hits = go('Leicster');
+    expect(hits[0]?.kind).toBe('team');
+    expect(hits[0]?.label).toBe('Leicester City');
+    expect(hits[0]?.href).toContain('season=2015-2016');
+  });
+
+  it('finds a club by nickname and by code', () => {
+    expect(go('spurs')[0]?.label).toBe('Tottenham Hotspur');
+    expect(go('MUN')[0]?.label).toBe('Manchester United');
+  });
+
+  it('finds a player by surname alone', () => {
+    const hits = go('Mahrez');
+    const player = hits.find((h) => h.kind === 'player');
+    expect(player?.label).toBe('Riyad Mahrez');
+    expect(player?.sublabel).toContain('Leicester');
+  });
+
+  it('returns nothing for a query that matches nothing', () => {
+    expect(go('zzzzqqq')).toHaveLength(0);
+  });
+
+  it('ignores a query too short to be meaningful', () => {
+    expect(go('a')).toHaveLength(0);
   });
 });

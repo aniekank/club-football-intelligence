@@ -44,6 +44,18 @@ export function Header({
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          {/* A GET form, so search works without JavaScript and a result page
+              is a shareable URL. */}
+          <form action="/search" method="get" className="hidden sm:block">
+            {activeId ? <input type="hidden" name="competition" value={activeId} /> : null}
+            <input
+              type="search"
+              name="q"
+              placeholder="Search"
+              aria-label="Search clubs and players"
+              className="h-8 w-32 rounded-sm border border-border-subtle bg-surface-1 px-2 text-xs placeholder:text-ink-muted focus-visible:shadow-focus lg:w-44"
+            />
+          </form>
           {liveCount > 0 ? (
             <Link
               href="/?filter=live"
