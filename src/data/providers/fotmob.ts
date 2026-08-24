@@ -457,6 +457,19 @@ function buildTeamStats(teamId: ID, details: FmMatchDetails, side: 0 | 1): Match
       ? Math.round((oppHalfPasses / passes) * 1000) / 10
       : null,
     ppda: null, // no defensive-action-by-zone data upstream; hidden, not zeroed
+
+    xGOpenPlay: pick('expected_goals_open_play'),
+    xGSetPlay: pick('expected_goals_set_play'),
+    shotsInsideBox: pick('shots_inside_box'),
+    shotsOutsideBox: pick('shots_outside_box'),
+    touchesInBox: pick('touches_opp_box'),
+    longBalls: pick('long_balls_accurate'),
+    crosses: pick('accurate_crosses'),
+    aerialsWon: pick('aerials_won'),
+    duelsWon: pick('duel_won'),
+    tackles: pick('matchstats.headers.tackles'),
+    interceptions: pick('interceptions'),
+    clearances: pick('clearances'),
   };
 }
 

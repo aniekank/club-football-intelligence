@@ -418,6 +418,29 @@ export interface MatchTeamStats {
   fieldTilt: number | null;
   /** Passes allowed per defensive action — press intensity. Lower = more intense. */
   ppda: number | null;
+
+  /**
+   * How a side actually created its chances, which is the most tactical thing
+   * the feed carries. Hull's 2-0 over Manchester United was 0.94 xG from set
+   * plays and 0.07 from open play: the same 1.01 total as a possession side
+   * would show, describing a completely different game.
+   */
+  xGOpenPlay: number | null;
+  xGSetPlay: number | null;
+  /** Shot selection — working the ball in, or hitting it from distance. */
+  shotsInsideBox: number | null;
+  shotsOutsideBox: number | null;
+  /** Penetration, distinct from territory: passes near the box vs touches in it. */
+  touchesInBox: number | null;
+  /** Directness and width. */
+  longBalls: number | null;
+  crosses: number | null;
+  /** Physical posture. */
+  aerialsWon: number | null;
+  duelsWon: number | null;
+  tackles: number | null;
+  interceptions: number | null;
+  clearances: number | null;
 }
 
 export interface MatchEvent {

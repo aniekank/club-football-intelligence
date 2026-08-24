@@ -15,7 +15,11 @@ import { predictMatch } from '@/analytics/poisson';
 import { EmbossedCrest } from '@/components/team/EmbossedCrest';
 import { clubWash, tooSimilar } from '@/lib/clubColor';
 import { cn } from '@/lib/cn';
+import { entitySuffix } from '@/lib/entityLink';
 import { Disclosure } from '@/components/ui/Disclosure';
+import { Tactics } from '@/components/match/Tactics';
+import { PlayersToWatch } from '@/components/match/PlayersToWatch';
+import { teamStyle } from '@/analytics/style';
 import type { Match, MatchTeamStats, Team } from '@/domain/types';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +31,7 @@ export default function MatchPage({
   searchParams: { competition?: string; season?: string };
 }) {
   const { competition, snapshot, available, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
+  const suffix = entitySuffix(competition.id, searchParams.season);
   const match = snapshot?.matches.find((m) => m.id === params.id);
 
   // Before the snapshot lands there is nothing to 404 ON — the match may exist
@@ -58,6 +63,8 @@ export default function MatchPage({
             competitionName={snapshot.competition.name}
             hasMomentum={snapshot.meta.capabilities.hasMomentum}
             knownPlayerIds={knownPlayerIds}
+            snapshot={snapshot}
+            suffix={suffix}
           />
         )}
       </div>
@@ -66,9 +73,12 @@ export default function MatchPage({
 }
 
 function MatchDetail({
-  match, home, away, competitionName, hasMomentum, knownPlayerIds,
+  match, home, away, competitionName, hasMomentum, knownPlayerIds, snapshot, suffix,
 }: {
   match: Match;
+  /** The whole snapshot: style profiles and squads are SEASON questions. */
+  snapshot: NonNullable<ReturnType<typeof resolveActive>['snapshot']>;
+  suffix: string;
   home: Team | undefined;
   away: Team | undefined;
   competitionName: string;
@@ -113,6 +123,17 @@ function MatchDetail({
    * communicates nothing and just makes the card muddy; a real derby is better
    * served by no accent than by a meaningless one.
    */
+  /**
+   * Style profiles for both sides.
+   *
+   * Computed from every match in the snapshot that has detail, NOT from this
+   * fixture — the question "how do these two play" is a season question, and
+   * answering it from the ninety minutes in front of you would be circular for
+   * a played match and impossible for an unplayed one.
+   */
+  const homeStyle = home ? teamStyle(snapshot, home.id) : null;
+  const awayStyle = away ? teamStyle(snapshot, away.id) : null;
+
   const clash = !tooSimilar(home?.primaryColor ?? null, away?.primaryColor ?? null);
   const homeWash = clash ? clubWash(home?.primaryColor ?? null) : 'transparent';
   const awayWash = clash ? clubWash(away?.primaryColor ?? null) : 'transparent';
@@ -245,6 +266,37 @@ function MatchDetail({
 
       {/* xG race + shot map, only where shot data exists. Capability-gated so a
           fixture without detail hides these rather than drawing empty axes. */}
+      {/*
+        Tactics and personnel lead for an UNPLAYED fixture — they are the whole
+        proposition of a preview — and sit collapsed once there is a result,
+        where the timeline has taken over as the page.
+      */}
+      {home && away && homeStyle && awayStyle ? (
+        <Disclosure
+          title="How they play"
+          hint="Possession, press, how they create"
+          defaultOpen={!played}
+        >
+          <Tactics
+            home={home}
+            away={away}
+            homeStyle={homeStyle}
+            awayStyle={awayStyle}
+            formations={match.formations}
+          />
+        </Disclosure>
+      ) : null}
+
+      {home && away ? (
+        <Disclosure
+          title="Players to watch"
+          hint="Most goal involvement per 90"
+          defaultOpen={!played}
+        >
+          <PlayersToWatch snapshot={snapshot} home={home} away={away} suffix={suffix} />
+        </Disclosure>
+      ) : null}
+
       {hasShots && home && away ? (
         <div className="grid items-start gap-6 xl:grid-cols-2">
           <Disclosure
