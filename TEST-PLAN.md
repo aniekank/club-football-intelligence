@@ -13,7 +13,7 @@ Two tiers:
 
 ---
 
-## Automated coverage (143 tests)
+## Automated coverage (156 tests)
 
 | Area | File | What it pins |
 |---|---|---|
@@ -25,6 +25,7 @@ Two tiers:
 | Snapshot store | `src/data/store.test.ts` | Index invalidation on swap, safe misses, stale-live guard |
 | Player views | `src/server/players.test.ts` | Per-90 vs ratio handling, mid-rank percentile ties, missing-metric omission, leaderboard minutes floor |
 | Historical editions | `src/data/providers/statsbomb.test.ts` | Real 2015/16 tables reproduced exactly, champion, code collisions, full-season coverage, goals-vs-xG sanity |
+| Transfers | `src/data/providers/fotmobTransfers.test.ts` | Loan/free/undisclosed classification, no fee on a loan, club-link scoping, window totals |
 | Metric registry | `src/lib/metrics.test.ts` | Serialisable definitions, metric direction, capability gating, no invented zeros |
 | Match events | `src/data/providers/fotmobEvents.test.ts` | Scorers, assists, penalties, own goals, card grades, substitution direction |
 | Ask & resolver | `src/ai/ask.test.ts` | Real answers over 2015/16, refusal instead of guessing, search-box typo tolerance, cameo exclusion |
@@ -80,6 +81,10 @@ happened, and its absence is what makes "is my fix live?" unanswerable.
 | 3.5 | Asterisks appear only where a tie is genuinely informative — not on every row | |
 | 3.6 | Hovering an asterisk explains the tiebreaker | |
 | 3.7 | Clicking a club opens its team page | |
+| 3.8 | MLS renders Eastern and Western as separate tables, each ranked 1..15 | |
+| 3.9 | MLS club records include cross-conference matches (Nashville: 21 played, not 18) | |
+| 3.10 | MLS shows no relegation column and does not call anyone "champions" | |
+| 3.11 | Liga MX shows its Apertura or Clausura, not a merged season | |
 
 ### 4. Forecasts
 
@@ -186,15 +191,25 @@ match and edge pages._
 | 11.8 | The season shot map filters by situation, body part and outcome | |
 | 11.9 | No hydration warning in the console on any of these | |
 
-### 12. Accessibility
+### 12. Transfers
 
 | # | Check | Pass |
 |---|---|---|
-| 12.1 | A screen reader announces form as one summary, not duplicated letters | |
-| 12.2 | Every chart has a meaningful `aria-label` with real numbers | |
-| 12.3 | Crests are decorative; club names are text | |
-| 12.4 | Colour is never the only carrier of meaning — check the table bands and edge tiers | |
-| 12.5 | Sortable headers expose `aria-sort` | |
+| 12.1 | A loan or free shows a badge, never €0 | |
+| 12.2 | An undisclosed fee is labelled as such and excluded from totals | |
+| 12.3 | Net spend states that it counts disclosed fees only | |
+| 12.4 | Clubs outside the competition are named but not linked | |
+| 12.5 | Historical editions report no transfer data rather than an empty table | |
+
+### 13. Accessibility
+
+| # | Check | Pass |
+|---|---|---|
+| 13.1 | A screen reader announces form as one summary, not duplicated letters | |
+| 13.2 | Every chart has a meaningful `aria-label` with real numbers | |
+| 13.3 | Crests are decorative; club names are text | |
+| 13.4 | Colour is never the only carrier of meaning — check the table bands and edge tiers | |
+| 13.5 | Sortable headers expose `aria-sort` | |
 
 ---
 

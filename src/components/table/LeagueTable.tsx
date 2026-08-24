@@ -97,6 +97,24 @@ export function LeagueTable({
   const Col = ColFactory(sortable && !compact);
   const hasXG = !compact && standings.some((r) => r.xGFor !== null);
   const hasModel = !compact && showModel && standings.some((r) => r.titleProbability !== null);
+
+  /**
+   * Only show a model column the competition can actually have.
+   *
+   * MLS has no relegation, so a "Rel" column of zeroes states a risk that does
+   * not exist. And finishing top of MLS wins the Supporters' Shield, not MLS
+   * Cup — labelling that column "Title" claims the model forecasts a trophy it
+   * has no way to forecast, since the Cup is decided by a play-off this
+   * simulation does not run.
+   */
+  const hasRelegation = competition.zones.some(
+    (z) => z.kind === 'relegation' || z.kind === 'relegation-playoff',
+  );
+  const playoffLeague = competition.titleDecidedByPlayoff === true;
+  const topLabel = playoffLeague ? '1st' : 'Title';
+  const topTitle = playoffLeague
+    ? 'Chance of finishing top of the regular season. The title itself is decided by the play-offs.'
+    : 'Chance of winning the league';
   const anyNote = standings.some((r) => r.tiebreakerNote);
 
   // Only show the bands this table actually uses, in finishing order.
@@ -133,8 +151,10 @@ export function LeagueTable({
                 <Col k="xGAgainst" label="xGA" better={false} className="hidden w-16 xl:table-cell" title="Expected goals against" />
               ) : null}
               {compact ? null : <Th className="hidden w-32 md:table-cell text-left">Form</Th>}
-              {hasModel ? <Col k="titleProbability" label="Title" className="w-20" /> : null}
               {hasModel ? (
+                <Col k="titleProbability" label={topLabel} title={topTitle} className="w-20" />
+              ) : null}
+              {hasModel && hasRelegation ? (
                 <Col k="relegationProbability" label="Rel" better={false} className="hidden w-20 lg:table-cell" />
               ) : null}
             </tr>
@@ -227,7 +247,7 @@ export function LeagueTable({
                       <ProbabilityCell value={row.titleProbability} tone="good" />
                     </td>
                   ) : null}
-                  {hasModel ? (
+                  {hasModel && hasRelegation ? (
                     <td className="hidden px-1 py-2 lg:table-cell">
                       <ProbabilityCell value={row.relegationProbability} tone="critical" />
                     </td>
@@ -268,9 +288,12 @@ export function LeagueTable({
         ) : null}
         {hasModel ? (
           <p>
-            Title and relegation chances are Monte Carlo estimates over the remaining
-            fixtures<EstimateMark /> A shown 0% means it did not occur in 8,000
-            simulated seasons — not that it is impossible.
+            {playoffLeague
+              ? 'Chances of finishing top of the regular season are Monte Carlo estimates over the remaining fixtures'
+              : `${hasRelegation ? 'Title and relegation chances are' : 'Title chances are'} Monte Carlo estimates over the remaining fixtures`}
+            <EstimateMark /> A shown 0% means it did not occur in 8,000 simulated
+            seasons — not that it is impossible.
+            {playoffLeague ? ' The play-offs themselves are not simulated.' : ''}
           </p>
         ) : null}
       </div>

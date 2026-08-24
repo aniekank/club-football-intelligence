@@ -72,10 +72,16 @@ export type ShotSituation =
  * which is exactly why it needs its own format rather than a boolean.
  */
 export type CompetitionFormat =
-  | 'league'                  // double round-robin: the domestic leagues
-  | 'knockout'                // pure bracket: domestic cups
-  | 'group-knockout'          // classic groups feeding a bracket
-  | 'league-phase-knockout';  // UEFA's Swiss-model league phase + bracket
+  | 'league'                   // double round-robin: the European domestic leagues
+  | 'knockout'                 // pure bracket: domestic cups
+  | 'group-knockout'           // classic groups feeding a bracket
+  | 'league-phase-knockout'    // UEFA's Swiss-model league phase + bracket
+  // A regular season that SEEDS a play-off, where the table crowns nobody:
+  // MLS (conference-split, then the Cup) and Liga MX (a short Apertura or
+  // Clausura, then the Liguilla). Distinct from the Swiss model because the
+  // regular season is a genuine round-robin and the play-off decides the title
+  // outright — finishing top wins you a trophy in Europe and a home tie here.
+  | 'regular-season-playoff';
 
 export type CompetitionTier = 'domestic-league' | 'domestic-cup' | 'continental' | 'super-cup';
 
@@ -158,6 +164,20 @@ export interface Competition {
   /** Points for a win — 3 in the modern era, 2 in archived historical seasons. */
   pointsForWin: number;
   pointsForDraw: number;
+  /**
+   * Conference or division names, when the league is split.
+   *
+   * MLS ranks Eastern and Western separately and only settles the Supporters'
+   * Shield on a combined table. A single ranking would be simply wrong: the
+   * ninth-best team in the West can miss the play-offs while the ninth-best in
+   * the East makes them.
+   */
+  conferences?: string[];
+  /**
+   * True when finishing top of the table is NOT winning the competition.
+   * The UI must not call a regular-season leader "champions".
+   */
+  titleDecidedByPlayoff?: boolean;
 }
 
 export interface Season {
@@ -522,6 +542,42 @@ export interface SeasonForecast {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Transfers
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * A completed transfer.
+ *
+ * This is the record the domain was designed around from the start and never
+ * had data for: `Player.affiliations` is an INTERVAL list precisely because a
+ * squad is not a fixed set, and a transfer is what opens and closes those
+ * intervals.
+ *
+ * `fee` is null for a loan, a free, or an undisclosed deal — three different
+ * situations that share one display, so `kind` keeps them distinguishable. A
+ * missing fee must never render as €0.
+ */
+export type TransferKind = 'permanent' | 'loan' | 'free' | 'undisclosed';
+
+export interface Transfer {
+  id: ID;
+  playerId: ID;
+  playerName: string;
+  position: string | null;
+  /** Null when the club is outside the loaded competitions. */
+  fromTeamId: ID | null;
+  fromTeamName: string;
+  toTeamId: ID | null;
+  toTeamName: string;
+  date: ISODate;
+  kind: TransferKind;
+  /** Euros. Null for loans, frees and undisclosed deals — never 0. */
+  feeEur: number | null;
+  /** The player's estimated market value at the time, in euros. */
+  marketValueEur: number | null;
+}
+
+// ─────────────────────────────────────────────────────────────
 // Narrative layer
 // ─────────────────────────────────────────────────────────────
 
@@ -609,8 +665,17 @@ export interface DatasetMeta {
   sourceLabel: string;
   capabilities: DatasetCapabilities;
   fetchedAt: ISODate;
-  /** True when served from the last-known-good cache after a source failure. */
+  /**
+   * True when the snapshot is not everything it should be.
+   *
+   * `degradedKind` matters because two very different things were sharing this
+   * flag: serving a CACHED snapshot after the source failed, and simply not
+   * fetching detail for every match. The first is stale data; the second is
+   * normal operation on a league with 300 played matches and a capped detail
+   * window. Calling both "stale" alarmed a reader about the wrong thing.
+   */
   degraded: boolean;
+  degradedKind?: 'stale-cache' | 'partial-detail';
   degradedReason?: string;
   /** Scope of the per-player aggregates. Absent when there are none. */
   playerStatsCoverage?: StatsCoverage;
@@ -654,6 +719,8 @@ export interface DatasetSnapshot {
   playerStats: PlayerStats[];
   matches: Match[];
   standings: StandingRow[];
+  /** Recent completed transfers involving these clubs. */
+  transfers: Transfer[];
   /** Empty when no previous season was available (a new competition, or the
    *  fetch failed) — the model then shrinks toward league average instead. */
   priorRatings: PriorRating[];

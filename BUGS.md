@@ -201,3 +201,57 @@ in 380/380, totalling 1,026 — the real figure for that season.
 **Lesson.** Ask what a reader wants from the page before asking whether the data
 is consistent. Internal consistency is necessary and nowhere near sufficient, and
 no amount of schema validation substitutes for looking at the thing.
+
+---
+
+## CFI-007 — Conference tables silently dropped every cross-conference match
+**Status:** fixed · **Found:** 2026-08-24, during the MLS build
+**Severity:** high — a wrong table that looked entirely plausible
+
+**Symptom.** Nashville SC showed 18 played and 42 points. The real figures were
+21 and 49. Every club in the league was understated, and the order was wrong.
+
+**Root cause.** MLS ranks Eastern and Western separately, so the first
+implementation computed each conference's table from only that conference's
+clubs. `computeStandings` skips a match when either side is outside the given
+team list — correct behaviour, and exactly wrong here, because an Eastern club's
+matches against Western clubs still count toward its record. Every
+cross-conference fixture vanished.
+
+**Fix.** Two steps rather than one. Tally and order ALL thirty clubs once with
+the competition's tiebreaker chain, then partition into conferences and
+renumber. Partitioning preserves relative order, so each conference is already
+correctly ordered; only the rank and the zone need recomputing against the
+conference position.
+
+**Test.** `standings.test.ts` covers the chain; the live probe pins the outcome —
+Nashville's 21 played and 49 points now match the source's own table exactly.
+
+**Lesson.** "Rank within a group" and "tally within a group" are different
+operations, and conflating them produces a table that adds up internally while
+being wrong about the world.
+
+---
+
+## CFI-008 — One null in a chart series deleted two entire leagues
+**Status:** fixed · **Found:** 2026-08-24, by the conformance gate at boot
+**Severity:** high — LaLiga and Serie A failed to load at all
+
+**Symptom.** After adding MLS and Liga MX, the boot reported 8 of 10 editions
+loaded, with LaLiga and Serie A failing: `matches.14.momentum.17.value: Expected
+number, received null`.
+
+**Root cause.** FotMob's momentum series can carry null readings for minutes it
+has no value for. The schema required a number, so a single null in one optional
+chart series on one match rejected the entire competition.
+
+**Fix.** Two changes, and the second matters more than the first. Nulls are
+filtered at map time — a null is not a zero, and plotting it would draw a spike
+to the baseline that never happened. And the failure is now logged with its
+full detail before it propagates, so the shape problem is visible rather than
+inferred from a missing league.
+
+**Lesson.** A conformance gate should be proportionate to what it is protecting.
+Rejecting a whole competition over a cosmetic field trades a small defect for a
+large one; the same rigour applied to a scoreline or a team reference is right,
+because those genuinely poison everything downstream.

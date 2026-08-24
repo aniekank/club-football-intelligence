@@ -92,14 +92,21 @@ function titleRace(ctx: Ctx): Insight | null {
   const decided = ctx.gamesLeft === 0 || gap > maxSwing;
   const leaderOdds = ctx.forecasts.get(first.teamId)?.winTitle ?? null;
 
+  // In a play-off league, finishing top wins a seeding and nothing else. MLS
+  // has a Supporters' Shield for exactly this and it is not MLS Cup.
+  const playoff = ctx.snapshot.competition.titleDecidedByPlayoff === true;
+
   if (decided) {
     return insight('milestone', 'high', {
       id: 'title-decided',
-      title: `${leader.name} are champions`,
+      title: playoff
+        ? `${leader.name} finish top of the regular season`
+        : `${leader.name} are champions`,
       body:
-        ctx.gamesLeft === 0
+        (ctx.gamesLeft === 0
           ? `${leader.name} finish on ${first.points} points, ${gap} clear of ${chaser.name}.`
-          : `With ${ctx.gamesLeft} to play, ${first.points} points and a ${gap}-point lead put ${leader.name} out of reach.`,
+          : `With ${ctx.gamesLeft} to play, ${first.points} points and a ${gap}-point lead put ${leader.name} out of reach.`)
+        + (playoff ? ' The title itself is decided by the play-offs.' : ''),
       entityType: 'team',
       entityId: leader.id,
       metrics: [

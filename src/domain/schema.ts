@@ -40,7 +40,9 @@ export const competitionSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   shortName: z.string().min(1),
-  format: z.enum(['league', 'knockout', 'group-knockout', 'league-phase-knockout']),
+  format: z.enum([
+    'league', 'knockout', 'group-knockout', 'league-phase-knockout', 'regular-season-playoff',
+  ]),
   tier: z.enum(['domestic-league', 'domestic-cup', 'continental', 'super-cup']),
   country: z.string(),
   countryCode: z.string(),
@@ -56,6 +58,8 @@ export const competitionSchema = z.object({
   ),
   pointsForWin: z.number().int(),
   pointsForDraw: z.number().int(),
+  conferences: z.array(z.string()).optional(),
+  titleDecidedByPlayoff: z.boolean().optional(),
 });
 
 export const seasonSchema = z.object({
@@ -267,6 +271,27 @@ export const snapshotSchema = z
     ),
     matches: z.array(matchSchema),
     standings: z.array(standingRowSchema),
+    transfers: z.array(
+      z
+        .object({
+          id: z.string().min(1),
+          playerId: z.string().min(1),
+          playerName: z.string().min(1),
+          fromTeamName: z.string(),
+          toTeamName: z.string(),
+          date: iso,
+          kind: z.enum(['permanent', 'loan', 'free', 'undisclosed']),
+          feeEur: z.number().nonnegative().nullable(),
+          marketValueEur: z.number().nonnegative().nullable(),
+        })
+        .passthrough()
+        // A loan or a free has no fee by definition. A number here means the
+        // kind was classified wrong, and a fee attached to a loan would show up
+        // in spending totals as money that never moved.
+        .refine((t) => !(t.kind === 'loan' || t.kind === 'free') || t.feeEur === null, {
+          message: 'a loan or free transfer must not carry a fee',
+        }),
+    ),
     priorRatings: z.array(
       z.object({
         teamId: z.string().min(1),
@@ -284,6 +309,7 @@ export const snapshotSchema = z
       capabilities: capabilitiesSchema,
       fetchedAt: iso,
       degraded: z.boolean(),
+      degradedKind: z.enum(['stale-cache', 'partial-detail']).optional(),
       degradedReason: z.string().optional(),
       playerStatsCoverage: z
         .object({

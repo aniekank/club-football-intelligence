@@ -171,6 +171,9 @@ export function buildFromEdition(edition: StatsBombEdition): DatasetSnapshot {
     playerStats: edition.playerStats,
     matches: edition.matches,
     standings,
+    // StatsBomb open data carries no transfer records, and inventing an empty
+    // window is honest: the capability flags say the surface has nothing.
+    transfers: [],
     // A finished season needs no prior — every rating is derived from a full
     // set of results, so shrinkage has nothing left to shrink toward.
     priorRatings: [],

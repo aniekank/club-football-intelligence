@@ -48,7 +48,10 @@ export default function HomePage({
       activeEditionKey={edition?.key}
     >
       <div className="mx-auto max-w-container px-4 py-6">
-        {snapshot?.meta.degraded ? (
+        {/* Only a CACHED snapshot warrants a banner. Partial match detail is
+            normal on a league with hundreds of played matches and a capped
+            detail window, and is reported through the coverage badge instead. */}
+        {snapshot?.meta.degradedKind === 'stale-cache' ? (
           <div className="mb-4 rounded-md border border-status-warning/30 bg-status-warning-faint px-4 py-3 text-sm">
             <p className="font-semibold text-status-warning">Showing cached data</p>
             <p className="mt-px text-ink-secondary">{snapshot.meta.degradedReason}</p>
@@ -137,7 +140,7 @@ export default function HomePage({
                   eyebrow="Season"
                   title={competition.name}
                   action={
-                    <Badge tone={snapshot.meta.degraded ? 'warning' : 'neutral'}>
+                    <Badge tone={snapshot.meta.degradedKind === 'stale-cache' ? 'warning' : 'neutral'}>
                       {/* "12 months ago" describes when a completed season was
                           INGESTED, which tells a reader nothing. The season
                           label is the fact that matters. */}

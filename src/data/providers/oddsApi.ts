@@ -38,6 +38,8 @@ export const ODDS_SPORT_KEYS: Record<string, string> = {
   ligue1: 'soccer_france_ligue_one',
   ucl: 'soccer_uefa_champs_league',
   uel: 'soccer_uefa_europa_league',
+  mls: 'soccer_usa_mls',
+  ligamx: 'soccer_mexico_ligamx',
 };
 
 /** Sharpest first. The first one present in a fixture's book list wins. */

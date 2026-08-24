@@ -190,6 +190,71 @@ export const EUROPA_LEAGUE: Competition = {
   accentKey: 'uel',
 };
 
+/**
+ * Major League Soccer.
+ *
+ * Two things make this genuinely different from every European league here, and
+ * both are the kind of difference that silently produces a wrong table.
+ *
+ * FIRST, MLS ranks on WINS before goal difference. Two clubs level on points are
+ * separated by who won more often, not by who scored more — the opposite
+ * emphasis to England, and it regularly changes who finishes above whom.
+ *
+ * SECOND, the conferences are the competition. Eastern and Western are ranked
+ * separately for the play-offs; the combined table settles only the Supporters'
+ * Shield. A single ranking would let the ninth-best side in the West miss out
+ * while the ninth-best in the East goes through.
+ *
+ * And finishing top wins the Shield, not MLS Cup — the title is decided by a
+ * play-off, so nothing here may call the leader "champions".
+ */
+export const MLS: Competition = {
+  id: 'mls',
+  name: 'Major League Soccer',
+  shortName: 'MLS',
+  format: 'regular-season-playoff',
+  tier: 'domestic-league',
+  country: 'United States',
+  countryCode: 'USA',
+  accentKey: 'mls',
+  tiebreakers: ['points', 'wins', 'goal-difference', 'goals-for', 'disciplinary', 'away-goals'],
+  zones: [
+    { kind: 'knockout-direct', fromRank: 1, toRank: 9, label: 'MLS Cup play-offs', shortLabel: 'PO' },
+  ],
+  pointsForWin: 3,
+  pointsForDraw: 1,
+  conferences: ['Eastern', 'Western'],
+  titleDecidedByPlayoff: true,
+};
+
+/**
+ * Liga MX.
+ *
+ * A short season played twice a year — Apertura then Clausura — each a single
+ * round-robin of seventeen matchweeks, each with its own champion decided by
+ * the Liguilla play-off. They are handled as separate EDITIONS rather than one
+ * long season, which is what they actually are: two titles a year, not two
+ * halves of one.
+ */
+export const LIGA_MX: Competition = {
+  id: 'ligamx',
+  name: 'Liga MX',
+  shortName: 'LMX',
+  format: 'regular-season-playoff',
+  tier: 'domestic-league',
+  country: 'Mexico',
+  countryCode: 'MEX',
+  accentKey: 'ligamx',
+  tiebreakers: ['points', 'goal-difference', 'goals-for', 'head-to-head', 'away-goals'],
+  headToHeadChain: ['points', 'goal-difference', 'goals-for'],
+  zones: [
+    { kind: 'knockout-direct', fromRank: 1, toRank: 8, label: 'Liguilla', shortLabel: 'LIG' },
+  ],
+  pointsForWin: 3,
+  pointsForDraw: 1,
+  titleDecidedByPlayoff: true,
+};
+
 export const COMPETITIONS: Competition[] = [
   PREMIER_LEAGUE,
   LA_LIGA,
@@ -198,6 +263,8 @@ export const COMPETITIONS: Competition[] = [
   LIGUE_1,
   CHAMPIONS_LEAGUE,
   EUROPA_LEAGUE,
+  MLS,
+  LIGA_MX,
 ];
 
 const BY_ID = new Map(COMPETITIONS.map((c) => [c.id, c]));
@@ -224,9 +291,14 @@ export function zoneForRank(competition: Competition, rank: number): Zone | null
 
 /**
  * True when this competition's European places move with cup winners and UEFA
- * coefficients, i.e. every domestic league. The table footnotes itself rather
- * than asserting a cutoff it cannot actually know mid-season.
+ * coefficients, i.e. every UEFA-affiliated domestic league. A play-off league's
+ * cutoffs are fixed by its own rules and need no such caveat.
  */
 export function zonesAreProvisional(competition: Competition): boolean {
-  return competition.tier === 'domestic-league';
+  return competition.tier === 'domestic-league' && !competition.titleDecidedByPlayoff;
+}
+
+/** True when the league is split into conferences that rank separately. */
+export function hasConferences(competition: Competition): boolean {
+  return (competition.conferences?.length ?? 0) > 1;
 }

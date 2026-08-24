@@ -161,6 +161,15 @@ export async function loadOne(competitionId: string): Promise<boolean> {
     const raw = await loadCompetition(competitionId);
     const check = checkSnapshot(raw);
     if (!check.ok) {
+      // Conformance is a gate, not a guillotine. Rejecting an entire
+      // competition because one match carried a null in an optional chart
+      // series traded a cosmetic defect for a missing league — which is a far
+      // worse outcome for a reader. The load still fails loudly in the log and
+      // on /api/health so the shape problem gets fixed rather than absorbed.
+      console.error(
+        `[cfi] ${competitionId} failed conformance (${check.errors.length} issues):`,
+        check.errors.slice(0, 5).join('; '),
+      );
       throw new Error(`conformance failed: ${check.errors.slice(0, 3).join('; ')}`);
     }
 
@@ -201,6 +210,7 @@ export async function loadOne(competitionId: string): Promise<boolean> {
           meta: {
             ...cached.meta,
             degraded: true,
+            degradedKind: 'stale-cache',
             degradedReason: `Live feed unavailable (${message}); showing the last good snapshot from ${cached.meta.fetchedAt}`,
           },
         };

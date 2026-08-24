@@ -1,12 +1,13 @@
 import { fetchJson, mapLimit } from '../http';
 import { computeStandings } from '@/analytics/standings';
-import { getCompetition } from '@/domain/competitions';
+import { getCompetition, zoneForRank } from '@/domain/competitions';
 import { derivePriors, type PriorSeasonRow } from '@/analytics/ratings';
 import {
   foldMatch, newFold, finaliseFold,
   type FmLineup, type FmPlayerStats,
 } from './fotmobPlayers';
 import { mapEvents, type FmEventsBlock } from './fotmobEvents';
+import { mapTransfers, type FmTransfersBlock } from './fotmobTransfers';
 import type {
   Competition, DatasetCapabilities, DatasetSnapshot, ID, Match, MatchTeamStats,
   PriorRating, Season, Shot, ShotBodyPart, ShotOutcome, ShotSituation, StandingRow, Team, Zone, ZoneKind,
@@ -52,6 +53,8 @@ export const FOTMOB_LEAGUES: Record<string, number> = {
   ligue1: 53,
   ucl: 42,
   uel: 73,
+  mls: 130,
+  ligamx: 230,
 };
 
 /**
@@ -136,11 +139,19 @@ interface FmLeagueResponse {
   table?: { data?: {
     legend?: FmLegend[];
     table?: { all?: FmTableRow[]; xg?: FmXgRow[] };
-    composite?: unknown;
+    /** True when the league is conference-split; the tables then live in
+     *  `tables`, one per conference plus a combined overall. */
+    composite?: boolean;
+    tables?: {
+      leagueName?: string;
+      legend?: FmLegend[];
+      table?: { all?: FmTableRow[]; xg?: FmXgRow[] };
+    }[];
     selectedSeason?: string;
     isCurrentSeason?: boolean;
   } }[];
   fixtures?: { allMatches?: FmMatch[] };
+  transfers?: FmTransfersBlock;
 }
 
 interface FmShot {
@@ -164,7 +175,7 @@ interface FmMatchDetails {
   content?: {
     shotmap?: { shots?: FmShot[] };
     stats?: { Periods?: { All?: { stats?: FmStatGroup[] } } };
-    momentum?: { main?: { data?: { minute: number; value: number }[] } };
+    momentum?: { main?: { data?: ({ minute: number | null; value: number | null } | null)[] } };
     matchFacts?: {
       infoBox?: { Stadium?: { name?: string }; Referee?: { text?: string }; Attendance?: number };
       events?: FmEventsBlock;
@@ -548,8 +559,30 @@ export async function buildSnapshot(
   if (!competition) throw new Error(`unknown competition "${competitionId}"`);
 
   const tableData = league.table?.[0]?.data;
-  const rows = tableData?.table?.all ?? [];
-  const xgRows = tableData?.table?.xg ?? [];
+
+  /**
+   * Conference-split leagues put nothing in `table` and everything in `tables`
+   * — one entry per conference plus a combined overall. MLS is the case:
+   * Eastern and Western rank separately for the play-offs, and only the
+   * Supporters' Shield is settled on the combined table. Reading only the first
+   * block would give a fifteen-club league missing half the division.
+   */
+  const conferenceTables = (tableData?.tables ?? []).filter(
+    (t) => (t.table?.all?.length ?? 0) > 0,
+  );
+  const isComposite = Boolean(tableData?.composite) && conferenceTables.length > 1;
+
+  // The combined table is the widest one; the conferences are the rest.
+  const overall = isComposite
+    ? conferenceTables.reduce((a, b) =>
+        (b.table?.all?.length ?? 0) > (a.table?.all?.length ?? 0) ? b : a)
+    : undefined;
+  const conferences = isComposite
+    ? conferenceTables.filter((t) => t !== overall)
+    : [];
+
+  const rows = (isComposite ? overall?.table?.all : tableData?.table?.all) ?? [];
+  const xgRows = (isComposite ? overall?.table?.xg : tableData?.table?.xg) ?? [];
   const fixtures = league.fixtures?.allMatches ?? [];
   const seasonLabel = league.details?.selectedSeason ?? tableData?.selectedSeason ?? 'current';
 
@@ -653,8 +686,17 @@ export async function buildSnapshot(
         [target.awayTeamId]: buildTeamStats(target.awayTeamId, details, 1),
       };
       target.shots = buildShots(target.id, details);
-      const momentum = details.content?.momentum?.main?.data;
-      if (momentum?.length) target.momentum = momentum;
+      /**
+       * Momentum can carry null readings — minutes the provider has no value
+       * for. A null is not a zero: plotting it would draw a spike to the
+       * baseline that never happened, and passing it through failed conformance
+       * and killed the whole competition over one cosmetic field. Drop them.
+       */
+      const momentum = (details.content?.momentum?.main?.data ?? []).filter(
+        (m): m is { minute: number; value: number } =>
+          typeof m?.minute === 'number' && typeof m?.value === 'number',
+      );
+      if (momentum.length) target.momentum = momentum;
       const info = details.content?.matchFacts?.infoBox;
       target.venue = info?.Stadium?.name ?? null;
       target.referee = info?.Referee?.text ?? null;
@@ -709,8 +751,24 @@ export async function buildSnapshot(
 
   const effectiveCompetition: Competition = {
     ...competition,
-    zones: zonesFromLegend(tableData?.legend, competition.zones),
+    zones: zonesFromLegend(
+      // A conference league's legend sits on the conference table, since the
+      // play-off cutoff applies within a conference and not to the combined one.
+      (isComposite ? conferences[0]?.legend : tableData?.legend) ?? tableData?.legend,
+      competition.zones,
+    ),
+    ...(isComposite
+      ? { conferences: conferences.map((c) => c.leagueName ?? '').filter(Boolean) }
+      : {}),
   };
+
+  /** Which conference each club belongs to, for grouped standings. */
+  const conferenceOf = new Map<string, string>();
+  for (const conf of conferences) {
+    for (const r of conf.table?.all ?? []) {
+      if (conf.leagueName) conferenceOf.set(String(r.id), conf.leagueName);
+    }
+  }
 
   // Only fixtures that belong to the table go in. For a pure league that is all
   // of them; for the Swiss model it is rounds 1-8 only, and excluding the
@@ -719,13 +777,50 @@ export async function buildSnapshot(
     ? matches
     : matches.filter((m) => m.matchweek !== null);
 
-  const standings: StandingRow[] = computeStandings({
+  /**
+   * Standings.
+   *
+   * For a conference league this is a two-step, and doing it in one step is
+   * wrong in a way that looks plausible. Records must be tallied across ALL
+   * clubs, because an Eastern side's matches against Western sides still count
+   * — computing each conference in isolation silently DROPS every
+   * cross-conference fixture, which showed Nashville on 18 played and 42 points
+   * when the real figures were 21 and 49.
+   *
+   * The RANKING is then per conference, because a play-off place is earned
+   * against your own half of the league: the ninth best side in the West can
+   * qualify while a club with more points misses out in the East.
+   *
+   * So: tally and order everyone once with the competition's own tiebreaker
+   * chain, then partition. Partitioning preserves relative order, so each
+   * conference is already correctly ordered and only needs renumbering.
+   */
+  const globalStandings = computeStandings({
     matches: tableMatches,
     teamIds: teams.map((t) => t.id),
     competition: effectiveCompetition,
     seasonId,
     deductions,
   });
+
+  const standings: StandingRow[] = conferences.length
+    ? conferences.flatMap((conf) => {
+        const members = new Set((conf.table?.all ?? []).map((r) => String(r.id)));
+        return globalStandings
+          .filter((row) => members.has(row.teamId))
+          .map((row, i) => {
+            const rank = i + 1;
+            const zone = zoneForRank(effectiveCompetition, rank);
+            return {
+              ...row,
+              rank,
+              groupId: conf.leagueName ?? null,
+              // The zone follows the CONFERENCE rank, not the global one.
+              zone: zone?.kind ?? null,
+            };
+          });
+      })
+    : globalStandings;
 
   // Upstream xG season totals are more complete than ours, because they cover
   // every fixture while our shot data only covers the detail window.
@@ -823,7 +918,7 @@ export async function buildSnapshot(
       teamId: t.id,
       seasonId,
       competitionId,
-      groupId: null,
+      groupId: conferenceOf.get(t.id) ?? null,
       entryStage: null,
     })),
     teams,
@@ -831,6 +926,7 @@ export async function buildSnapshot(
     playerStats,
     matches,
     standings,
+    transfers: mapTransfers(league.transfers, teamIds),
     priorRatings,
     generatedAt: new Date().toISOString(),
     meta: {
@@ -839,6 +935,7 @@ export async function buildSnapshot(
       capabilities,
       fetchedAt: new Date().toISOString(),
       degraded: detailFailures > 0,
+      degradedKind: detailFailures > 0 ? ('partial-detail' as const) : undefined,
       degradedReason: detailFailures > 0
         ? `${detailFailures} of ${detailTargets.length} match-detail requests failed; those fixtures have results but no shot data`
         : undefined,

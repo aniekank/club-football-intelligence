@@ -37,7 +37,9 @@ export interface Edition {
 }
 
 /** Competitions loaded live at boot, in priority order. */
-export const BOOT_COMPETITIONS = ['epl', 'laliga', 'seriea', 'bundesliga', 'ligue1', 'ucl'];
+export const BOOT_COMPETITIONS = [
+  'epl', 'laliga', 'seriea', 'bundesliga', 'ligue1', 'ucl', 'mls', 'ligamx',
+];
 
 const LIVE_EDITIONS: Edition[] = BOOT_COMPETITIONS.map((competitionId) => ({
   key: competitionId,

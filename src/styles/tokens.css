@@ -113,6 +113,8 @@
   --comp-ligue1: #d8b45c;
   --comp-ucl: #5b86e5;
   --comp-uel: #f08a2e;
+  --comp-mls: #4ac2c9;
+  --comp-ligamx: #59c26e;
   --comp-default: #c8f751;
 
   /* ── Typography ─────────────────────────────────────────────────────────
@@ -294,6 +296,8 @@
     --comp-ligue1: #8a6d1e;
     --comp-ucl: #2f5cc4;
     --comp-uel: #c2620d;
+    --comp-mls: #14808a;
+    --comp-ligamx: #1f8a3c;
     --comp-default: #6f9410;
 
     --shadow-sm: 0 1px 2px rgb(16 20 24 / 0.06);
@@ -377,6 +381,8 @@
   --comp-ligue1: #8a6d1e;
   --comp-ucl: #2f5cc4;
   --comp-uel: #c2620d;
+  --comp-mls: #14808a;
+  --comp-ligamx: #1f8a3c;
   --comp-default: #6f9410;
 
   --shadow-sm: 0 1px 2px rgb(16 20 24 / 0.06);

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { computeStandings } from './standings';
 import {
-  PREMIER_LEAGUE, LA_LIGA, BUNDESLIGA, CHAMPIONS_LEAGUE, zoneForRank,
+  PREMIER_LEAGUE, LA_LIGA, BUNDESLIGA, CHAMPIONS_LEAGUE, MLS, LIGA_MX,
+  zoneForRank, hasConferences,
 } from '@/domain/competitions';
 import type { Match, ID, Competition } from '@/domain/types';
 
@@ -356,5 +357,71 @@ describe('tiebreaker footnotes are signal, not noise', () => {
     const midTable = rows.filter((r) => r.zone === null && r.points === 1);
     expect(midTable.length).toBeGreaterThan(4);
     expect(midTable.filter((r) => r.tiebreakerNote !== null).length).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('MLS ranks on wins before goal difference', () => {
+  it('separates level clubs by wins, not by goal difference', () => {
+    /**
+     * The distinctive chain, and the reason tiebreakers are data. Two clubs on
+     * the same points: England splits them on goal difference, MLS on who won
+     * more often. Same results, different order.
+     *
+     * A: 3 wins, 3 losses        -> 9 pts, 3 wins,  GD +6
+     * B: 2 wins, 3 draws, 1 loss  -> 9 pts, 2 wins,  GD +10
+     * England gives it to B on goal difference; MLS gives it to A on wins.
+     */
+    seq = 0;
+    const results = [
+      // A wins three, loses three.
+      match('A', 'C', 3, 0), match('A', 'D', 3, 0), match('A', 'E', 3, 0),
+      match('C', 'A', 1, 0), match('D', 'A', 1, 0), match('E', 'A', 1, 0),
+      // B wins two, draws three, loses one.
+      match('B', 'C', 6, 0), match('B', 'D', 6, 0),
+      match('B', 'E', 1, 1), match('C', 'B', 1, 1), match('D', 'B', 1, 1),
+      match('E', 'B', 2, 0),
+    ];
+    const teams = ['A', 'B', 'C', 'D', 'E'];
+
+    const mls = table(results, teams, MLS);
+    const a = mls.find((r) => r.teamId === 'A')!;
+    const b = mls.find((r) => r.teamId === 'B')!;
+    expect(a.points).toBe(b.points);
+    expect(b.goalDifference).toBeGreaterThan(a.goalDifference);
+    expect(a.won).toBeGreaterThan(b.won);
+    // MLS: more wins takes it.
+    expect(a.rank).toBeLessThan(b.rank);
+    expect(a.tiebreakerNote).toBe('Ahead on wins');
+
+    // England, identical results: goal difference takes it instead.
+    seq = 0;
+    const epl = table(
+      [
+        match('A', 'C', 3, 0), match('A', 'D', 3, 0), match('A', 'E', 3, 0),
+        match('C', 'A', 1, 0), match('D', 'A', 1, 0), match('E', 'A', 1, 0),
+        match('B', 'C', 6, 0), match('B', 'D', 6, 0),
+        match('B', 'E', 1, 1), match('C', 'B', 1, 1), match('D', 'B', 1, 1),
+        match('E', 'B', 2, 0),
+      ],
+      teams,
+      PREMIER_LEAGUE,
+    );
+    expect(epl.find((r) => r.teamId === 'B')!.rank)
+      .toBeLessThan(epl.find((r) => r.teamId === 'A')!.rank);
+  });
+
+  it('does not call a play-off league\'s leader champions', () => {
+    // Topping this table wins a seeding, not a trophy.
+    expect(MLS.titleDecidedByPlayoff).toBe(true);
+    expect(MLS.zones.some((z) => z.kind === 'champion')).toBe(false);
+    expect(PREMIER_LEAGUE.zones.some((z) => z.kind === 'champion')).toBe(true);
+  });
+
+  it('models MLS conferences and Liga MX split seasons', () => {
+    expect(MLS.conferences).toEqual(['Eastern', 'Western']);
+    expect(hasConferences(MLS)).toBe(true);
+    // Liga MX is one table; its split is across SEASONS, not conferences.
+    expect(hasConferences(LIGA_MX)).toBe(false);
+    expect(LIGA_MX.titleDecidedByPlayoff).toBe(true);
   });
 });

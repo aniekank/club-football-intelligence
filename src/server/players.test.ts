@@ -41,7 +41,7 @@ function snapshot(players: Player[], playerStats: PlayerStats[]): DatasetSnapsho
       totalMatchweeks: 38, currentMatchweek: 10, isCurrent: true, championTeamId: null,
     },
     relatedCompetitions: [], memberships: [], teams: [team], players, playerStats,
-    matches: [], standings: [], priorRatings: [],
+    matches: [], standings: [], transfers: [], priorRatings: [],
     generatedAt: '2026-08-23T00:00:00Z',
     meta: {
       source: 'test', sourceLabel: 'Test',

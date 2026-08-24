@@ -2,6 +2,7 @@ import { LeagueTable } from '@/components/table/LeagueTable';
 import { Card, CardHeader, EmptyState, Skeleton, Badge } from '@/components/ui';
 import { AppShell } from '@/components/layout/AppShell';
 import { resolveActive } from '@/server/active';
+import { hasConferences } from '@/domain/competitions';
 import { relativeTime } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -27,15 +28,19 @@ export default function TablePage({
             title={competition.name}
             description={
               snapshot
-                ? snapshot.season.isCurrent
-                  ? `Matchweek ${snapshot.season.currentMatchweek ?? 0} of ${snapshot.season.totalMatchweeks ?? '—'}`
-                  : `Final table · ${snapshot.season.totalMatchweeks ?? 0} matchweeks`
+                ? snapshot.competition.titleDecidedByPlayoff
+                  // Topping this table wins a seeding, not a trophy, and the
+                  // page must not imply otherwise.
+                  ? `Regular season · the title is decided by play-off`
+                  : snapshot.season.isCurrent
+                    ? `Matchweek ${snapshot.season.currentMatchweek ?? 0} of ${snapshot.season.totalMatchweeks ?? '—'}`
+                    : `Final table · ${snapshot.season.totalMatchweeks ?? 0} matchweeks`
                 : undefined
             }
             action={
               snapshot ? (
-                <Badge tone={snapshot.meta.degraded ? 'warning' : 'neutral'}>
-                  {snapshot.meta.degraded
+                <Badge tone={snapshot.meta.degradedKind === 'stale-cache' ? 'warning' : 'neutral'}>
+                  {snapshot.meta.degradedKind === 'stale-cache'
                     ? 'Stale'
                     : snapshot.season.isCurrent
                       ? relativeTime(snapshot.meta.fetchedAt)
@@ -56,6 +61,28 @@ export default function TablePage({
                 title="No table yet"
                 description="This competition has not started, or its format has no league table."
               />
+            ) : hasConferences(snapshot.competition) ? (
+              // One table per conference. A combined ranking would be wrong:
+              // a play-off place is earned against your own conference.
+              <div className="space-y-6">
+                {(snapshot.competition.conferences ?? []).map((conference) => {
+                  const rows = snapshot.standings.filter((r) => r.groupId === conference);
+                  if (!rows.length) return null;
+                  return (
+                    <section key={conference}>
+                      <h3 className="px-3 pb-2 font-display text-xl">{conference}</h3>
+                      <LeagueTable
+                        competition={snapshot.competition}
+                        standings={rows}
+                        teams={snapshot.teams}
+                        sortable
+                        sort={searchParams.sort}
+                        dir={searchParams.dir}
+                      />
+                    </section>
+                  );
+                })}
+              </div>
             ) : (
               <LeagueTable
                 competition={snapshot.competition}

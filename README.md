@@ -28,7 +28,7 @@ cp .env.example .env
 |---|---|
 | `npm run dev` | development server |
 | `npm run build && npm start` | production build |
-| `npm test` | 143 tests, hermetic, no network |
+| `npm test` | 156 tests, hermetic, no network |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npx tsx scripts/probe-fotmob.mts epl` | load a competition live and check conformance |
 | `npx tsx scripts/probe-forecast.mts epl` | run the full engine against live data |
@@ -96,6 +96,40 @@ four break here, and the breaks are load-bearing:
 - **Editions, not just competitions.** The same competition has several seasons;
   live ones stream, completed ones load instantly from a committed cache.
 
+## Beyond Europe
+
+MLS and Liga MX are not just more leagues — they break assumptions the European
+ones share, and both breaks silently produce a wrong table:
+
+- **MLS ranks on WINS before goal difference.** Two clubs level on points are
+  separated by who won more often. A test runs one set of results through
+  England's chain and MLS's and asserts the order differs.
+- **MLS conferences are the competition.** Eastern and Western rank separately
+  for the play-offs; only the Supporters' Shield uses the combined table.
+  Records are tallied across ALL thirty clubs — an Eastern side's matches
+  against Western sides still count — and only the RANKING is per conference.
+- **Neither league is won by topping the table.** `titleDecidedByPlayoff` stops
+  the UI and the narrative engine calling a regular-season leader "champions",
+  relabels the model column from "Title" to "1st", and hides the relegation
+  column in a league that has no relegation.
+- **Liga MX plays two seasons a year.** Apertura and Clausura are separate
+  editions, which is what they are: two titles, not two halves.
+
+## Transfers
+
+`/transfers` carries completed moves with fees, market values and loan status,
+plus net spend per club.
+
+The classification is the substance. A missing fee has three different causes —
+a loan, a free, and a deal whose fee was never published — and collapsing them
+loses real information. None of them is ever rendered as €0, and the net-spend
+table says plainly that it counts disclosed fees only and how many deals it
+could not price.
+
+This is also the feed the domain was designed around and never had:
+`Player.affiliations` has been an interval list since the first commit precisely
+because a squad is not a fixed set.
+
 ## The analyst toolkit
 
 `/explore` plots any metric against any other, for clubs or players, with the
@@ -143,6 +177,8 @@ committed, because a season is 380 matches at ~3MB of event data each.
 | Edition | Source | Coverage |
 |---|---|---|
 | Top-5 leagues + UCL, current | FotMob | live, detail for a recent window |
+| MLS, current | FotMob | live, conference-split |
+| Liga MX, current Apertura | FotMob | live, short season |
 | Premier League 2015/16 | StatsBomb | complete — 380 matches, 9,908 shots |
 | LaLiga 2015/16 | StatsBomb | complete — 380 matches, 9,168 shots |
 
