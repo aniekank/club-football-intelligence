@@ -10,13 +10,25 @@ import { cn } from '@/lib/cn';
 // ── Surface ─────────────────────────────────────────────────────────────────
 
 export function Card({
-  className, children, as: As = 'div', ...rest
-}: HTMLAttributes<HTMLDivElement> & { as?: 'div' | 'section' | 'article' }) {
+  className, children, as: As = 'div', interactive = false, ...rest
+}: HTMLAttributes<HTMLDivElement> & {
+  as?: 'div' | 'section' | 'article';
+  /**
+   * Raises the card on hover. Only for cards that are themselves a link or a
+   * button — lifting something that cannot be clicked promises an affordance
+   * that is not there.
+   */
+  interactive?: boolean;
+}) {
   return (
     <As
       className={cn(
-        'rounded-lg border border-border-subtle bg-surface-1',
+        'lit-edge rounded-lg border border-border-subtle bg-surface-1',
         'shadow-sm',
+        interactive && [
+          'transition-[transform,box-shadow,border-color] duration-normal ease-standard',
+          'hover:-translate-y-px hover:border-border-default hover:shadow-md',
+        ],
         className,
       )}
       {...rest}
@@ -253,7 +265,20 @@ export function TeamLabel({
 }) {
   return (
     <span className={cn('inline-flex min-w-0 items-center gap-2', className)}>
-      <Crest url={crestUrl} code={code} name={name} size={size} />
+      {/*
+        The crest lifts slightly when its row is hovered. It is the row's
+        identity, so it is the right element to acknowledge the pointer — and
+        scaling a 20px badge costs no layout, because the transform does not
+        participate in flow. Under reduced motion the global guard collapses the
+        duration and it simply arrives.
+      */}
+      <Crest
+        url={crestUrl}
+        code={code}
+        name={name}
+        size={size}
+        className="transition-transform duration-normal ease-spring group-hover:scale-110"
+      />
       <span className={cn(truncate && 'truncate', nameClassName)}>{name}</span>
     </span>
   );

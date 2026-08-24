@@ -111,6 +111,33 @@
   }
 }
 
+@layer base {
+  /**
+   * The reduced-motion contract, stated once for the whole product.
+   *
+   * Every animated thing here used to opt in individually, which meant the
+   * skeleton shimmer was guarded and the couple of dozen `transition-colors`
+   * on links, rows and tabs were not. A reader who has asked their OS for less
+   * motion should get less motion from everything, not from whatever the author
+   * remembered.
+   *
+   * This is deliberately not `animation: none`: collapsing to 1ms lets state
+   * changes still LAND (a hover still commits, a reveal still ends visible)
+   * while removing the travel. `scroll-behavior: auto` matters too — a smooth
+   * scroll is motion the reader did not ask for.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
 @layer components {
   /* Loading skeleton. The shimmer is a token-driven gradient sweep; under
      reduced motion the duration collapses and it reads as a static block. */
@@ -131,6 +158,93 @@
       animation: none;
       background-image: none;
       background-color: var(--surface-2);
+    }
+  }
+
+  /**
+   * Stagger — a delay multiplier, not an animation.
+   *
+   * The product already ships `fade-up`, `live-pulse` and `tick-up/down` as
+   * Tailwind animations; what was missing was any way to walk one down a list.
+   * So this composes with them rather than duplicating them:
+   * `animate-fade-up stagger` with `--reveal-i` set per item.
+   *
+   * Defining a second set of keyframes for "the same thing but delayed" is how
+   * two conventions for one idea start, and this codebase has already paid for
+   * that once with entity links.
+   *
+   * The caller CAPS the index. Only it knows the list length, and an uncapped
+   * row 40 would sit blank for 1.6 seconds.
+   */
+  .stagger {
+    animation-delay: calc(var(--reveal-i, 0) * 40ms);
+  }
+
+  /**
+   * The lit edge.
+   *
+   * A hairline of light along the top of a raised surface, the way a physical
+   * card catches light from above. It is what separates "a box with a border"
+   * from something that reads as an object, and at 8% white over a near-black
+   * canvas it is felt rather than seen.
+   *
+   * Inset by the corner radius so the highlight stops short of the curve — a
+   * highlight that runs into a rounded corner reads as a rendering artefact
+   * rather than a reflection.
+   */
+  .lit-edge {
+    position: relative;
+  }
+  .lit-edge::before {
+    content: '';
+    position: absolute;
+    /* Inset by the corner radius so the highlight stops before the curve.
+       `--lit-inset` lets a smaller card override it — a 12px inset on an 8px
+       radius leaves the highlight floating away from the corner. */
+    inset-inline: var(--lit-inset, var(--radius-lg));
+    top: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--edge-highlight) 22%,
+      var(--edge-highlight) 78%,
+      transparent
+    );
+    pointer-events: none;
+  }
+
+  /**
+   * Sticky column headers for a long table.
+   *
+   * Applied to the TABLE, and it targets `thead th` rather than `thead tr`:
+   * `position: sticky` on a table ROW is not reliably honoured — the row stays
+   * in flow while the offset is applied anyway, which drops the labels into the
+   * middle of the data. The cells are what stick.
+   *
+   * The offset clears BOTH sticky header rows (nav + competition rail), and the
+   * background is load-bearing rather than cosmetic: a transparent sticky
+   * header lets table rows scroll visibly through the column labels.
+   *
+   * REQUIRES that no ancestor is horizontally scrollable. An `overflow-x: auto`
+   * wrapper becomes the sticky containing block — `overflow-y` cannot stay
+   * `visible` once `overflow-x` is `auto` — and the offset then measures from
+   * that wrapper's edge, pushing the header down over the first rows instead of
+   * pinning it. The league table releases its wrapper at `lg`, where the table
+   * fits without scrolling; narrower than that it keeps the scroll and forgoes
+   * the sticky header.
+   *
+   * The breakpoint here and the `lg:overflow-visible` on the table's wrapper are
+   * ONE decision expressed in two files. They must move together: sticky below
+   * `lg` puts the header back on top of row 2, which is exactly the bug this
+   * gate exists to prevent.
+   */
+  @media (min-width: 1024px) {
+    .table-sticky-head thead th {
+      position: sticky;
+      top: var(--header-stack);
+      z-index: var(--z-sticky);
+      background-color: var(--surface-1);
     }
   }
 

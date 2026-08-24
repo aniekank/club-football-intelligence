@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { Header } from './Header';
+import { Footer } from './Footer';
 import { liveAcrossCompetitions } from '@/server/active';
 import type { Competition } from '@/domain/types';
 import type { Edition } from '@/data/editions';
@@ -25,7 +26,7 @@ export function AppShell({
 
   return (
     <div
-      className="min-h-screen bg-canvas"
+      className="flex min-h-screen flex-col bg-canvas"
       style={{ ['--comp-active' as string]: `var(--comp-${key})` }}
     >
       {/* useSearchParams in the switcher requires a Suspense boundary. */}
@@ -38,7 +39,8 @@ export function AppShell({
           activeEditionKey={activeEditionKey}
         />
       </Suspense>
-      <main id="main">{children}</main>
+      <main id="main" className="flex-1">{children}</main>
+      <Footer competitions={competitions} />
     </div>
   );
 }

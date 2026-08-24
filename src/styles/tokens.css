@@ -22,6 +22,12 @@
      A deep blue-black rather than a neutral slate: it reads as "floodlit pitch
      at night" and keeps the accent hues from going muddy.                    */
   --surface-canvas: #0a0d12; /* page background */
+  /* The lit edge: a hairline of light along the top of a raised surface.
+     Dark mode adds white, because light falls ON an object from above. Light
+     mode subtracts instead — on a white card a white highlight is invisible, so
+     the same physical read comes from a faint dark hairline. Same token, same
+     component, inverted mechanism. */
+  --edge-highlight: rgb(255 255 255 / 0.08);
   --surface-1: #12171f;      /* cards, chart surface — the validated surface */
   --surface-2: #1a212b;      /* raised: popovers, sticky headers, hover rows */
   --surface-3: #232c38;      /* highest: modals, tooltips */
@@ -210,6 +216,11 @@
   --container-max: 1440px;
   --container-prose: 68ch;
   --header-height: 3.5rem;
+  /* The header is TWO sticky rows: the nav bar plus the competition rail. A
+     sticky table head has to clear BOTH, so it offsets from this rather than
+     from --header-height, which would leave it tucked under the rail. */
+  --header-rail: 2.25rem;
+  --header-stack: calc(var(--header-height) + var(--header-rail));
   --z-sticky: 100;
   --z-header: 200;
   --z-popover: 300;
@@ -228,6 +239,7 @@
     color-scheme: light;
 
     --surface-canvas: #f4f4f1;
+    --edge-highlight: rgb(16 20 24 / 0.06);
     --surface-1: #ffffff;
     --surface-2: #fbfbf9;
     --surface-3: #ffffff;
@@ -313,6 +325,7 @@
   color-scheme: light;
 
   --surface-canvas: #f4f4f1;
+  --edge-highlight: rgb(16 20 24 / 0.06);
   --surface-1: #ffffff;
   --surface-2: #fbfbf9;
   --surface-3: #ffffff;

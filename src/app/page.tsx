@@ -266,7 +266,14 @@ function FixtureFeed({ snapshot, suffix }: { snapshot: NonNullable<ReturnType<ty
           <section key={day}>
             <h3 className="eyebrow mb-2">{formatDate(day)}</h3>
             <div className="grid gap-2 sm:grid-cols-2">
-              {matches.map((m) => (
+              {matches.map((m, i) => (
+                <div
+                  key={m.id}
+                  // The stagger walks across the day's fixtures rather than the
+                  // whole feed, so each date group reads as its own arrival.
+                  style={{ ['--reveal-i' as string]: Math.min(i, 8) }}
+                  className="animate-fade-up stagger"
+                >
                 <MatchCard
                   key={m.id}
                   match={m}
@@ -274,6 +281,7 @@ function FixtureFeed({ snapshot, suffix }: { snapshot: NonNullable<ReturnType<ty
                   away={snapshot.teams.find((t) => t.id === m.awayTeamId)}
                   href={`/matches/${m.id}${suffix}`}
                 />
+                </div>
               ))}
             </div>
           </section>

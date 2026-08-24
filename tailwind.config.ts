@@ -200,6 +200,7 @@ const config: Config = {
         prose: 'var(--container-prose)',
       },
       height: { header: 'var(--header-height)' },
+      inset: { header: 'var(--header-stack)' },
       borderWidth: { DEFAULT: '1px', 0: '0', 2: '2px', 3: '3px', 4: '4px' },
       keyframes: {
         'fade-up': {

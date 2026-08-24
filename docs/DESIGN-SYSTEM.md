@@ -122,3 +122,47 @@ duration to 1ms **at the token level**, so no component has to remember to check
 - Crests are decorative (`aria-hidden`); club names are text.
 - Missing data renders as `—`, never `0`.
 - Modelled values carry an `est.` mark with an explanatory title.
+
+## Motion, depth and the reduced-motion contract
+
+The token file shipped a full motion vocabulary — five durations, four easings
+including a spring — and Tailwind shipped `fade-up`, `live-pulse`, `tick-up` and
+`tick-down`. Only `live-pulse` and the skeleton shimmer were ever wired to
+anything. This pass connects the rest rather than inventing a second system.
+
+**The reduced-motion contract is global.** It used to be opt-in, which meant the
+skeleton shimmer was guarded and two dozen `transition-colors` were not. A reader
+who asks their OS for less motion now gets it from everything. Durations collapse
+to 1ms rather than to `none`, so state changes still *land* — a hover still
+commits, a reveal still ends visible — while the travel disappears.
+
+**`stagger` is a delay, not an animation.** It composes with the existing
+animations (`animate-fade-up stagger`) instead of defining parallel keyframes for
+"the same thing, later". The caller caps `--reveal-i`, because only the caller
+knows how long its list is.
+
+**`lit-edge`** is a hairline of light along the top of a raised surface. Dark mode
+*adds* white; light mode *subtracts* with a faint dark hairline, because a white
+highlight on a white card is invisible. Same token, same component, inverted
+mechanism. `--lit-inset` lets a smaller radius pull the highlight in so it never
+runs into a corner.
+
+**Hover lift is conditional on being a link.** Raising a card that cannot be
+opened promises an affordance that is not there, so `Card` takes an explicit
+`interactive` prop and `MatchCard` lifts only when it has an `href`.
+
+### Sticky table headers: a two-file invariant
+
+`position: sticky` on a `<tr>` is not reliably honoured — the cells are what
+stick. More importantly, it cannot work inside a horizontally scrollable wrapper:
+`overflow-x: auto` forces `overflow-y` to become a scroll container, so the
+offset measures from the *wrapper* rather than the viewport and drops the column
+labels on top of row 2.
+
+So the league table releases its scroll wrapper at `lg` (the table needs 42rem
+and the container is 1440px, so it always fits there) and the sticky rule is
+gated behind the same 1024px breakpoint. Below `lg`, horizontal scroll wins and
+the header simply does not stick.
+
+Those two numbers are one decision written in two files. `stickyHeader.test.ts`
+fails if they drift.

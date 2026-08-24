@@ -133,8 +133,25 @@ export function LeagueTable({
 
   return (
     <div>
-      <div className={compact ? undefined : 'scroll-x'}>
-        <table className={cn('w-full border-collapse text-sm', !compact && 'min-w-[42rem]')}>
+      {/*
+        `lg:overflow-visible` is what makes the sticky column headers work.
+
+        A horizontally scrollable wrapper becomes the sticky containing block,
+        so `top` offsets from the WRAPPER's top edge rather than the viewport —
+        which drops the header onto row 2 instead of pinning it. The table needs
+        42rem and the page container is 1440px, so from `lg` up it always fits
+        and the wrapper can stand down; below that, horizontal scroll wins and
+        the header simply does not stick.
+      */}
+      <div className={compact ? undefined : 'scroll-x lg:overflow-visible'}>
+        <table
+          className={cn(
+            'w-full border-collapse text-sm',
+            // Only the full table: the compact sidebar variant is 8 rows and
+            // never outruns its own header.
+            !compact && 'table-sticky-head min-w-[42rem]',
+          )}
+        >
           <caption className="sr-only">
             {competition.name} table. Ranked by {competition.tiebreakers.join(', then ')}.
           </caption>
@@ -166,7 +183,7 @@ export function LeagueTable({
             </tr>
           </thead>
           <tbody>
-            {ordered.map((row) => {
+            {ordered.map((row, i) => {
               const team = teamById.get(row.teamId);
               const band = row.zone ? BAND_TOKEN[row.zone] : null;
               const highlighted = highlightTeamId === row.teamId;
@@ -174,9 +191,12 @@ export function LeagueTable({
               return (
                 <tr
                   key={row.teamId}
+                  // Capped at 12: past that the stagger stops reading as a
+                  // sequence and starts reading as a slow page.
+                  style={{ ['--reveal-i' as string]: Math.min(i, 12) }}
                   className={cn(
                     'group border-b border-border-subtle transition-colors duration-fast ease-standard',
-                    'hover:bg-surface-2',
+                    'animate-fade-up stagger hover:bg-surface-2',
                     highlighted && 'bg-surface-2',
                   )}
                 >
@@ -184,7 +204,10 @@ export function LeagueTable({
                     {band ? (
                       <span
                         aria-hidden="true"
-                        className="absolute inset-y-0 left-0 w-[3px]"
+                        className={cn(
+                          'absolute inset-y-0 left-0 w-[3px]',
+                          'transition-[width] duration-normal ease-standard group-hover:w-[5px]',
+                        )}
                         style={{ background: band }}
                       />
                     ) : null}
@@ -328,9 +351,12 @@ function ProbabilityCell({
       >
         {pct(value)}
       </Figure>
+      {/* The track is deliberately visible rather than near-black. A bar with
+          no perceptible track shows a magnitude with nothing to measure it
+          against — 3% and 30% both read as "a short mark near the left". */}
       <span
         aria-hidden="true"
-        className="h-[3px] w-full overflow-hidden rounded-full bg-surface-inset"
+        className="h-[3px] w-full overflow-hidden rounded-full bg-border-subtle"
       >
         <span
           className="block h-full rounded-full transition-[width] duration-slow ease-decelerate"

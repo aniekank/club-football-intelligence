@@ -48,10 +48,13 @@ export function MatchCard({
 
   const body = (
     <article
+      style={{ ['--lit-inset' as string]: 'var(--radius-md)' }}
       className={cn(
         'group relative flex flex-col gap-2 rounded-md border border-border-subtle bg-surface-1 px-3 py-3',
-        'transition-colors duration-fast ease-standard',
-        href && 'hover:border-border hover:bg-surface-2',
+        'lit-edge transition-[transform,background-color,border-color,box-shadow] duration-normal ease-standard',
+        // The lift is conditional on `href` for a reason: raising a card that
+        // cannot be opened promises an affordance that is not there.
+        href && 'hover:-translate-y-px hover:border-border hover:bg-surface-2 hover:shadow-md',
         isLive && 'border-brand/30',
       )}
     >
