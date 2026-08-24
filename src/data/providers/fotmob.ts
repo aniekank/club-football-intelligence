@@ -6,6 +6,7 @@ import {
   foldMatch, newFold, finaliseFold,
   type FmLineup, type FmPlayerStats,
 } from './fotmobPlayers';
+import { mapEvents, type FmEventsBlock } from './fotmobEvents';
 import type {
   Competition, DatasetCapabilities, DatasetSnapshot, ID, Match, MatchTeamStats,
   PriorRating, Season, Shot, ShotBodyPart, ShotOutcome, ShotSituation, StandingRow, Team, Zone, ZoneKind,
@@ -164,7 +165,10 @@ interface FmMatchDetails {
     shotmap?: { shots?: FmShot[] };
     stats?: { Periods?: { All?: { stats?: FmStatGroup[] } } };
     momentum?: { main?: { data?: { minute: number; value: number }[] } };
-    matchFacts?: { infoBox?: { Stadium?: { name?: string }; Referee?: { text?: string }; Attendance?: number } };
+    matchFacts?: {
+      infoBox?: { Stadium?: { name?: string }; Referee?: { text?: string }; Attendance?: number };
+      events?: FmEventsBlock;
+    };
     lineup?: FmLineup;
     playerStats?: Record<string, FmPlayerStats>;
   };
@@ -655,6 +659,15 @@ export async function buildSnapshot(
       target.venue = info?.Stadium?.name ?? null;
       target.referee = info?.Referee?.text ?? null;
       target.attendance = info?.Attendance ?? null;
+
+      // Goals, cards and substitutions. Without these a 3-0 is a scoreline with
+      // nobody attached to it.
+      target.events = mapEvents(
+        details.content?.matchFacts?.events,
+        target.id,
+        target.homeTeamId,
+        target.awayTeamId,
+      );
 
       const formation = details.content?.lineup;
       if (formation) {

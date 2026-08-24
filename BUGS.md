@@ -156,3 +156,48 @@ never drop the only token.
 **Lesson.** A join that fails silently is worse than one that throws. The probe
 that printed missed joins is what surfaced this; without it the fixtures would
 just have been absent.
+
+---
+
+## CFI-006 — A result with nobody attached to it
+**Status:** fixed · **Found:** 2026-08-24, by the user looking at a page
+**Severity:** high — the product failed at the most basic thing it exists to do
+
+**Symptom.** The Arsenal 3-0 Coventry page showed the scoreline, an xG race, a
+shot map, a momentum chart, line-ups and eleven rows of match stats — and never
+said who scored.
+
+**Root cause.** `Match.events` was in the domain from the first commit and no
+adapter ever populated it. FotMob serves the whole stream under
+`matchFacts.events`; the shot stream I *was* ingesting even carried the goals
+with `eventType: 'Goal'` and a `playerName`. The data was present throughout.
+
+The deeper cause is what I chose to verify. Every check I wrote asked whether the
+numbers were internally consistent — do goal events match the scoreline, do
+minutes sum correctly, does the table add up — and none asked the question a
+reader asks first. Conformance passing is not the same as the page being useful,
+and a schema cannot tell you that a field nobody fills is a field nobody sees.
+
+**Fix.** `mapEvents()` maps goals (with assists, penalties and own goals), cards
+and substitutions from the live feed; the StatsBomb ingest derives the same from
+its event stream. Scorers now appear on every match card, and a full timeline
+sits directly under the score.
+
+**Verification.** Attribution was checked against lineups ingested by a separate
+code path, so the check is genuinely independent: 25/25 goals, 31/31 cards and
+81/81 substitutions on the correct side across nine live matches. Across the full
+2015/16 season, goal events equal the scoreline in 380/380 matches and per-side
+in 380/380, totalling 1,026 — the real figure for that season.
+
+**Smaller things caught on the way:**
+- `assistStr` already reads "assist by X", so the detail line said "assist assist
+  by Harrison Armstrong".
+- Event details used StatsBomb's registered names, so a timeline read "Wayne Mark
+  Rooney" beside a player page reading "Wayne Rooney".
+- An own goal has to be credited to the side that BENEFITS while naming the
+  player who conceded it; treating it as an ordinary goal would flatter a
+  defender and corrupt any top-scorer list built from the stream.
+
+**Lesson.** Ask what a reader wants from the page before asking whether the data
+is consistent. Internal consistency is necessary and nowhere near sufficient, and
+no amount of schema validation substitutes for looking at the thing.

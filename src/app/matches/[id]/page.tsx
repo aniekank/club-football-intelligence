@@ -4,6 +4,7 @@ import { XgRace } from '@/components/charts/XgRace';
 import { ShotMap } from '@/components/charts/ShotMap';
 import { Momentum } from '@/components/charts/Momentum';
 import { Lineups } from '@/components/match/Lineups';
+import { Timeline } from '@/components/match/Timeline';
 import {
   Card, CardHeader, Crest, Figure, LiveBadge, Badge, EmptyState, EstimateMark,
 } from '@/components/ui';
@@ -123,6 +124,22 @@ function MatchDetail({
           <TeamHero team={away} align="end" />
         </div>
       </Card>
+
+      {/* Goals, cards and substitutions. Placed directly under the score
+          because it answers the first question anyone asks of a result. */}
+      {match.events.length ? (
+        <Card>
+          <CardHeader eyebrow="Timeline" title="How it happened" />
+          <div className="mx-auto max-w-3xl p-4">
+            <Timeline
+              events={match.events}
+              home={home}
+              away={away}
+              competitionId={match.competitionId}
+            />
+          </div>
+        </Card>
+      ) : null}
 
       {/* The model's view, for a fixture not yet played. */}
       {preview ? (

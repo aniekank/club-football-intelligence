@@ -13,7 +13,7 @@ Two tiers:
 
 ---
 
-## Automated coverage (122 tests)
+## Automated coverage (132 tests)
 
 | Area | File | What it pins |
 |---|---|---|
@@ -25,6 +25,7 @@ Two tiers:
 | Snapshot store | `src/data/store.test.ts` | Index invalidation on swap, safe misses, stale-live guard |
 | Player views | `src/server/players.test.ts` | Per-90 vs ratio handling, mid-rank percentile ties, missing-metric omission, leaderboard minutes floor |
 | Historical editions | `src/data/providers/statsbomb.test.ts` | Real 2015/16 tables reproduced exactly, champion, code collisions, full-season coverage, goals-vs-xG sanity |
+| Match events | `src/data/providers/fotmobEvents.test.ts` | Scorers, assists, penalties, own goals, card grades, substitution direction |
 | Ask & resolver | `src/ai/ask.test.ts` | Real answers over 2015/16, refusal instead of guessing, search-box typo tolerance, cameo exclusion |
 
 **The single most important automated test** is
@@ -63,6 +64,9 @@ happened, and its absence is what makes "is my fix live?" unanswerable.
 | 2.4 | Modelled values carry the `est.` mark (field tilt, all forecasts, projected points) | |
 | 2.5 | Switch to a competition with no shot data: the xG race and shot map are **absent**, not empty axes | |
 | 2.6 | The table's xG columns disappear entirely when no club has xG | |
+| 2.7 | **Every finished result names its scorers** — on the card AND the match page | |
+| 2.8 | Goal events per side equal the scoreline, in both live and historical editions | |
+| 2.9 | Own goals are credited to the beneficiary and marked "(og)" | |
 
 ### 3. League tables
 

@@ -204,6 +204,7 @@ async function main() {
 
     const { minutes, starters, last } = computeMinutes(events);
     const shots = [];
+    const matchEvents = [];
     const lineups = { [homeId]: [], [awayId]: [] };
     const teamAgg = {
       [homeId]: { shots: 0, sot: 0, xg: 0, passes: 0, passesOk: 0, fouls: 0, corners: 0, yellow: 0, red: 0 },
@@ -255,6 +256,12 @@ async function main() {
         });
       }
 
+      // The display name, not the registered one. Player records already use
+      // the lineup nickname; an event stream that does not read "Juan Manuel
+      // Mata García" beside a player page that reads "Juan Mata".
+      const shown = (pid && (players.get(pid)?.name ?? identity.get(pid)?.display))
+        || e.player?.name || 'Unknown';
+
       const agg = teamAgg[teamId];
       const st = pid ? ensureStats(statsByPlayer, pid, ourId, seasonName) : null;
 
@@ -269,6 +276,20 @@ async function main() {
           st.xG += xg;
           if (outcome === 'goal' || outcome === 'saved') st.shotsOnTarget += 1;
           if (outcome === 'goal') st.goals += 1;
+        }
+        if (outcome === 'goal') {
+          const isPen = e.shot?.type?.name === 'Penalty';
+          matchEvents.push({
+            id: `${m.match_id}-g${matchEvents.length}`,
+            matchId: String(m.match_id),
+            minute: e.minute ?? 0,
+            addedTime: 0,
+            type: isPen ? 'PENALTY_GOAL' : 'GOAL',
+            teamId,
+            playerId: pid,
+            relatedPlayerId: null,
+            detail: shown,
+          });
         }
         const [x, y] = e.location ?? [0, 0];
         shots.push({
@@ -301,16 +322,47 @@ async function main() {
           }
         }
         if (e.pass?.type?.name === 'Corner') agg.corners += 1;
+      } else if (type === 'Own Goal Against') {
+        // StatsBomb records an own goal twice: "Against" for the conceding side
+        // and "For" for the beneficiary. Taking only ONE of them is what keeps
+        // the goal count matching the scoreline.
+        const beneficiary = teamId === homeId ? awayId : homeId;
+        matchEvents.push({
+          id: `${m.match_id}-og${matchEvents.length}`,
+          matchId: String(m.match_id),
+          minute: e.minute ?? 0,
+          addedTime: 0,
+          type: 'OWN_GOAL',
+          teamId: beneficiary,
+          playerId: pid,
+          relatedPlayerId: null,
+          detail: `${shown} (og)`,
+        });
       } else if (type === 'Foul Committed') {
         agg.fouls += 1;
         if (st) st.foulsCommitted += 1;
         const card = e.foul_committed?.card?.name;
+        if (card) pushCard(matchEvents, m, e, teamId, pid, card, shown);
         if (card === 'Yellow Card') { agg.yellow += 1; if (st) st.yellowCards += 1; }
         if (card === 'Red Card' || card === 'Second Yellow') { agg.red += 1; if (st) st.redCards += 1; }
       } else if (type === 'Bad Behaviour') {
         const card = e.bad_behaviour?.card?.name;
+        if (card) pushCard(matchEvents, m, e, teamId, pid, card, shown);
         if (card === 'Yellow Card') { agg.yellow += 1; if (st) st.yellowCards += 1; }
         if (card === 'Red Card' || card === 'Second Yellow') { agg.red += 1; if (st) st.redCards += 1; }
+      } else if (type === 'Substitution') {
+        const rep = e.substitution?.replacement;
+        matchEvents.push({
+          id: `${m.match_id}-s${matchEvents.length}`,
+          matchId: String(m.match_id),
+          minute: e.minute ?? 0,
+          addedTime: 0,
+          type: 'SUBSTITUTION',
+          teamId,
+          playerId: rep?.id != null ? String(rep.id) : null,
+          relatedPlayerId: pid,
+          detail: `${(rep?.id != null && identity.get(String(rep.id))?.display) || rep?.name || '?'} on for ${shown}`,
+        });
       } else if (type === 'Duel' && st) {
         st.duelsTotal += 1;
         if ((e.duel?.outcome?.name ?? '').includes('Won')) st.duelsWon += 1;
@@ -391,7 +443,7 @@ async function main() {
       awayScoreHT: null,
       penalties: null,
       teamStats: { [homeId]: mkStats(homeId), [awayId]: mkStats(awayId) },
-      events: [],
+      events: matchEvents.sort((a, b) => a.minute - b.minute),
       shots,
       lineups,
       referee: m.referee?.name ?? null,
@@ -424,6 +476,21 @@ async function main() {
   console.log(`teams ${payload.teams.length} · players ${payload.players.length} · shots ${shotCount}`);
   console.log(`wrote ${path.relative(process.cwd(), file)} (${(size / 1e6).toFixed(1)} MB)`);
   void ratingIgnored;
+}
+
+function pushCard(list, m, e, teamId, pid, card, shown) {
+  list.push({
+    id: `${m.match_id}-c${list.length}`,
+    matchId: String(m.match_id),
+    minute: e.minute ?? 0,
+    addedTime: 0,
+    type: card === 'Yellow Card' ? 'YELLOW_CARD'
+      : card === 'Second Yellow' ? 'SECOND_YELLOW' : 'RED_CARD',
+    teamId,
+    playerId: pid,
+    relatedPlayerId: null,
+    detail: shown,
+  });
 }
 
 function ensureStats(map, playerId, competitionId, seasonName) {

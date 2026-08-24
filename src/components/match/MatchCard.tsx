@@ -3,6 +3,7 @@ import { cn } from '@/lib/cn';
 import { Crest, Figure, LiveBadge, Badge } from '@/components/ui';
 import { num } from '@/lib/format';
 import { LocalTime } from '@/components/ui/LocalTime';
+import { ScorerLine } from './Timeline';
 import type { Match, Team } from '@/domain/types';
 
 /**
@@ -95,6 +96,12 @@ export function MatchCard({
 
         <Side team={away} align="end" dim={isDone && !awayWon} />
       </div>
+
+      {/* Who scored. The single most basic fact about a result, and the one
+          this card shipped without. */}
+      {played && match.events.length ? (
+        <ScorerLine events={match.events} homeTeamId={match.homeTeamId} />
+      ) : null}
 
       {hasXg ? (
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-t border-border-subtle pt-2">

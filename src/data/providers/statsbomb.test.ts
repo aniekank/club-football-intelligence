@@ -98,6 +98,46 @@ describe.runIf(epl)('Premier League 2015/16', () => {
     expect(snap.playerStats.every((s) => s.averageRating === null)).toBe(true);
   });
 
+  it('names a scorer for every goal in the season', () => {
+    /**
+     * The gap that prompted this: a 3-0 with nobody attached to it. Across a
+     * full season the check is strong — 1,026 goals must line up exactly, per
+     * match AND per side, or a goal is credited to the wrong team.
+     */
+    let matched = 0;
+    let sideMatched = 0;
+    let totalGoals = 0;
+    for (const m of snap.matches) {
+      const goals = m.events.filter((e) => e.type.includes('GOAL'));
+      totalGoals += goals.length;
+      if (goals.length === (m.homeScore ?? 0) + (m.awayScore ?? 0)) matched++;
+      const h = goals.filter((e) => e.teamId === m.homeTeamId).length;
+      const a = goals.filter((e) => e.teamId === m.awayTeamId).length;
+      if (h === m.homeScore && a === m.awayScore) sideMatched++;
+    }
+    expect(matched).toBe(380);
+    expect(sideMatched).toBe(380);
+    // The real 2015/16 Premier League produced 1,026 goals.
+    expect(totalGoals).toBe(1026);
+    // And every one of them names somebody.
+    const unnamed = snap.matches
+      .flatMap((m) => m.events)
+      .filter((e) => e.type.includes('GOAL') && (!e.detail || e.detail === 'Unknown'));
+    expect(unnamed).toHaveLength(0);
+  });
+
+  it('credits an own goal to the beneficiary while naming the scorer', () => {
+    const og = snap.matches
+      .flatMap((m) => m.events.map((e) => ({ e, m })))
+      .find(({ e }) => e.type === 'OWN_GOAL');
+    expect(og).toBeDefined();
+    // The goal counts FOR one side and is scored BY a player of the other.
+    const scorer = snap.players.find((p) => p.id === og!.e.playerId);
+    expect(scorer).toBeDefined();
+    expect(scorer!.teamId).not.toBe(og!.e.teamId);
+    expect(og!.e.detail).toContain('(og)');
+  });
+
   it('has a plausible goals-to-xG relationship', () => {
     // Across a full season, total goals and total xG should land close. A wild
     // divergence means the shot fold or the pitch normalisation is wrong.
