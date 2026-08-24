@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { cn } from '@/lib/cn';
+import { SortHeader } from './SortHeader';
+import { findTeamMetric, teamRows } from '@/lib/metrics';
 import { Figure, FormRun, TeamLabel, EstimateMark } from '@/components/ui';
 import { int, num, pct, signed } from '@/lib/format';
 import { zonesAreProvisional } from '@/domain/competitions';
@@ -43,12 +45,17 @@ const BAND_TOKEN: Record<ZoneKind, string> = {
 
 export function LeagueTable({
   competition, standings, teams, showModel = true, highlightTeamId, compact = false,
+  sort, dir, sortable = false,
 }: {
   competition: Competition;
   standings: StandingRow[];
   teams: Team[];
   showModel?: boolean;
   highlightTeamId?: string;
+  /** Active sort column and direction, from the URL. */
+  sort?: string;
+  dir?: string;
+  sortable?: boolean;
   /**
    * Sidebar variant: rank, club, played, goal difference, points. Genuinely
    * fewer COLUMNS rather than the full table scrolling inside a narrow column —
@@ -58,6 +65,36 @@ export function LeagueTable({
   compact?: boolean;
 }) {
   const teamById = new Map(teams.map((t) => [t.id, t]));
+
+  /**
+   * Re-order by an arbitrary metric when asked.
+   *
+   * The RANK column keeps showing the club's real league position, not its row
+   * number — sorting by xG must not imply a club is "3rd" when it is 11th. The
+   * left-hand band rail follows the true rank for the same reason. Sorting is a
+   * lens over the table, never a rewriting of it.
+   */
+  const ordered = (() => {
+    if (!sortable || !sort) return standings;
+    const metric = findTeamMetric(sort);
+    if (!metric) return standings;
+    const rowByTeam = new Map(teamRows({ teams, standings } as never).map((r) => [r.team.id, r]));
+    const sign = dir === 'asc' ? 1 : -1;
+    return [...standings].sort((a, b) => {
+      const ra = rowByTeam.get(a.teamId);
+      const rb = rowByTeam.get(b.teamId);
+      const va = ra ? metric.get(ra) : null;
+      const vb = rb ? metric.get(rb) : null;
+      // Rows with no value for this metric sink to the bottom either way,
+      // rather than being treated as zero and jumping to one end.
+      if (va === null && vb === null) return a.rank - b.rank;
+      if (va === null) return 1;
+      if (vb === null) return -1;
+      return (va - vb) * sign || a.rank - b.rank;
+    });
+  })();
+
+  const Col = ColFactory(sortable && !compact);
   const hasXG = !compact && standings.some((r) => r.xGFor !== null);
   const hasModel = !compact && showModel && standings.some((r) => r.titleProbability !== null);
   const anyNote = standings.some((r) => r.tiebreakerNote);
@@ -81,31 +118,29 @@ export function LeagueTable({
             <tr className="border-b border-border text-2xs uppercase tracking-caps text-ink-muted">
               <Th className="w-10 pl-3 text-left">#</Th>
               <Th className="text-left">Club</Th>
-              <Th className="w-10">Pl</Th>
-              {compact ? null : <Th className="hidden w-10 sm:table-cell">W</Th>}
+              <Col k="played" label="Pl" className="w-10" />
+              {compact ? null : <Col k="wins" label="W" className="hidden w-10 sm:table-cell" />}
               {compact ? null : <Th className="hidden w-10 sm:table-cell">D</Th>}
               {compact ? null : <Th className="hidden w-10 sm:table-cell">L</Th>}
               {compact ? null : <Th className="hidden w-12 lg:table-cell">GF</Th>}
               {compact ? null : <Th className="hidden w-12 lg:table-cell">GA</Th>}
-              <Th className="w-12">GD</Th>
-              <Th className="w-12 font-bold text-ink">Pts</Th>
+              <Col k="goalDifference" label="GD" className="w-12" />
+              <Col k="points" label="Pts" className="w-12 font-bold text-ink" />
               {hasXG ? (
-                <Th className="hidden w-16 xl:table-cell" title="Expected goals for">
-                  xG
-                </Th>
+                <Col k="xGFor" label="xG" className="hidden w-16 xl:table-cell" title="Expected goals for" />
               ) : null}
               {hasXG ? (
-                <Th className="hidden w-16 xl:table-cell" title="Expected goals against">
-                  xGA
-                </Th>
+                <Col k="xGAgainst" label="xGA" better={false} className="hidden w-16 xl:table-cell" title="Expected goals against" />
               ) : null}
               {compact ? null : <Th className="hidden w-32 md:table-cell text-left">Form</Th>}
-              {hasModel ? <Th className="w-20">Title</Th> : null}
-              {hasModel ? <Th className="hidden w-20 lg:table-cell">Rel</Th> : null}
+              {hasModel ? <Col k="titleProbability" label="Title" className="w-20" /> : null}
+              {hasModel ? (
+                <Col k="relegationProbability" label="Rel" better={false} className="hidden w-20 lg:table-cell" />
+              ) : null}
             </tr>
           </thead>
           <tbody>
-            {standings.map((row) => {
+            {ordered.map((row) => {
               const team = teamById.get(row.teamId);
               const band = row.zone ? BAND_TOKEN[row.zone] : null;
               const highlighted = highlightTeamId === row.teamId;
@@ -275,6 +310,26 @@ function ProbabilityCell({
       </span>
     </div>
   );
+}
+
+/**
+ * A column head that is sortable or not depending on the surface.
+ *
+ * One component rather than a conditional at every header — the compact sidebar
+ * table and the full page table share these columns, and only one of them wants
+ * sorting.
+ */
+function ColFactory(sortable: boolean) {
+  return function Col({
+    k, label, className, title, better = true,
+  }: { k: string; label: string; className?: string; title?: string; better?: boolean }) {
+    if (!sortable) {
+      return <Th className={className} title={title}>{label}</Th>;
+    }
+    return (
+      <SortHeader columnKey={k} label={label} higherIsBetter={better} className={className} title={title} />
+    );
+  };
 }
 
 function Th({

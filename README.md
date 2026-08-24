@@ -28,7 +28,7 @@ cp .env.example .env
 |---|---|
 | `npm run dev` | development server |
 | `npm run build && npm start` | production build |
-| `npm test` | 132 tests, hermetic, no network |
+| `npm test` | 143 tests, hermetic, no network |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npx tsx scripts/probe-fotmob.mts epl` | load a competition live and check conformance |
 | `npx tsx scripts/probe-forecast.mts epl` | run the full engine against live data |
@@ -95,6 +95,27 @@ four break here, and the breaks are load-bearing:
 - **Squads mutate.** Player–club affiliation is an interval, not a field.
 - **Editions, not just competitions.** The same competition has several seasons;
   live ones stream, completed ones load instantly from a committed cache.
+
+## The analyst toolkit
+
+`/explore` plots any metric against any other, for clubs or players, with the
+median of each axis drawn as a crosshair — so the four quadrants have plain
+meanings and outliers, which is where insight lives, are visible rather than
+inferred. League tables sort by any column. Player and club pages carry a
+season shot map filterable by situation, body part and outcome.
+
+Every control writes to the URL, so a view is a link. That costs a round trip a
+client-side filter would not and buys three things worth more: shareable views,
+a back button that behaves, and no dependence on JavaScript.
+
+Two rules the toolkit inherits from the rest of the product:
+
+- **A metric the source cannot serve is not offered.** Title probability is null
+  across a completed season, so it does not appear as an axis. Offering it and
+  plotting a column of nulls is the control-layer version of showing a fake zero.
+- **Sorting is a lens, never a rewrite.** Sorting the table by xG leaves the rank
+  column showing real league position and the qualification rails on the true
+  rank — a club sorted third is not third.
 
 ## Search, narratives and ask
 

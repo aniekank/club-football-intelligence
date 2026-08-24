@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { MatchCard } from '@/components/match/MatchCard';
 import { LeagueTable } from '@/components/table/LeagueTable';
+import { SeasonShotMap } from '@/components/charts/SeasonShotMap';
 import {
   Card, CardHeader, Crest, Figure, StatTile, FormRun, Badge, EmptyState, EstimateMark,
 } from '@/components/ui';
@@ -38,6 +39,9 @@ export default function TeamPage({
   const recent = played.slice(-5).reverse();
 
   const zone = standing ? zoneForRank(competition, standing.rank) : null;
+  const shots = snapshot
+    ? snapshot.matches.flatMap((m) => m.shots.filter((sh) => sh.teamId === params.id))
+    : [];
 
   return (
     <AppShell
@@ -228,6 +232,19 @@ export default function TeamPage({
                 </div>
               </Card>
             </div>
+
+            {shots.length ? (
+              <Card>
+                <CardHeader
+                  eyebrow="Shooting"
+                  title="Where the chances come from"
+                  description="Every shot taken, filterable by situation, body part and outcome."
+                />
+                <div className="mx-auto max-w-2xl p-4">
+                  <SeasonShotMap shots={shots} subjectLabel={team.name} />
+                </div>
+              </Card>
+            ) : null}
 
             {snapshot.standings.length ? (
               <Card>

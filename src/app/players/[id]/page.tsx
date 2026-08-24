@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { PercentileBars } from '@/components/charts/PercentileBars';
+import { SeasonShotMap } from '@/components/charts/SeasonShotMap';
 import { CoverageNote, CoverageSentence } from '@/components/players/CoverageNote';
 import { Card, CardHeader, Crest, Figure, StatTile, EmptyState, Badge } from '@/components/ui';
 import { resolveActive } from '@/server/active';
@@ -27,6 +28,11 @@ export default function PlayerPage({
   const { competition, snapshot, available, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
   const view = snapshot ? buildPlayerView(snapshot, params.id) : undefined;
   if (snapshot && !view) notFound();
+
+  // Every shot this player took, across every ingested match.
+  const shots = snapshot
+    ? snapshot.matches.flatMap((m) => m.shots.filter((sh) => sh.playerId === params.id))
+    : [];
 
   const coverage = snapshot?.meta.playerStatsCoverage;
 
@@ -127,6 +133,19 @@ export default function PlayerPage({
                 />
               </div>
             </Card>
+
+            {shots.length ? (
+              <Card>
+                <CardHeader
+                  eyebrow="Shooting"
+                  title="Where the shots come from"
+                  description="Filter by situation, body part or outcome."
+                />
+                <div className="mx-auto max-w-2xl p-4">
+                  <SeasonShotMap shots={shots} subjectLabel={view.player.name} />
+                </div>
+              </Card>
+            ) : null}
 
             <Card>
               <CardHeader eyebrow="Detail" title="Per 90 and totals" />

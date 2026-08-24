@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export default function TablePage({
   searchParams,
 }: {
-  searchParams: { competition?: string; season?: string };
+  searchParams: { competition?: string; season?: string; sort?: string; dir?: string };
 }) {
   const { competition, snapshot, available, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
 
@@ -61,6 +61,9 @@ export default function TablePage({
                 competition={snapshot.competition}
                 standings={snapshot.standings}
                 teams={snapshot.teams}
+                sortable
+                sort={searchParams.sort}
+                dir={searchParams.dir}
               />
             )}
           </div>

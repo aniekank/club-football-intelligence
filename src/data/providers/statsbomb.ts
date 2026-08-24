@@ -1,4 +1,5 @@
 import { computeStandings } from '@/analytics/standings';
+import { scoreMatrix } from '@/analytics/poisson';
 import { assignCodes } from './fotmob';
 import { getCompetition } from '@/domain/competitions';
 import type {
@@ -87,6 +88,48 @@ export function buildFromEdition(edition: StatsBombEdition): DatasetSnapshot {
     const a = xgAgainst.get(row.teamId);
     if (f !== undefined) row.xGFor = Math.round(f * 10) / 10;
     if (a !== undefined) row.xGAgainst = Math.round(a * 10) / 10;
+  }
+
+  /**
+   * Expected points, derived from each match's xG.
+   *
+   * The live feed supplies this; StatsBomb does not, so it is computed — and it
+   * is worth computing rather than leaving null, because "how many points did
+   * this performance deserve" is the single most useful thing a completed
+   * season can be asked, and Leicester 2015/16 is the canonical answer.
+   *
+   * Per match: turn the two xG totals into a scoreline distribution and take
+   * 3 x P(win) + 1 x P(draw). Summing those across a season gives the points a
+   * side would have collected on average from the chances both teams created.
+   * Bivariate Poisson, the same model used everywhere else, so the number is
+   * consistent with the rest of the product rather than a second opinion.
+   */
+  const xPoints = new Map<string, number>();
+  for (const m of edition.matches) {
+    const hx = m.teamStats[m.homeTeamId]?.xG;
+    const ax = m.teamStats[m.awayTeamId]?.xG;
+    if (hx == null || ax == null) continue;
+    const matrix = scoreMatrix(Math.max(hx, 0.01), Math.max(ax, 0.01));
+    let homeWin = 0;
+    let draw = 0;
+    let awayWin = 0;
+    for (let i = 0; i < matrix.length; i++) {
+      const row = matrix[i] as number[];
+      for (let j = 0; j < row.length; j++) {
+        const p = row[j] as number;
+        if (i > j) homeWin += p;
+        else if (i === j) draw += p;
+        else awayWin += p;
+      }
+    }
+    const win = competition.pointsForWin;
+    const drew = competition.pointsForDraw;
+    xPoints.set(m.homeTeamId, (xPoints.get(m.homeTeamId) ?? 0) + homeWin * win + draw * drew);
+    xPoints.set(m.awayTeamId, (xPoints.get(m.awayTeamId) ?? 0) + awayWin * win + draw * drew);
+  }
+  for (const row of standings) {
+    const xp = xPoints.get(row.teamId);
+    if (xp !== undefined) row.expectedPoints = Math.round(xp * 10) / 10;
   }
 
   const kickoffs = edition.matches.map((m) => m.kickoff).sort();

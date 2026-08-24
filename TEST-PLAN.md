@@ -13,7 +13,7 @@ Two tiers:
 
 ---
 
-## Automated coverage (132 tests)
+## Automated coverage (143 tests)
 
 | Area | File | What it pins |
 |---|---|---|
@@ -25,6 +25,7 @@ Two tiers:
 | Snapshot store | `src/data/store.test.ts` | Index invalidation on swap, safe misses, stale-live guard |
 | Player views | `src/server/players.test.ts` | Per-90 vs ratio handling, mid-rank percentile ties, missing-metric omission, leaderboard minutes floor |
 | Historical editions | `src/data/providers/statsbomb.test.ts` | Real 2015/16 tables reproduced exactly, champion, code collisions, full-season coverage, goals-vs-xG sanity |
+| Metric registry | `src/lib/metrics.test.ts` | Serialisable definitions, metric direction, capability gating, no invented zeros |
 | Match events | `src/data/providers/fotmobEvents.test.ts` | Scorers, assists, penalties, own goals, card grades, substitution direction |
 | Ask & resolver | `src/ai/ask.test.ts` | Real answers over 2015/16, refusal instead of guessing, search-box typo tolerance, cameo exclusion |
 
@@ -171,14 +172,29 @@ match and edge pages._
 | 10.7 | Search works with JavaScript disabled, and a result URL is shareable | |
 | 10.8 | Search results are scoped to the active edition and say so when empty | |
 
-### 11. Accessibility
+### 11. Analyst toolkit
 
 | # | Check | Pass |
 |---|---|---|
-| 11.1 | A screen reader announces form as one summary, not duplicated letters | |
-| 11.2 | Every chart has a meaningful `aria-label` with real numbers | |
-| 11.3 | Crests are decorative; club names are text | |
-| 11.4 | Colour is never the only carrier of meaning — check the table bands and edge tiers | |
+| 11.1 | `/explore` plots clubs; changing either axis updates the chart and the URL | |
+| 11.2 | The URL alone reproduces the view — paste it in a new tab | |
+| 11.3 | Quadrant captions stay correct when an axis flips direction (try goals conceded) | |
+| 11.4 | Player scope respects the position and minutes filters | |
+| 11.5 | Sorting the table by xG leaves the rank column showing real league position | |
+| 11.6 | A third click on a sorted column returns to league order | |
+| 11.7 | Metrics the edition cannot serve are absent from the pickers, not empty | |
+| 11.8 | The season shot map filters by situation, body part and outcome | |
+| 11.9 | No hydration warning in the console on any of these | |
+
+### 12. Accessibility
+
+| # | Check | Pass |
+|---|---|---|
+| 12.1 | A screen reader announces form as one summary, not duplicated letters | |
+| 12.2 | Every chart has a meaningful `aria-label` with real numbers | |
+| 12.3 | Crests are decorative; club names are text | |
+| 12.4 | Colour is never the only carrier of meaning — check the table bands and edge tiers | |
+| 12.5 | Sortable headers expose `aria-sort` | |
 
 ---
 
