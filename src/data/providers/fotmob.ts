@@ -2,6 +2,10 @@ import { fetchJson, mapLimit } from '../http';
 import { computeStandings } from '@/analytics/standings';
 import { getCompetition } from '@/domain/competitions';
 import { derivePriors, type PriorSeasonRow } from '@/analytics/ratings';
+import {
+  foldMatch, newFold, finaliseFold,
+  type FmLineup, type FmPlayerStats,
+} from './fotmobPlayers';
 import type {
   Competition, DatasetCapabilities, DatasetSnapshot, ID, Match, MatchTeamStats,
   PriorRating, Season, Shot, ShotBodyPart, ShotOutcome, ShotSituation, StandingRow, Team, Zone, ZoneKind,
@@ -161,6 +165,8 @@ interface FmMatchDetails {
     stats?: { Periods?: { All?: { stats?: FmStatGroup[] } } };
     momentum?: { main?: { data?: { minute: number; value: number }[] } };
     matchFacts?: { infoBox?: { Stadium?: { name?: string }; Referee?: { text?: string }; Attendance?: number } };
+    lineup?: FmLineup;
+    playerStats?: Record<string, FmPlayerStats>;
   };
 }
 
@@ -622,6 +628,8 @@ export async function buildSnapshot(
 
   let detailFailures = 0;
   const byId = new Map(matches.map((m) => [m.id, m]));
+  const fold = newFold();
+  const coveredKickoffs: string[] = [];
 
   await mapLimit(detailTargets, concurrency, async (m) => {
     try {
@@ -639,6 +647,28 @@ export async function buildSnapshot(
       target.venue = info?.Stadium?.name ?? null;
       target.referee = info?.Referee?.text ?? null;
       target.attendance = info?.Attendance ?? null;
+
+      const formation = details.content?.lineup;
+      if (formation) {
+        target.formations = {
+          home: formation.homeTeam?.formation ?? null,
+          away: formation.awayTeam?.formation ?? null,
+        };
+      }
+
+      const lineups = foldMatch(fold, {
+        lineup: details.content?.lineup,
+        playerStats: details.content?.playerStats,
+        seasonId,
+        competitionId,
+        kickoff: target.kickoff,
+        homeTeamId: target.homeTeamId,
+        awayTeamId: target.awayTeamId,
+        homeScore: target.homeScore,
+        awayScore: target.awayScore,
+      });
+      if (Object.keys(lineups).length) target.lineups = lineups;
+      coveredKickoffs.push(target.kickoff);
     } catch {
       // One bad fixture must never fail the whole load. It simply arrives
       // without detail, and the capability flags stay honest about coverage.
@@ -707,6 +737,20 @@ export async function buildSnapshot(
     championTeamId: null,
   };
 
+  // ── Players ──────────────────────────────────────────────────────────────
+  const players = [...fold.players.values()];
+  const playerStats = finaliseFold(fold);
+  coveredKickoffs.sort();
+  const playedCount = matches.filter((m) => m.status === 'FINISHED').length;
+  const coverage = players.length
+    ? {
+        matchesCovered: coveredKickoffs.length,
+        matchesPlayed: playedCount,
+        from: coveredKickoffs[0] ?? null,
+        complete: coveredKickoffs.length >= playedCount,
+      }
+    : undefined;
+
   // ── Capabilities ─────────────────────────────────────────────────────────
   const anyShots = matches.some((m) => m.shots.length > 0);
   const anyXG = matches.some((m) =>
@@ -716,12 +760,12 @@ export async function buildSnapshot(
   const capabilities: DatasetCapabilities = {
     hasXG: anyXG,
     hasShotLocations: anyShots,
-    hasLineups: false,     // available upstream; not mapped yet
-    hasPlayerStats: false, // available upstream; not mapped yet
+    hasLineups: matches.some((m) => m.lineups && Object.keys(m.lineups).length > 0),
+    hasPlayerStats: playerStats.length > 0,
     hasMomentum: matches.some((m) => (m.momentum?.length ?? 0) > 0),
-    hasFormations: false,
+    hasFormations: matches.some((m) => Boolean(m.formations?.home)),
     hasManagers: false,
-    hasMarketValues: false,
+    hasMarketValues: players.some((p) => p.marketValueEur !== null),
     hasOdds: false,        // set by the odds layer once joined
     modeledMetrics: ['fieldTilt', 'isBigChance'],
   };
@@ -762,8 +806,8 @@ export async function buildSnapshot(
       entryStage: null,
     })),
     teams,
-    players: [],
-    playerStats: [],
+    players,
+    playerStats,
     matches,
     standings,
     priorRatings,
@@ -777,6 +821,7 @@ export async function buildSnapshot(
       degradedReason: detailFailures > 0
         ? `${detailFailures} of ${detailTargets.length} match-detail requests failed; those fixtures have results but no shot data`
         : undefined,
+      playerStatsCoverage: coverage,
     },
   };
 }

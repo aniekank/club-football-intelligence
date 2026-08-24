@@ -3,6 +3,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { XgRace } from '@/components/charts/XgRace';
 import { ShotMap } from '@/components/charts/ShotMap';
 import { Momentum } from '@/components/charts/Momentum';
+import { Lineups } from '@/components/match/Lineups';
 import {
   Card, CardHeader, Crest, Figure, LiveBadge, Badge, EmptyState, EstimateMark,
 } from '@/components/ui';
@@ -200,6 +201,21 @@ function MatchDetail({
               data={match.momentum}
               homeName={home.shortName}
               awayName={away.shortName}
+            />
+          </div>
+        </Card>
+      ) : null}
+
+      {match.lineups && Object.keys(match.lineups).length && home && away ? (
+        <Card>
+          <CardHeader eyebrow="Teams" title="Line-ups" />
+          <div className="p-4">
+            <Lineups
+              home={home}
+              away={away}
+              lineups={match.lineups}
+              formations={match.formations}
+              competitionId={match.competitionId}
             />
           </div>
         </Card>

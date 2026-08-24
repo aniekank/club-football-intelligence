@@ -34,6 +34,7 @@ export function Header({
           <NavLink href="/">Today</NavLink>
           <NavLink href="/table">Table</NavLink>
           <NavLink href="/fixtures">Fixtures</NavLink>
+          <NavLink href="/players">Players</NavLink>
           <NavLink href="/edge">Betting Edge</NavLink>
         </nav>
 

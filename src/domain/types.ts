@@ -548,6 +548,26 @@ export interface DatasetCapabilities {
   modeledMetrics: string[];
 }
 
+/**
+ * How much of the season the per-player numbers actually cover.
+ *
+ * Match detail is fetched for a recent window, not the whole season, so player
+ * aggregates are a PARTIAL total. Presenting them as season figures would be a
+ * quiet lie of exactly the kind this product exists not to tell — a striker
+ * shown on "3 goals" when they have nine is worse than showing nothing. The UI
+ * reads this and labels the scope.
+ */
+export interface StatsCoverage {
+  /** Matches whose detail was actually ingested. */
+  matchesCovered: number;
+  /** Matches played in the competition so far. */
+  matchesPlayed: number;
+  /** Earliest covered kickoff, for the "since" label. */
+  from: ISODate | null;
+  /** True only when every played match has been ingested. */
+  complete: boolean;
+}
+
 export interface DatasetMeta {
   source: string;
   sourceLabel: string;
@@ -556,6 +576,8 @@ export interface DatasetMeta {
   /** True when served from the last-known-good cache after a source failure. */
   degraded: boolean;
   degradedReason?: string;
+  /** Scope of the per-player aggregates. Absent when there are none. */
+  playerStatsCoverage?: StatsCoverage;
 }
 
 /**

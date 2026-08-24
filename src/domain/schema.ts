@@ -245,7 +245,26 @@ export const snapshotSchema = z
     ),
     teams: z.array(teamSchema),
     players: z.array(playerSchema),
-    playerStats: z.array(z.object({ playerId: z.string() }).passthrough()),
+    playerStats: z.array(
+      z
+        .object({
+          playerId: z.string().min(1),
+          seasonId: z.string(),
+          competitionId: z.string(),
+          minutes: z.number().nonnegative(),
+          appearances: z.number().int().nonnegative(),
+          goals: z.number().int().nonnegative(),
+          assists: z.number().int().nonnegative(),
+          xG: nonNegative,
+          xA: nonNegative,
+          averageRating: z.number().min(0).max(10).nullable(),
+        })
+        .passthrough()
+        // A player credited with goals but no minutes has been folded wrong.
+        .refine((s0) => s0.minutes > 0 || s0.goals === 0, {
+          message: 'player has goals but zero minutes',
+        }),
+    ),
     matches: z.array(matchSchema),
     standings: z.array(standingRowSchema),
     priorRatings: z.array(
@@ -266,6 +285,19 @@ export const snapshotSchema = z
       fetchedAt: iso,
       degraded: z.boolean(),
       degradedReason: z.string().optional(),
+      playerStatsCoverage: z
+        .object({
+          matchesCovered: z.number().int().nonnegative(),
+          matchesPlayed: z.number().int().nonnegative(),
+          from: iso.nullable(),
+          complete: z.boolean(),
+        })
+        // Coverage cannot exceed what has been played — if it does, matches are
+        // being double-counted somewhere in the fold.
+        .refine((c) => c.matchesCovered <= c.matchesPlayed, {
+          message: 'playerStatsCoverage.matchesCovered exceeds matchesPlayed',
+        })
+        .optional(),
     }),
   })
   // Referential integrity. A match pointing at a team that isn't in the snapshot
