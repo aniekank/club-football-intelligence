@@ -4,7 +4,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { MatchCard } from '@/components/match/MatchCard';
 import { LeagueTable } from '@/components/table/LeagueTable';
 import { SeasonShotMap } from '@/components/charts/SeasonShotMap';
-import { StoneCrest } from '@/components/team/StoneCrest';
+import { EmbossedCrest } from '@/components/team/EmbossedCrest';
 import {
   Card, CardHeader, Crest, Figure, StatTile, FormRun, Badge, EmptyState, EstimateMark,
 } from '@/components/ui';
@@ -58,9 +58,45 @@ export default function TeamPage({
           <EmptyState title="Loading club" />
         ) : (
           <>
-            <Card>
-              <div className="flex flex-wrap items-center gap-4 p-5">
-                <StoneCrest url={team.crestUrl} code={team.code} name={team.name} size={88} />
+            {/*
+              The club hero.
+
+              `isolate` + `overflow-hidden` are load-bearing: the embossed mark
+              is deliberately larger than the card and bleeds off its right
+              edge, which is what makes it read as a surface the card was cut
+              from rather than a picture placed inside it.
+            */}
+            <Card className="relative isolate overflow-hidden">
+              {team.primaryColor ? (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 -z-20"
+                  style={{
+                    background: `linear-gradient(105deg, ${team.primaryColor}2e 0%, transparent 58%)`,
+                  }}
+                />
+              ) : null}
+              {/*
+                Pushed mostly off the card and kept quiet. At full strength it
+                sat behind the position readout and won — the relief is meant to
+                be the texture of the surface, not a second subject competing
+                with the number the reader came for.
+
+                `right-[-5rem]` is an arbitrary value on purpose: this design
+                system REPLACES Tailwind's spacing scale with a deliberate 8pt
+                set of 0-10, so `-right-24` is not a class here. It compiles to
+                nothing, and an absolutely-positioned element with no inset
+                falls back to its static position — which put the mark in the
+                top-left corner rather than off the right edge.
+              */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute right-[-5rem] top-1/2 -z-10 -translate-y-1/2"
+              >
+                <EmbossedCrest url={team.crestUrl} size={280} opacity={0.28} />
+              </span>
+              <div className="relative flex flex-wrap items-center gap-4 p-5">
+                <Crest url={team.crestUrl} code={team.code} name={team.name} size={56} />
                 <div className="min-w-0 flex-1">
                   <p className="eyebrow">
                     {team.country} · {competition.name}

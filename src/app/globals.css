@@ -257,11 +257,11 @@
    * the OS to control contrast.
    */
   @media (forced-colors: active) {
-    .stone-crest image {
-      filter: none !important;
-      opacity: 1 !important;
-    }
-    .stone-crest rect[filter] {
+    /* The embossed mark is decoration computed from a lighting filter, and its
+       cream relief would fight a palette the reader chose for legibility. It is
+       aria-hidden and duplicated by a plain crest beside it, so removing it
+       costs nothing. */
+    .emboss-mark {
       display: none;
     }
   }
