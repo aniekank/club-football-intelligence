@@ -131,13 +131,19 @@ injuries or motivation, all of which the market prices.
 | `TEST-PLAN.md` | behaviour checks — content, never HTTP 200 |
 | `docs/DESIGN-SYSTEM.md` | tokens, validated palette, chart rules |
 | `docs/DECISIONS.md` | choices that would look arbitrary later |
+| `DEPLOY.md` | Render setup, promotion sequence, quota, failure modes |
 
 ## Deployment
 
-`render.yaml` defines production and staging as persistent web services — the
-app is stateful (in-memory snapshot, background refresh), so never serverless.
-`/api/health` echoes the live commit, which is what makes "is my fix deployed?"
-answerable.
+`render.yaml` defines production (`main`) and staging (`staging`) as persistent
+web services — the app is stateful (in-memory snapshot, background refresh loop,
+on-disk last-known-good cache), so never serverless.
 
-Promote staging to production only after `TEST-PLAN.md` sections 1, 2, 3 and 5
-pass.
+`/api/health` reports the live commit, the real data source read from the loaded
+snapshot, and per-competition row counts. It distinguishes *booting* from
+*broken*: an empty instance is healthy for its first 180 seconds and a 503 after
+that, so a release is never killed mid-boot but a genuinely empty one still
+alerts.
+
+See **`DEPLOY.md`** for the one-time Render setup, the promotion sequence, the
+odds credit budget, and what to do if the live source goes away.
