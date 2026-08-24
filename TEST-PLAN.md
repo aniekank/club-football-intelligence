@@ -13,7 +13,7 @@ Two tiers:
 
 ---
 
-## Automated coverage (117 tests)
+## Automated coverage (122 tests)
 
 | Area | File | What it pins |
 |---|---|---|
@@ -164,6 +164,8 @@ match and edge pages._
 | 10.4 | An unanswerable question says so and suggests alternatives — it never guesses | |
 | 10.5 | Every ask answer shows the rows it came from | |
 | 10.6 | A typo in the SEARCH box still resolves ("Leicster" → Leicester) | |
+| 10.7 | Search works with JavaScript disabled, and a result URL is shareable | |
+| 10.8 | Search results are scoped to the active edition and say so when empty | |
 
 ### 11. Accessibility
 

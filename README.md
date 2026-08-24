@@ -28,7 +28,7 @@ cp .env.example .env
 |---|---|
 | `npm run dev` | development server |
 | `npm run build && npm start` | production build |
-| `npm test` | 117 tests, hermetic, no network |
+| `npm test` | 122 tests, hermetic, no network |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npx tsx scripts/probe-fotmob.mts epl` | load a competition live and check conformance |
 | `npx tsx scripts/probe-forecast.mts epl` | run the full engine against live data |
@@ -96,7 +96,7 @@ four break here, and the breaks are load-bearing:
 - **Editions, not just competitions.** The same competition has several seasons;
   live ones stream, completed ones load instantly from a committed cache.
 
-## Narratives and ask
+## Search, narratives and ask
 
 Both are DETERMINISTIC, not generative. Every sentence is assembled from numbers
 already in the snapshot, so each is checkable, reproducible between requests, and
