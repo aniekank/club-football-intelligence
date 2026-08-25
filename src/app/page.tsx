@@ -6,6 +6,8 @@ import { Spotlight } from '@/components/ai/Spotlight';
 import { generateInsights, generateBriefing } from '@/ai/narratives';
 import { narrativeContext } from '@/server/narrative';
 import { WorldTourPanel } from '@/components/globe/WorldTourPanel';
+import { TopForm } from '@/components/form/TopForm';
+import { topFormTeams, topFormPlayers } from '@/analytics/form';
 import { Rail } from '@/components/layout/Rail';
 import { MatchdayPanel } from '@/components/match/MatchdayPanel';
 import { matchdaysAcross } from '@/server/matchday';
@@ -43,6 +45,18 @@ export default function HomePage({
   const insights = narrativeCtx ? generateInsights(narrativeCtx) : [];
   const briefing = narrativeCtx ? generateBriefing(narrativeCtx, liveElsewhere) : null;
   const seasonSuffix = entitySuffix(competition.id, searchParams.season);
+
+  /**
+   * Form is deliberately NOT scoped to the active competition.
+   *
+   * Everything else on this page answers "what is happening in the league you
+   * picked". This one answers "who is playing well anywhere", which is a
+   * different question and the only one the reader cannot get by switching
+   * competitions until they find it.
+   */
+  const everySnapshot = allSnapshots();
+  const formTeams = topFormTeams(everySnapshot, 6);
+  const formPlayers = topFormPlayers(everySnapshot, new Date().toISOString(), 6);
 
   /**
    * Today, across EVERY competition rather than the active one.
@@ -183,6 +197,12 @@ export default function HomePage({
               </Link>
             </div>
             <Spotlight insights={insights.slice(0, 6)} suffix={seasonSuffix} />
+          </section>
+        ) : null}
+
+        {formTeams.length || formPlayers.length ? (
+          <section className="mb-6">
+            <TopForm teams={formTeams} players={formPlayers} />
           </section>
         ) : null}
 

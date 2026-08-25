@@ -123,8 +123,17 @@ describe('named theme scales are not invented at the call site', () => {
     const valid = keysOf(scale);
     // Arbitrary values (`text-[2rem]`) and slash opacity are the escape hatch
     // and are deliberately not matched.
+    /*
+     * The trailing `:` exclusion is what keeps this off plain CSS.
+     *
+     * Components ship scoped `<style>` blocks, and `z-index:120` in one of them
+     * matches a `z-` utility pattern perfectly: prefix `z`, token `index`, not
+     * in the scale, flagged. A Tailwind class is never immediately followed by
+     * a colon — variants put theirs BEFORE the utility — so a colon after the
+     * token means this is a CSS property and not a class at all.
+     */
     const pattern = new RegExp(
-      String.raw`(?<![\w-])(?:[a-z-]+:)?${prefix}-([a-z0-9]+)(?![\w./\[-])`,
+      String.raw`(?<![\w-])(?:[a-z-]+:)?${prefix}-([a-z0-9]+)(?![\w./:\[-])`,
       'g',
     );
 

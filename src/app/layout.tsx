@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Fraunces, Archivo, JetBrains_Mono } from 'next/font/google';
 import { themeScript } from '@/components/layout/ThemeToggle';
 import { railScript } from '@/components/layout/Rail';
+import { IntroSplash, introScript } from '@/components/intro/IntroSplash';
 import './globals.css';
 
 /**
@@ -104,12 +105,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Same job for the sidebar: applied after hydration, the reader would
             watch a 22rem column shut itself on every navigation. */}
         <script dangerouslySetInnerHTML={{ __html: railScript }} />
+        {/* Decides whether the intro plays, and covers the page if it does —
+            before the first frame, so the app is never briefly visible behind
+            its own introduction. */}
+        <script dangerouslySetInnerHTML={{ __html: introScript }} />
       </head>
       <body>
         <a href="#main" className="sr-only-focusable absolute left-4 top-4 z-toast rounded-md bg-brand px-4 py-2 text-sm font-semibold text-brand-ink">
           Skip to content
         </a>
         {children}
+        <IntroSplash />
       </body>
     </html>
   );

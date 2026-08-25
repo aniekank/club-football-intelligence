@@ -267,6 +267,24 @@
   }
 
   /**
+   * The intro cover.
+   *
+   * Painted on the first frame by an attribute the pre-paint script sets, so
+   * the reader never sees the app for a beat before being introduced to it.
+   * The splash component takes this over and then clears the attribute; a
+   * timer in the same script clears it regardless, because a rule that hides
+   * the entire product must not depend on a component mounting.
+   */
+  :root[data-intro] body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 199;
+    background: var(--surface-canvas);
+    pointer-events: none;
+  }
+
+  /**
    * The collapsible rail.
    *
    * The open/closed state is an attribute on <html>, written before first paint
