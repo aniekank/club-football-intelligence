@@ -24,10 +24,10 @@ function makeTeam(id: string, name = `Team ${id}`): Team {
 
 function makePlayer(id: string, teamId: string, name: string): Player {
   return {
-    id, name, fullName: name, teamId, shirtNumber: null, position: 'FW',
-    detailedPosition: null, age: 25, dateOfBirth: null, heightCm: null,
-    preferredFoot: null, nationality: 'England', marketValue: null,
-    contractUntil: null, onLoanFrom: null,
+    id, name, fullName: name, teamId, affiliations: [], shirtNumber: null,
+    position: 'FW', detailedPosition: 'ST', age: 25, birthDate: null,
+    nationality: 'England', photoUrl: null, heightCm: null, foot: null,
+    marketValueEur: null,
   };
 }
 

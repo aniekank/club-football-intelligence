@@ -128,6 +128,22 @@ export default function HomePage({
           <WorldTourPanel suffix={seasonSuffix} />
         </section>
 
+        {/*
+          Straight under the globe, and above everything scoped to a league.
+
+          The page has two halves and they answer different questions. These
+          top sections are about football everywhere — what is kicking off, who
+          is running hot — and everything below is about the competition the
+          reader picked. Sitting under the storylines it was the fifth block
+          down and behind two carousels, which is where a module goes to be
+          described as missing.
+        */}
+        {formTeams.length || formPlayers.length ? (
+          <section className="mb-6">
+            <TopForm teams={formTeams} players={formPlayers} />
+          </section>
+        ) : null}
+
         {/* Live across every loaded competition — a club plays in several at
             once, so this deliberately is not scoped to the active one. */}
         {live.length > 0 ? (
@@ -197,12 +213,6 @@ export default function HomePage({
               </Link>
             </div>
             <Spotlight insights={insights.slice(0, 6)} suffix={seasonSuffix} />
-          </section>
-        ) : null}
-
-        {formTeams.length || formPlayers.length ? (
-          <section className="mb-6">
-            <TopForm teams={formTeams} players={formPlayers} />
           </section>
         ) : null}
 
