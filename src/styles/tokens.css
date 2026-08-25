@@ -15,7 +15,12 @@
    for the validator output and the 3-series all-pairs cap.
    ========================================================================== */
 
-:root {
+/* The dark palette is the BASE, and it is also what `data-theme="dark"`
+   selects. Naming it in the selector rather than leaving it implicit means the
+   toggle's five options are five greppable things, and the one that is merely
+   "no attribute" cannot be mistaken for one that is missing. */
+:root,
+:root[data-theme='dark'] {
   color-scheme: dark;
 
   /* ── Surfaces ───────────────────────────────────────────────────────────
@@ -267,10 +272,18 @@
    Re-stepped for a white surface, not an inversion: every series hue is a
    DARKER step of the same ramp so it clears 3:1 on white. Validated
    independently — see docs/DESIGN-SYSTEM.md.
-   Declared under both scopes so the toggle beats the OS setting either way. */
+   Declared under both scopes so the toggle beats the OS setting either way.
+
+   ── The guard is `:not([data-theme])`, not `:not([data-theme='dark'])` ─────
+   Excluding only dark left every OTHER explicit palette half-lit on a
+   light-mode machine. Linx and Carbon define 37 tokens each and inherit the
+   rest; with this block still applying, the 66 they do not redefine — every
+   competition accent among them — came back as light values under a warm dark
+   canvas. Choosing a theme means choosing it, so ANY explicit choice takes the
+   base palette as its floor and this block steps aside entirely. */
 
 @media (prefers-color-scheme: light) {
-  :root:where(:not([data-theme='dark'])) {
+  :root:where(:not([data-theme])) {
     color-scheme: light;
 
     --surface-canvas: #f4f4f1;
