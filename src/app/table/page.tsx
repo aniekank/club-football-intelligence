@@ -5,6 +5,8 @@ import { AppShell } from '@/components/layout/AppShell';
 import { resolveActive } from '@/server/active';
 import { LeagueBriefing } from '@/components/ai/LeagueBriefing';
 import { Coverage } from '@/components/data/Coverage';
+import { BumpChart } from '@/components/charts/BumpChart';
+import { buildProgression, mostMoved } from '@/analytics/progression';
 import { Disclosure } from '@/components/ui/Disclosure';
 import { generateInsights } from '@/ai/narratives';
 import { predictMatch } from '@/analytics/poisson';
@@ -49,6 +51,16 @@ export default function TablePage({
    * Champions League produces different sections, because one has players and
    * a relegation fight and the other has neither.
    */
+  /**
+   * Position history, recomputed per matchweek.
+   *
+   * No feed publishes one, so it is rebuilt by running the standings engine
+   * over a growing prefix of the season — which also means the history obeys
+   * THIS competition's tiebreakers rather than a vendor's.
+   */
+  const progression = snapshot ? buildProgression(snapshot) : null;
+  const movers = progression ? mostMoved(progression, 3) : [];
+
   const insights = snapshot
     ? generateInsights({
         snapshot,
@@ -172,6 +184,20 @@ export default function TablePage({
             )}
           </div>
         </Card>
+
+        {progression ? (
+          <Disclosure
+            title="How the season has moved"
+            hint={
+              movers.length
+                ? `${movers[0]!.shortName} ${movers[0]!.movement > 0 ? '+' : ''}${movers[0]!.movement}`
+                : `${progression.matchweeks.length} matchweeks`
+            }
+            defaultOpen={progression.matchweeks.length >= 6}
+          >
+            <BumpChart progression={progression} />
+          </Disclosure>
+        ) : null}
 
         {snapshot ? (
           <LeagueBriefing insights={insights} snapshot={snapshot} suffix={suffix} />
