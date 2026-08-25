@@ -6,6 +6,9 @@ import { SeasonProjection } from '@/components/charts/SeasonProjection';
 import { Card, CardHeader, Skeleton, EmptyState, Badge, StatTile } from '@/components/ui';
 import { InsightCard } from '@/components/ai/InsightCard';
 import { generateInsights, generateBriefing } from '@/ai/narratives';
+import { MatchdayPanel } from '@/components/match/MatchdayPanel';
+import { matchdaysAcross } from '@/server/matchday';
+import { allSnapshots } from '@/data/store';
 import { predictMatch } from '@/analytics/poisson';
 import { minutesFloor } from '@/server/players';
 import { resolveActive, liveAcrossCompetitions } from '@/server/active';
@@ -18,7 +21,7 @@ export const dynamic = 'force-dynamic';
 export default function HomePage({
   searchParams,
 }: {
-  searchParams: { competition?: string; season?: string };
+  searchParams: { date?: string; competition?: string; season?: string };
 }) {
   const { competition, snapshot, available, forecast, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
   const live = liveAcrossCompetitions();
@@ -50,6 +53,33 @@ export default function HomePage({
   const insights = narrativeCtx ? generateInsights(narrativeCtx) : [];
   const briefing = narrativeCtx ? generateBriefing(narrativeCtx, liveElsewhere) : null;
   const seasonSuffix = entitySuffix(competition.id, searchParams.season);
+
+  /**
+   * Today, across EVERY competition rather than the active one.
+   *
+   * The panel was scoped to whichever league you happened to be looking at,
+   * which on a Saturday meant showing ten Premier League fixtures while a
+   * hundred and twenty-four others kicked off elsewhere. "What is on today" is
+   * not a per-competition question.
+   */
+  const today = new Date().toISOString().slice(0, 10);
+  /**
+   * `?date=` lets a reader stand on any matchday, not just this one.
+   *
+   * It also matters for testing the panel honestly: today may carry eight
+   * matches and Saturday a hundred and thirty-four, and the two get completely
+   * different treatments — without this the dense path could only be seen by
+   * waiting for a weekend.
+   */
+  const asked = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.date ?? '')
+    ? (searchParams.date as string)
+    : today;
+  const days = matchdaysAcross(allSnapshots(), asked, 3);
+  // The asked-for day leads; a live day elsewhere only wins when today is empty.
+  const liveDay = days.find((d) => d.date === asked && d.matches.length)
+    ?? days.find((d) => d.live > 0)
+    ?? days.find((d) => d.matches.length)
+    ?? days[0];
 
   return (
     <AppShell
@@ -145,6 +175,7 @@ export default function HomePage({
         ) : (
           <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
             <div className="min-w-0 space-y-6">
+              {liveDay ? <MatchdayPanel day={liveDay} suffix={seasonSuffix} /> : null}
               <FixtureFeed snapshot={snapshot} suffix={seasonSuffix} />
             </div>
 
