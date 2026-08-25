@@ -63,12 +63,29 @@ const LIVE_EDITIONS: Edition[] = BOOT_COMPETITIONS.map((competitionId) => ({
 }));
 
 /**
- * Historical editions.
+ * Historical editions — and why they are all 2015/16.
  *
- * 2015/16 is the season StatsBomb opened across several leagues at once, which
- * makes it the one where cross-league comparison is possible on identical,
- * shot-level data. It is also the best story in modern league football, which
- * does not hurt.
+ * Not a retrospective, and not a choice. StatsBomb's open data contains exactly
+ * ONE complete league season, and it is this one. Their catalogue looks much
+ * larger than it is: La Liga lists eighteen seasons, but 2004/05 holds seven
+ * matches and 2005/06 holds seventeen — those are Messi's career released in
+ * fragments, not leagues. Premier League 2003/04 is thirty-eight matches, which
+ * is Arsenal's Invincibles season rather than the division's. Serie A 1986/87 is
+ * a single Maradona game.
+ *
+ * Verified against their match manifests rather than their competition list:
+ *
+ *   EPL 2015/16       380 of 380      Serie A 1986/87        1
+ *   LaLiga 2015/16    380 of 380      EPL 2003/04           38
+ *   Serie A 2015/16   380 of 380      LaLiga 2004/05         7
+ *   Ligue 1 2015/16   377 of 380      Bundesliga 2015/16    34
+ *
+ * So four leagues are available in full and all four are loaded. Bundesliga is
+ * absent because thirty-four matches is one club's season, and presenting it as
+ * a Bundesliga table would be a table of a league that never played.
+ *
+ * That 2015/16 is also the best season in modern league football — Leicester,
+ * and Barcelona's MSN — is a coincidence the product is happy to take.
  */
 const HISTORICAL_EDITIONS: Edition[] = [
   {
@@ -88,6 +105,24 @@ const HISTORICAL_EDITIONS: Edition[] = [
     live: false,
     cacheFile: 'statsbomb-laliga-2015-2016.json',
     blurb: 'Barcelona\u2019s MSN treble side — full shot-level event data',
+  },
+  {
+    key: 'seriea-2015-2016',
+    competitionId: 'seriea',
+    seasonLabel: '2015/2016',
+    source: 'statsbomb',
+    live: false,
+    cacheFile: 'statsbomb-seriea-2015-2016.json',
+    blurb: 'Juventus\u2019 fifth straight title — full shot-level event data',
+  },
+  {
+    key: 'ligue1-2015-2016',
+    competitionId: 'ligue1',
+    seasonLabel: '2015/2016',
+    source: 'statsbomb',
+    live: false,
+    cacheFile: 'statsbomb-ligue1-2015-2016.json',
+    blurb: 'PSG by thirty-one points — full shot-level event data',
   },
 ];
 

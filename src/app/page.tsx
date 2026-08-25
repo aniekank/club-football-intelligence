@@ -287,11 +287,43 @@ function FixtureFeed({ snapshot, suffix }: { snapshot: NonNullable<ReturnType<ty
     );
   }
 
-  const byDay = new Map<string, Match[]>();
-  for (const m of relevant) {
-    const key = dayKey(m.kickoff);
-    byDay.set(key, [...(byDay.get(key) ?? []), m]);
-  }
+  /**
+   * Results run backwards, fixtures run forwards.
+   *
+   * The feed spans the last week and the next fortnight, and sorting the whole
+   * span one way is wrong at one end whichever way you pick: ascending buries
+   * last night's results under a week of older ones, descending puts next
+   * month's fixture above tomorrow's.
+   *
+   * They are different questions. "What just happened" wants the most recent
+   * first; "what is coming" wants the soonest first. So the two halves are
+   * ordered independently and results lead, because a result is a fact and a
+   * fixture is a plan.
+   *
+   * Within a day, order stays chronological — that is the order the football
+   * was played in, and reversing it inside a Saturday helps nobody.
+   */
+  const isResult = (m: Match) =>
+    m.status === 'FINISHED' || m.status === 'LIVE' || m.status === 'HALFTIME';
+
+  const groupByDay = (matches: Match[], newestFirst: boolean) => {
+    const byDay = new Map<string, Match[]>();
+    for (const m of matches) {
+      const key = dayKey(m.kickoff);
+      byDay.set(key, [...(byDay.get(key) ?? []), m]);
+    }
+    return [...byDay.entries()].sort(([a], [b]) =>
+      newestFirst ? b.localeCompare(a) : a.localeCompare(b));
+  };
+
+  const results = groupByDay(relevant.filter(isResult), true);
+  const upcoming = groupByDay(relevant.filter((m) => !isResult(m)), false);
+  const sections: { label: string | null; days: [string, Match[]][] }[] = isHistorical
+    ? [{ label: null, days: groupByDay(relevant, true) }]
+    : [
+        { label: results.length && upcoming.length ? 'Results' : null, days: results },
+        { label: results.length && upcoming.length ? 'Coming up' : null, days: upcoming },
+      ].filter((s) => s.days.length);
 
   return (
     <Card>
@@ -305,7 +337,14 @@ function FixtureFeed({ snapshot, suffix }: { snapshot: NonNullable<ReturnType<ty
         }
       />
       <div className="space-y-5 p-4">
-        {[...byDay].map(([day, matches]) => (
+        {sections.map((section) => (
+          <div key={section.label ?? 'all'} className="space-y-5">
+            {section.label ? (
+              <h3 className="border-b border-border-subtle pb-1 font-display text-lg">
+                {section.label}
+              </h3>
+            ) : null}
+        {section.days.map(([day, matches]) => (
           <section key={day}>
             <h3 className="eyebrow mb-2">{formatDate(day)}</h3>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -328,6 +367,8 @@ function FixtureFeed({ snapshot, suffix }: { snapshot: NonNullable<ReturnType<ty
               ))}
             </div>
           </section>
+        ))}
+          </div>
         ))}
       </div>
     </Card>
