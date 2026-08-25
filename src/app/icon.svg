@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!--
+    The tab icon. A wordmark does not survive 16px, so this takes the one thing
+    that does: the brand accent on the product's own ground, cut by the pitch
+    centre line and circle. Recognisable as football at a glance and as THIS
+    product by its colour.
+  -->
+  <rect width="32" height="32" rx="7" fill="#0a0d12"/>
+  <g stroke="#c8f751" stroke-width="2.1" fill="none" stroke-linecap="round">
+    <path d="M16 5.5v21"/>
+    <circle cx="16" cy="16" r="5.4"/>
+  </g>
+  <path d="M6.5 8.5v15" stroke="#c8f751" stroke-width="2.1" stroke-linecap="round" opacity="0.55"/>
+  <path d="M25.5 8.5v15" stroke="#c8f751" stroke-width="2.1" stroke-linecap="round" opacity="0.55"/>
+</svg>

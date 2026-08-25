@@ -37,14 +37,46 @@ const jetbrains = JetBrains_Mono({
   variable: '--font-jetbrains',
 });
 
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3010';
+const DESCRIPTION =
+  'Cross-league club football analytics: live matches, league tables, Monte Carlo season odds, xG, and a model-vs-market betting edge.';
+
 export const metadata: Metadata = {
+  /**
+   * `metadataBase` is what makes the social card resolve.
+   *
+   * Without it Next emits a RELATIVE og:image URL, and every crawler that
+   * matters — Slack, iMessage, X, LinkedIn — silently drops it. The card then
+   * exists, renders correctly when visited directly, and never once appears in
+   * the place it was built for.
+   */
+  metadataBase: new URL(SITE),
   title: {
     default: 'Club Football Intelligence',
     template: '%s · Club Football Intelligence',
   },
-  description:
-    'Cross-league club football analytics: live matches, league tables, Monte Carlo season odds, xG, and a model-vs-market betting edge.',
+  description: DESCRIPTION,
   applicationName: 'Club Football Intelligence',
+  authors: [{ name: 'Task Enterprises' }],
+  openGraph: {
+    type: 'website',
+    siteName: 'Club Football Intelligence',
+    title: 'Club Football Intelligence',
+    description: DESCRIPTION,
+    url: '/',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Club Football Intelligence',
+    description: DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    // A crawler that renders a stale cached card is worse than one that does
+    // not render a card, so previews are allowed at full size.
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
+  },
 };
 
 export const viewport: Viewport = {
