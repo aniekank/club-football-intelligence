@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { MatchCard } from '@/components/match/MatchCard';
@@ -6,7 +5,7 @@ import { Figure, Card, CardHeader, Skeleton, EmptyState, Badge } from '@/compone
 import { Spotlight } from '@/components/ai/Spotlight';
 import { generateInsights, generateBriefing } from '@/ai/narratives';
 import { narrativeContext } from '@/server/narrative';
-import { WorldTourPanel, WorldTourSkeleton } from '@/components/globe/WorldTourPanel';
+import { WorldTourPanel } from '@/components/globe/WorldTourPanel';
 import { Rail } from '@/components/layout/Rail';
 import { MatchdayPanel } from '@/components/match/MatchdayPanel';
 import { matchdaysAcross } from '@/server/matchday';
@@ -107,13 +106,12 @@ export default function HomePage({
           On a sphere those are two places rather than two leagues, and the
           only thing they need in common is the clock.
 
-          Suspended on its own so a cold venue lookup cannot hold the rest of
-          the page shut.
+          Stops are resolved from a committed table of grounds, so this costs
+          arithmetic rather than a network round trip and needs no boundary of
+          its own.
         */}
         <section className="mb-6">
-          <Suspense fallback={<WorldTourSkeleton />}>
-            <WorldTourPanel suffix={seasonSuffix} />
-          </Suspense>
+          <WorldTourPanel suffix={seasonSuffix} />
         </section>
 
         {/* Live across every loaded competition — a club plays in several at

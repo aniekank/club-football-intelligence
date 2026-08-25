@@ -32,7 +32,15 @@ import type { TourStop } from '@/server/tour';
  * all — the reader steps it themselves, and the globe holds still.
  */
 
-const DWELL_MS = 8000;
+/**
+ * Three seconds a fixture.
+ *
+ * Short enough that a week of football cycles in a couple of minutes and the
+ * panel reads as a clock going round the planet; long enough for the flight to
+ * land and the card to be taken in. It pauses on hover and on focus, so the
+ * three seconds are a floor on how long anyone has to read, not a ceiling.
+ */
+const DWELL_MS = 3000;
 
 export function WorldTour({ stops, suffix }: { stops: TourStop[]; suffix: string }) {
   const [index, setIndex] = useState(0);
@@ -40,6 +48,10 @@ export function WorldTour({ stops, suffix }: { stops: TourStop[]; suffix: string
   const [paused, setPaused] = useState(false);
   const [reduced, setReduced] = useState(false);
   const [tick, setTick] = useState(0);
+  /* The reader has taken the camera. The tour stops until they hand it back —
+     an auto-advance that yanks the globe away two seconds after somebody
+     turned it is worse than one that never moved. */
+  const [grabbed, setGrabbed] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -59,12 +71,12 @@ export function WorldTour({ stops, suffix }: { stops: TourStop[]; suffix: string
 
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
-    if (reduced || !playing || paused || stops.length < 2) return;
+    if (reduced || !playing || paused || grabbed || stops.length < 2) return;
     timer.current = setInterval(() => setIndex((i) => (i + 1) % stops.length), DWELL_MS);
     return () => {
       if (timer.current) clearInterval(timer.current);
     };
-  }, [reduced, playing, paused, stops.length]);
+  }, [reduced, playing, paused, grabbed, stops.length]);
 
   if (!stops.length) return null;
 
@@ -92,6 +104,7 @@ export function WorldTour({ stops, suffix }: { stops: TourStop[]; suffix: string
           <Globe
             points={points}
             activeIndex={index}
+            onGrab={() => setGrabbed(true)}
             label={`A globe centred on ${where}, ${stop.country}, where ${stop.home.name} play ${stop.away.name}.`}
             className="absolute inset-0"
           />
@@ -164,8 +177,10 @@ export function WorldTour({ stops, suffix }: { stops: TourStop[]; suffix: string
             playing={playing}
             paused={paused}
             reduced={reduced}
+            grabbed={grabbed}
             onGo={go}
             onToggle={() => setPlaying((p) => !p)}
+            onResume={() => { setGrabbed(false); setTick((t) => t + 1); }}
             tick={tick}
           />
         </div>
@@ -301,67 +316,78 @@ function Watch({ stop }: { stop: TourStop }) {
   );
 }
 
+/**
+ * Sixty stops is not a row of dots.
+ *
+ * The spotlight's dot strip works because six stories fit; sixty targets at
+ * four pixels each is a control nobody can hit and a legend nobody can read.
+ * This is a transport instead — step back, play or pause, step forward — with
+ * one bar for position in the tour and the count spelled out. The dwell timer
+ * still draws itself, because a three-second hold that shows its own clock
+ * reads as deliberate rather than as a page refreshing at random.
+ */
 function Controls({
-  stops, index, playing, paused, reduced, onGo, onToggle, tick,
+  stops, index, playing, paused, reduced, grabbed, onGo, onToggle, onResume, tick,
 }: {
   stops: TourStop[];
   index: number;
   playing: boolean;
   paused: boolean;
   reduced: boolean;
+  grabbed: boolean;
   onGo: (n: number) => void;
   onToggle: () => void;
+  onResume: () => void;
   tick: number;
 }) {
+  const running = playing && !paused && !reduced && !grabbed;
+
   return (
     <div className="flex items-center gap-3 border-t border-border-subtle px-5 py-3">
-      {reduced ? (
-        <div className="flex gap-1">
-          <Step label="Previous match" onClick={() => onGo(index - 1)}>‹</Step>
-          <Step label="Next match" onClick={() => onGo(index + 1)}>›</Step>
-        </div>
-      ) : (
+      <div className="flex shrink-0 gap-1">
+        <Step label="Previous match" onClick={() => onGo(index - 1)}>‹</Step>
+        {reduced ? null : (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={playing ? 'Pause the tour' : 'Play the tour'}
+            className="grid h-6 w-8 place-items-center rounded-sm border border-border-subtle text-2xs text-ink-muted transition-colors duration-fast ease-standard hover:border-border hover:text-ink"
+          >
+            {playing ? '❚❚' : '▶'}
+          </button>
+        )}
+        <Step label="Next match" onClick={() => onGo(index + 1)}>›</Step>
+      </div>
+
+      {/* Position in the tour, and the dwell on top of it. Two bars in one
+          track rather than two controls: the pale one is how far through the
+          week the camera has come, the bright one is how long this stop has
+          left. */}
+      <div className="relative h-[3px] min-w-0 flex-1 overflow-hidden rounded-pill bg-border-default">
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-0 left-0 bg-border-strong transition-[width] duration-normal ease-standard"
+          style={{ width: `${((index + 1) / stops.length) * 100}%` }}
+        />
+        {running ? (
+          <span
+            key={tick + index}
+            aria-hidden="true"
+            className="absolute inset-y-0 left-0 w-full origin-left rounded-pill bg-brand animate-dwell"
+            style={{ animationDuration: `${DWELL_MS}ms` }}
+          />
+        ) : null}
+      </div>
+
+      {grabbed ? (
         <button
           type="button"
-          onClick={onToggle}
-          aria-label={playing ? 'Pause the tour' : 'Play the tour'}
-          className="rounded-sm border border-border-subtle px-2 py-1 text-2xs font-semibold uppercase tracking-caps text-ink-muted transition-colors duration-fast ease-standard hover:border-border hover:text-ink"
+          onClick={onResume}
+          className="shrink-0 rounded-sm border border-border-subtle px-2 py-1 text-2xs font-semibold uppercase tracking-caps text-brand transition-colors duration-fast ease-standard hover:border-brand"
         >
-          {playing ? '❚❚' : '▶'}
+          Resume tour
         </button>
-      )}
-
-      <div className="flex flex-1 items-center gap-[0.375rem]" role="tablist" aria-label="Match">
-        {stops.map((s, i) => {
-          const active = i === index;
-          return (
-            <button
-              key={s.matchId}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              aria-label={`${s.home.shortName} v ${s.away.shortName}, ${s.city ?? s.country}`}
-              onClick={() => onGo(i)}
-              className="group relative h-4 flex-1 min-w-[1rem]"
-            >
-              <span
-                className={cn(
-                  'absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-pill transition-colors duration-normal ease-standard',
-                  active ? 'bg-brand' : 'bg-border-default group-hover:bg-border-strong',
-                )}
-              />
-              {active && playing && !paused && !reduced ? (
-                <span
-                  key={tick}
-                  aria-hidden="true"
-                  className="absolute inset-x-0 top-1/2 h-[3px] origin-left -translate-y-1/2 rounded-pill bg-brand-hover animate-dwell"
-                  style={{ animationDuration: `${DWELL_MS}ms` }}
-                />
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
+      ) : null}
 
       <Figure tone="muted" className="shrink-0 text-2xs">
         {index + 1}/{stops.length}

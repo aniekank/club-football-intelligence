@@ -1,30 +1,36 @@
 import { allSnapshots } from '@/data/store';
-import { fetchClubHistory } from '@/data/providers/fotmobClub';
+import { VENUES } from '@/data/geo/venues';
 import { predictMatch } from '@/analytics/poisson';
 import { playersToWatch, regularFloor, type WatchPlayer } from '@/server/watch';
 import type { DatasetSnapshot, ID, ISODate, Match, MatchStatus, Team } from '@/domain/types';
 
 /**
- * The next football on earth, in the order it happens, with somewhere to point.
+ * A week of football on earth, in the order it happens, with somewhere to point.
  *
  * ── Why the globe needed a server module at all ────────────────────────────
  * A globe that flies to the next match is only as honest as its pins. Every
  * number a stop carries — the model's split, the previous meetings, who is
- * worth watching — is computed here, once, on the server, from the same
- * functions the match page uses. The client component receives values and
- * draws them; it never derives a claim of its own. A canvas that computed its
- * own odds would be a second model, and the two would disagree.
+ * worth watching — is computed here, once, from the same functions the match
+ * page uses. The client draws values; it never derives a claim of its own. A
+ * canvas that computed its own odds would be a second model, and the two would
+ * disagree.
  *
- * ── Coordinates are FOUND, never guessed ───────────────────────────────────
- * The pin is the home club's ground, from the venue coordinates the feed
- * publishes. Where a club has none, the fixture is dropped from the tour rather
- * than pinned to its country's centroid: a stadium placed in the middle of
- * Brazil is not a rough answer, it is a wrong one, and on a map it looks
- * exactly as confident as a right one.
+ * ── Coordinates are LOOKED UP, never guessed ───────────────────────────────
+ * The pin is the home club's ground, from a table built once by
+ * `scripts/build-venues.mjs` and committed. A club the table does not know is
+ * dropped from the tour rather than pinned to its country's centroid: a stadium
+ * placed in the middle of Brazil is not a rough answer, it is a wrong one, and
+ * on a map it looks exactly as confident as a right one.
  *
- * A neutral-venue fixture is dropped for the same reason. The home club's
+ * A neutral-venue fixture is dropped for the same reason — the home club's
  * ground is the wrong place by definition when the match is somewhere else, and
  * "somewhere else" is not in the feed.
+ *
+ * ── Why the table replaced a fetch ─────────────────────────────────────────
+ * This used to resolve each ground from the club endpoint on the request path.
+ * That is a network call per club, a cache that empties on every restart, and a
+ * home page that took two seconds to render cold — to place a stadium that has
+ * not moved since 1884.
  */
 
 export interface TourTeam {
@@ -40,7 +46,6 @@ export interface H2HMeeting {
   /** Scores oriented to THIS fixture's home side, not the old fixture's. */
   homeScore: number;
   awayScore: number;
-  competitionName: string;
 }
 
 export interface TourStop {
@@ -76,12 +81,20 @@ export interface TourStop {
   watch: WatchPlayer[];
 }
 
-/** Stops on the tour. More than a dozen is a screensaver, not a briefing. */
-const MAX_STOPS = 8;
-/** How many fixtures to consider before giving up on filling the tour. */
-const CANDIDATES = 28;
-/** A page render cannot wait on a cold club lookup for long. */
-const LOOKUP_MS = 2500;
+/**
+ * How much of the calendar the tour covers, and how many stops it holds.
+ *
+ * A week forward is what "what is on" means to somebody planning an evening,
+ * and at three seconds a fixture sixty stops is three minutes of cycling — long
+ * enough that it never visibly repeats while anyone is watching, short enough
+ * that the payload stays small.
+ */
+const FORWARD_DAYS = 7;
+const BACK_DAYS = 2;
+const MAX_STOPS = 60;
+/** Trimmed at the source: this is serialised to the browser sixty times over. */
+const MEETINGS_PER_STOP = 3;
+const WATCH_PER_SIDE = 2;
 
 const isLive = (s: MatchStatus) => s === 'LIVE' || s === 'HALFTIME';
 
@@ -98,60 +111,86 @@ const team = (t: Team): TourTeam => ({
  * fixture where the sides have swapped is being shown the number backwards.
  */
 function meetingsBetween(
-  snapshots: DatasetSnapshot[],
+  index: MeetingIndex,
   homeId: ID,
   awayId: ID,
   /** The fixture being previewed, which is not one of its own precedents. */
   excludeMatchId: ID,
-  limit = 5,
 ): { meetings: H2HMeeting[]; record: { home: number; draw: number; away: number } | null } {
-  const all: H2HMeeting[] = [];
+  const all = index.get(pairKey(homeId, awayId));
+  if (!all?.length) return { meetings: [], record: null };
 
-  for (const s of snapshots) {
-    for (const m of s.matches) {
-      if (m.id === excludeMatchId) continue;
-      if (m.status !== 'FINISHED') continue;
-      if (m.homeScore === null || m.awayScore === null) continue;
-      const sameWayRound = m.homeTeamId === homeId && m.awayTeamId === awayId;
-      const reversed = m.homeTeamId === awayId && m.awayTeamId === homeId;
-      if (!sameWayRound && !reversed) continue;
+  const record = { home: 0, draw: 0, away: 0 };
+  const meetings: H2HMeeting[] = [];
 
-      all.push({
-        kickoff: m.kickoff,
-        homeScore: sameWayRound ? m.homeScore : m.awayScore,
-        awayScore: sameWayRound ? m.awayScore : m.homeScore,
-        competitionName: s.competition.name,
-      });
+  for (const m of all) {
+    if (m.matchId === excludeMatchId) continue;
+    const sameWayRound = m.homeTeamId === homeId;
+    const hs = sameWayRound ? m.homeScore : m.awayScore;
+    const as = sameWayRound ? m.awayScore : m.homeScore;
+    if (hs > as) record.home++;
+    else if (hs < as) record.away++;
+    else record.draw++;
+    if (meetings.length < MEETINGS_PER_STOP) {
+      meetings.push({ kickoff: m.kickoff, homeScore: hs, awayScore: as });
     }
   }
 
-  if (!all.length) return { meetings: [], record: null };
+  if (!record.home && !record.draw && !record.away) return { meetings: [], record: null };
+  return { meetings, record };
+}
 
-  all.sort((a, b) => b.kickoff.localeCompare(a.kickoff));
-  const record = { home: 0, draw: 0, away: 0 };
-  for (const m of all) {
-    if (m.homeScore > m.awayScore) record.home++;
-    else if (m.homeScore < m.awayScore) record.away++;
-    else record.draw++;
+interface PastMeeting {
+  matchId: ID;
+  kickoff: ISODate;
+  homeTeamId: ID;
+  homeScore: number;
+  awayScore: number;
+}
+type MeetingIndex = Map<string, PastMeeting[]>;
+
+/** Unordered pair, so one lookup serves a fixture and its reverse. */
+const pairKey = (a: ID, b: ID) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
+/**
+ * Every finished match, indexed by the pair who played it.
+ *
+ * Built once per request rather than scanning every snapshot per fixture: sixty
+ * stops against forty-odd competitions of match lists is a few million
+ * comparisons done sixty times, which is exactly the shape of an accidentally
+ * quadratic page.
+ */
+function indexMeetings(snapshots: DatasetSnapshot[]): MeetingIndex {
+  const index: MeetingIndex = new Map();
+  for (const s of snapshots) {
+    for (const m of s.matches) {
+      if (m.status !== 'FINISHED') continue;
+      if (m.homeScore === null || m.awayScore === null) continue;
+      const key = pairKey(m.homeTeamId, m.awayTeamId);
+      const list = index.get(key);
+      const entry: PastMeeting = {
+        matchId: m.id,
+        kickoff: m.kickoff,
+        homeTeamId: m.homeTeamId,
+        homeScore: m.homeScore,
+        awayScore: m.awayScore,
+      };
+      if (list) list.push(entry);
+      else index.set(key, [entry]);
+    }
   }
-
-  return { meetings: all.slice(0, limit), record };
+  for (const list of index.values()) list.sort((a, b) => b.kickoff.localeCompare(a.kickoff));
+  return index;
 }
 
-/** A cold club lookup cannot hold a page render open. */
-async function coordinatesFor(teamId: ID): Promise<{ lat: number; lon: number; venue: string | null; city: string | null } | null> {
-  const history = await Promise.race([
-    fetchClubHistory(teamId),
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), LOOKUP_MS)),
-  ]);
-  const v = history?.venue;
-  if (!v || v.lat === null || v.lon === null) return null;
-  return { lat: v.lat, lon: v.lon, venue: v.name, city: v.city };
-}
-
-export async function buildTour(nowISO: string): Promise<TourStop[]> {
+export function buildTour(nowISO: string): TourStop[] {
   const snapshots = allSnapshots();
   const live = snapshots.filter((s) => s.season.isCurrent);
+  const meetings = indexMeetings(snapshots);
+
+  const now = Date.parse(nowISO);
+  const horizon = new Date(now + FORWARD_DAYS * 86_400_000).toISOString();
+  const floorISO = new Date(now - BACK_DAYS * 86_400_000).toISOString();
 
   interface Candidate { match: Match; snapshot: DatasetSnapshot; home: Team; away: Team }
   const candidates: Candidate[] = [];
@@ -163,9 +202,17 @@ export async function buildTour(nowISO: string): Promise<TourStop[]> {
       // A neutral venue is somewhere the feed does not name, so there is
       // nowhere honest to put the pin.
       if (m.venueKind === 'neutral') continue;
-      // A scheduled fixture whose kick-off has passed without a result is a
-      // feed that has not caught up, not a match to fly to.
-      if (m.status === 'SCHEDULED' && m.kickoff < nowISO) continue;
+      // Nothing is drawn without a ground, so a club the table does not know is
+      // not a candidate at all.
+      if (!VENUES[m.homeTeamId]) continue;
+
+      if (m.status === 'SCHEDULED') {
+        // A scheduled fixture whose kick-off has passed without a result is a
+        // feed that has not caught up, not a match to fly to.
+        if (m.kickoff < nowISO || m.kickoff > horizon) continue;
+      } else if (m.status === 'FINISHED') {
+        if (m.kickoff < floorISO) continue;
+      }
 
       const home = byId.get(m.homeTeamId);
       const away = byId.get(m.awayTeamId);
@@ -178,11 +225,11 @@ export async function buildTour(nowISO: string): Promise<TourStop[]> {
    * Live, then next, then last.
    *
    * Live football leads because it is the only thing on the list a reader could
-   * be watching right now. Then the next kick-off anywhere. Results come last
-   * and only as BACKFILL — on a quiet Tuesday there may be three fixtures on
-   * the planet worth flying to, and a globe with three pins is not a tour. A
-   * finished match still has a place, two clubs and a score, so it is a real
-   * stop rather than filler; it is simply not what anyone opened the page for.
+   * be watching right now. Then the week ahead, in kick-off order — that
+   * ordering is what makes the tour read as a clock going round the planet
+   * rather than a shuffle. Results come last and only as BACKFILL: on a quiet
+   * Tuesday there may be a handful of fixtures on earth, and a finished match
+   * still has two clubs and a score.
    */
   const rank = (m: Match) => (isLive(m.status) ? 0 : m.status === 'FINISHED' ? 2 : 1);
   candidates.sort((a, b) => {
@@ -194,29 +241,33 @@ export async function buildTour(nowISO: string): Promise<TourStop[]> {
       : a.match.kickoff.localeCompare(b.match.kickoff);
   });
 
-  const shortlist = candidates.slice(0, CANDIDATES);
-
-  // Resolved together rather than one at a time: nearly all of these are cache
-  // hits, and the few that are not should not queue behind each other.
-  const located = await Promise.all(
-    shortlist.map(async (c) => ({ c, place: await coordinatesFor(c.home.id) })),
-  );
-
   const stops: TourStop[] = [];
-  const seenCity = new Set<string>();
+  let lastCity = '';
 
-  for (const { c, place } of located) {
+  for (const c of candidates) {
     if (stops.length >= MAX_STOPS) break;
-    if (!place) continue;
 
-    // The tour is meant to travel. Two consecutive stops in one city is a
-    // camera that has not moved, which is the one thing this cannot be.
-    const cityKey = (place.city ?? place.venue ?? '').toLowerCase();
-    if (cityKey && seenCity.has(cityKey)) continue;
-    if (cityKey) seenCity.add(cityKey);
+    const venue = VENUES[c.home.id];
+    if (!venue) continue;
+    const [lat, lon, name, city] = venue;
+
+    /**
+     * Never two in a row in the same place.
+     *
+     * A Saturday in England is six fixtures within an hour, several of them in
+     * London, and a camera that lands on the same square mile three times
+     * running has stopped being a tour. Only CONSECUTIVE repeats are skipped —
+     * over a whole week a city deserves more than one visit, just not two
+     * back to back.
+     */
+    const cityKey = (city ?? name ?? '').toLowerCase();
+    if (cityKey && cityKey === lastCity) continue;
+    lastCity = cityKey;
 
     const prediction = predictMatch(c.home, c.away, { venueKind: c.match.venueKind });
-    const { meetings, record } = meetingsBetween(snapshots, c.home.id, c.away.id, c.match.id);
+    const { meetings: past, record } = meetingsBetween(
+      meetings, c.home.id, c.away.id, c.match.id,
+    );
     const floor = regularFloor(c.snapshot);
 
     stops.push({
@@ -226,10 +277,10 @@ export async function buildTour(nowISO: string): Promise<TourStop[]> {
       competitionId: c.snapshot.competition.id,
       competitionName: c.snapshot.competition.name,
       accentKey: c.snapshot.competition.accentKey,
-      lat: place.lat,
-      lon: place.lon,
-      venue: place.venue,
-      city: place.city,
+      lat,
+      lon,
+      venue: name,
+      city,
       country: c.snapshot.competition.country,
       home: team(c.home),
       away: team(c.away),
@@ -241,10 +292,10 @@ export async function buildTour(nowISO: string): Promise<TourStop[]> {
       homeScore: c.match.homeScore,
       awayScore: c.match.awayScore,
       record,
-      meetings,
+      meetings: past,
       watch: [
-        ...playersToWatch(c.snapshot, c.home.id, floor, 2),
-        ...playersToWatch(c.snapshot, c.away.id, floor, 2),
+        ...playersToWatch(c.snapshot, c.home.id, floor, WATCH_PER_SIDE),
+        ...playersToWatch(c.snapshot, c.away.id, floor, WATCH_PER_SIDE),
       ],
     });
   }
