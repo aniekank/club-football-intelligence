@@ -7,6 +7,9 @@ import { CoverageNote, CoverageSentence } from '@/components/players/CoverageNot
 import { Card, CardHeader, Crest, Figure, StatTile, EmptyState, Badge } from '@/components/ui';
 import { resolveActive } from '@/server/active';
 import { buildPlayerView } from '@/server/players';
+import { standingInSquad } from '@/server/squad';
+import { ClubRole } from '@/components/players/ClubRole';
+import { Disclosure } from '@/components/ui/Disclosure';
 import { num, int, signed } from '@/lib/format';
 import { entitySuffix } from '@/lib/entityLink';
 
@@ -37,6 +40,15 @@ export default function PlayerPage({
     : [];
 
   const coverage = snapshot?.meta.playerStatsCoverage;
+
+  /**
+   * The player's place in their own squad.
+   *
+   * The percentile profile answers "is this a good midfielder"; this answers
+   * "how much of this team is him", which is the question a reader arrives with
+   * from the club page and the one the product could not answer at all.
+   */
+  const role = snapshot && view ? standingInSquad(snapshot, view.player) : null;
   // Absent for a squad member with no aggregated stats row — see buildPlayerView.
   const stats = view?.stats;
 
@@ -106,6 +118,26 @@ export default function PlayerPage({
                 <CoverageSentence coverage={coverage} />
               </div>
             </Card>
+
+            {role?.me ? (
+              <Disclosure
+                title="Role in the side"
+                hint={
+                  role.me.goalShare !== null && role.me.stats.goals > 0
+                    ? `${Math.round(role.me.goalShare * 100)}% of the goals`
+                    : `${Math.round(role.me.minutesShare * 100)}% of the minutes`
+                }
+                defaultOpen
+              >
+                <ClubRole
+                  team={view.team}
+                  squad={role.squad}
+                  me={role.me}
+                  rankByMinutes={role.rankByMinutes}
+                  suffix={suffix}
+                />
+              </Disclosure>
+            ) : null}
 
             {!stats ? (
               <Card>

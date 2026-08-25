@@ -15,6 +15,8 @@ import { zoneForRank } from '@/domain/competitions';
 import { entitySuffix } from '@/lib/entityLink';
 import { Disclosure } from '@/components/ui/Disclosure';
 import { SeasonHistory } from '@/components/team/SeasonHistory';
+import { SquadTable } from '@/components/team/SquadTable';
+import { buildSquad } from '@/server/squad';
 import { Honours, CoachLedger, VenueFacts } from '@/components/team/ClubRecord';
 import { fetchClubHistory } from '@/data/providers/fotmobClub';
 
@@ -55,6 +57,7 @@ export default async function TeamPage({
    * history section rather than an error.
    */
   const history = team ? await fetchClubHistory(team.id) : null;
+  const squad = snapshot && team ? buildSquad(snapshot, team.id) : null;
 
   const zone = standing ? zoneForRank(competition, standing.rank) : null;
   const shots = snapshot
@@ -257,6 +260,22 @@ export default async function TeamPage({
                     estimate
                   />
                 </div>
+              </Disclosure>
+            ) : null}
+
+            {squad && squad.members.length ? (
+              <Disclosure
+                title="Squad"
+                hint={
+                  <span className="flex items-center gap-2">
+                    <span className="figure">{squad.members.length}</span>
+                    <span className="hidden sm:inline">
+                      {squad.members[0]?.player.name} most used
+                    </span>
+                  </span>
+                }
+              >
+                <SquadTable squad={squad} suffix={suffix} />
               </Disclosure>
             ) : null}
 
