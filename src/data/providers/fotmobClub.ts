@@ -72,7 +72,8 @@ interface FmClub {
   overview?: {
     coachHistory?: Record<string, unknown>[];
     venue?: {
-      widget?: { name?: string; city?: string };
+      // The feed sends coordinates as STRINGS, latitude first.
+      widget?: { name?: string; city?: string; location?: [string, string] };
       statPairs?: [string, string | number][];
     };
   };
@@ -136,13 +137,40 @@ function mapVenue(raw: FmClub['overview']): ClubVenue | null {
   const v = raw?.venue;
   if (!v?.widget?.name) return null;
   const pairs = new Map((v.statPairs ?? []).map(([k, val]) => [String(k), val]));
+  const [lat, lon] = coordinates(v.widget.location);
   return {
     name: v.widget.name,
     city: v.widget.city ?? null,
     capacity: num(pairs.get('Capacity')),
     opened: num(pairs.get('Opened')),
     surface: typeof pairs.get('Surface') === 'string' ? (pairs.get('Surface') as string) : null,
+    lat,
+    lon,
   };
+}
+
+/**
+ * A stadium's coordinates, or neither of them.
+ *
+ * The pair is parsed together and rejected together. A latitude that survives
+ * while a longitude fails is not partial information, it is a pin somewhere
+ * the club has never played — and 0,0 in particular is a real place in the
+ * Atlantic that a plausible-looking bug would sail a globe straight to.
+ *
+ * Both are range-checked. Out-of-range values are the shape a feed error takes
+ * when a field moves or a unit changes, and they are cheap to catch here and
+ * impossible to notice downstream.
+ */
+function coordinates(
+  raw: [string, string] | undefined,
+): [number | null, number | null] {
+  if (!raw || raw.length !== 2) return [null, null];
+  const lat = Number(raw[0]);
+  const lon = Number(raw[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [null, null];
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return [null, null];
+  if (lat === 0 && lon === 0) return [null, null];
+  return [lat, lon];
 }
 
 export function mapClubHistory(teamId: ID, raw: FmClub): ClubHistory {

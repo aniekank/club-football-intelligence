@@ -252,6 +252,16 @@ export interface ClubVenue {
   capacity: number | null;
   opened: number | null;
   surface: string | null;
+  /**
+   * Where the ground actually is.
+   *
+   * Null together or not at all — half a coordinate is not a location, and a
+   * missing latitude defaulting to 0 puts a stadium in the Gulf of Guinea,
+   * which is the geographic version of the phantom goalless draw this codebase
+   * refuses everywhere else.
+   */
+  lat: number | null;
+  lon: number | null;
 }
 
 export interface ClubHistory {

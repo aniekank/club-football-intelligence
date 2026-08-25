@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { MatchCard } from '@/components/match/MatchCard';
@@ -5,6 +6,7 @@ import { Figure, Card, CardHeader, Skeleton, EmptyState, Badge } from '@/compone
 import { Spotlight } from '@/components/ai/Spotlight';
 import { generateInsights, generateBriefing } from '@/ai/narratives';
 import { narrativeContext } from '@/server/narrative';
+import { WorldTourPanel, WorldTourSkeleton } from '@/components/globe/WorldTourPanel';
 import { Rail } from '@/components/layout/Rail';
 import { MatchdayPanel } from '@/components/match/MatchdayPanel';
 import { matchdaysAcross } from '@/server/matchday';
@@ -94,6 +96,25 @@ export default function HomePage({
             <p className="mt-px text-ink-secondary">{snapshot.meta.degradedReason}</p>
           </div>
         ) : null}
+
+        {/*
+          The lead is a globe, and it is the only league-agnostic thing here.
+
+          Every other surface in this product is scoped to a competition: pick
+          a league, read its table, open its fixtures. That is how the data is
+          shaped and it is not how anyone's evening is shaped — the next match
+          worth watching might be in São Paulo and the one after it in Riyadh.
+          On a sphere those are two places rather than two leagues, and the
+          only thing they need in common is the clock.
+
+          Suspended on its own so a cold venue lookup cannot hold the rest of
+          the page shut.
+        */}
+        <section className="mb-6">
+          <Suspense fallback={<WorldTourSkeleton />}>
+            <WorldTourPanel suffix={seasonSuffix} />
+          </Suspense>
+        </section>
 
         {/* Live across every loaded competition — a club plays in several at
             once, so this deliberately is not scoped to the active one. */}

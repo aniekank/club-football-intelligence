@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { Figure } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { playerHref } from '@/lib/entityLink';
-import type { DatasetSnapshot, ID, Team } from '@/domain/types';
+import { playersToWatch, regularFloor } from '@/server/watch';
+import type { DatasetSnapshot, Team } from '@/domain/types';
 
 /**
  * The players most likely to decide this fixture.
@@ -23,37 +24,6 @@ import type { DatasetSnapshot, ID, Team } from '@/domain/types';
  * start", which nobody knows.
  */
 
-interface Candidate {
-  playerId: ID;
-  name: string;
-  position: string;
-  goals: number;
-  assists: number;
-  per90: number;
-}
-
-function topFor(snapshot: DatasetSnapshot, teamId: ID, floor: number, limit: number): Candidate[] {
-  const playerById = new Map(snapshot.players.map((p) => [p.id, p]));
-  return snapshot.playerStats
-    .flatMap((s) => {
-      const player = playerById.get(s.playerId);
-      if (!player || player.teamId !== teamId) return [];
-      if (s.minutes < floor) return [];
-      const involvement = s.goals + s.assists;
-      if (involvement < 1) return [];
-      return [{
-        playerId: s.playerId,
-        name: player.name,
-        position: player.position,
-        goals: s.goals,
-        assists: s.assists,
-        per90: (involvement * 90) / s.minutes,
-      }];
-    })
-    .sort((a, b) => b.per90 - a.per90)
-    .slice(0, limit);
-}
-
 export function PlayersToWatch({
   snapshot, home, away, suffix,
 }: {
@@ -62,12 +32,14 @@ export function PlayersToWatch({
   away: Team;
   suffix: string;
 }) {
-  const maxMinutes = Math.max(...snapshot.playerStats.map((s) => s.minutes), 0);
-  const floor = maxMinutes * 0.45;
+  // The same ranking the globe's tour uses, from one module — a fixture named
+  // on the home page and the same fixture opened should not disagree about who
+  // is worth watching.
+  const floor = regularFloor(snapshot);
 
   const sides = [
-    { team: home, players: topFor(snapshot, home.id, floor, 3), tone: 'var(--series-1)' },
-    { team: away, players: topFor(snapshot, away.id, floor, 3), tone: 'var(--series-2)' },
+    { team: home, players: playersToWatch(snapshot, home.id, floor, 3), tone: 'var(--series-1)' },
+    { team: away, players: playersToWatch(snapshot, away.id, floor, 3), tone: 'var(--series-2)' },
   ];
 
   if (sides.every((s) => !s.players.length)) {

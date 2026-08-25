@@ -87,3 +87,62 @@ describe('club history mapping', () => {
     expect(h.venue).toBeNull();
   });
 });
+
+/**
+ * Venue coordinates, against the shape the live feed actually sends.
+ *
+ * The fixture below is the real `overview.venue` block for Anfield, copied from
+ * a live response rather than imagined. That distinction has cost this project
+ * twice: a points-deduction test encoded an arithmetic that cannot occur in a
+ * real feed, and a club-colour test invented a nesting the API does not use.
+ * Both passed. Both shipped bugs.
+ *
+ * The thing that matters here is that latitude comes FIRST and both values are
+ * strings — a pair silently read in the other order puts Anfield in Kazakhstan
+ * and nothing in the type system would notice.
+ */
+describe('venue coordinates', () => {
+  const anfield = {
+    overview: {
+      venue: {
+        widget: {
+          name: 'Anfield',
+          location: ['53.430827885', '-2.960852981'] as [string, string],
+          city: 'Liverpool',
+        },
+        statPairs: [['Capacity', 61276]] as [string, string | number][],
+      },
+    },
+  };
+
+  it('reads latitude first, from the strings the feed sends', () => {
+    const venue = mapClubHistory('8650', anfield).venue;
+    expect(venue?.lat).toBeCloseTo(53.43, 2);
+    expect(venue?.lon).toBeCloseTo(-2.96, 2);
+  });
+
+  it('returns neither coordinate when the feed omits them', () => {
+    const venue = mapClubHistory('1', {
+      overview: { venue: { widget: { name: 'Somewhere', city: 'Town' } } },
+    }).venue;
+    expect(venue?.name).toBe('Somewhere');
+    expect(venue?.lat).toBeNull();
+    expect(venue?.lon).toBeNull();
+  });
+
+  it('rejects 0,0 rather than pinning a club to the Atlantic', () => {
+    const venue = mapClubHistory('1', {
+      overview: { venue: { widget: { name: 'Ground', location: ['0', '0'] as [string, string] } } },
+    }).venue;
+    expect(venue?.lat).toBeNull();
+    expect(venue?.lon).toBeNull();
+  });
+
+  it('rejects a pair that is out of range, which is what a moved field looks like', () => {
+    const venue = mapClubHistory('1', {
+      overview: { venue: { widget: { name: 'Ground', location: ['531', '-29'] as [string, string] } } },
+    }).venue;
+    expect(venue?.lat).toBeNull();
+    expect(venue?.lon).toBeNull();
+  });
+});
