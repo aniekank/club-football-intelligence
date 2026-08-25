@@ -136,6 +136,22 @@ export function Globe({
   const earthDraw = useRef<(() => void) | null>(null);
   const rings = useRef<number[][] | null>(null);
 
+  /**
+   * What the frame loop draws, held in a ref.
+   *
+   * The loop was set up in an effect keyed on `points` and `activeIndex`, and
+   * `points` is a fresh array on every render. So every three seconds — and
+   * again on every hover, pause and focus change — the whole rig was torn down
+   * and rebuilt: the animation frame cancelled, three observers disconnected
+   * and re-attached, and the canvas resized, which CLEARS it. That is a visible
+   * flicker on a cadence, caused entirely by a dependency array.
+   *
+   * The loop now mounts once and reads the current stop from here. React tells
+   * it what to draw; it does not restart to find out.
+   */
+  const live = useRef({ points, activeIndex });
+  live.current = { points, activeIndex };
+
   const [earthOk, setEarthOk] = useState(false);
 
   const handleEarth = useCallback((ok: boolean) => {
@@ -158,11 +174,20 @@ export function Globe({
     earthDraw.current = draw;
   }, []);
 
-  /** Retarget whenever the tour advances. */
+  /**
+   * Retarget whenever the tour advances.
+   *
+   * Keyed on the destination's COORDINATES rather than on the points array,
+   * whose identity changes on every render — which restarted the flight (and
+   * with it the route line and the idle drift) every time an unrelated piece
+   * of state moved, such as the pointer entering the panel.
+   */
+  const stop = points[activeIndex];
+  const toLon = stop?.lon;
+  const toLat = stop?.lat;
   useEffect(() => {
-    const stop = points[activeIndex];
-    if (!stop) return;
-    const to = { lon: stop.lon, lat: stop.lat };
+    if (toLon === undefined || toLat === undefined) return;
+    const to = { lon: toLon, lat: toLat };
     const from = { lon: view.current.lon, lat: view.current.lat };
     previous.current = from;
     target.current = to;
@@ -185,17 +210,37 @@ export function Globe({
       ms: FLIGHT_MIN_MS + share * (FLIGHT_MAX_MS - FLIGHT_MIN_MS),
     };
     progress.current = 0;
-  }, [activeIndex, points]);
+  }, [toLon, toLat]);
 
   /* ── Manipulation ──────────────────────────────────────────────────────── */
+
+  /**
+   * The drag state lives in refs, and the listeners are attached ONCE.
+   *
+   * The first version kept `dragging`, `lastX` and `lastY` as closure
+   * variables inside the effect, and the effect depended on `takeOver`, which
+   * depended on `onGrab` — an inline arrow from the parent, so a new function
+   * on every render. Pressing the globe called `onGrab`, which set state,
+   * which re-rendered, which tore the effect down and rebuilt it with
+   * `dragging` back to false. The pointer was captured and the listeners were
+   * live, and the globe still would not move: every drag died on the frame
+   * after it started.
+   *
+   * So nothing here is allowed to depend on a prop identity. The callback is
+   * read through a ref at the moment it is needed, the gesture state is refs,
+   * and the effect mounts once and stays.
+   */
+  const drag = useRef({ active: false, x: 0, y: 0, pointerId: -1 });
+  const onGrabRef = useRef(onGrab);
+  onGrabRef.current = onGrab;
 
   const takeOver = useCallback(() => {
     flight.current = null;
     if (!grabbed.current) {
       grabbed.current = true;
-      onGrab?.();
+      onGrabRef.current?.();
     }
-  }, [onGrab]);
+  }, []);
 
   const rotateBy = useCallback((dxPx: number, dyPx: number) => {
     const wrap = wrapRef.current;
@@ -217,32 +262,31 @@ export function Globe({
     const wrap = wrapRef.current;
     if (!wrap) return;
 
-    let dragging = false;
-    let lastX = 0;
-    let lastY = 0;
-    let pointer = -1;
-
     const down = (e: PointerEvent) => {
-      if (e.button !== 0 && e.pointerType === 'mouse') return;
-      dragging = true;
-      pointer = e.pointerId;
-      lastX = e.clientX;
-      lastY = e.clientY;
-      wrap.setPointerCapture(e.pointerId);
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      drag.current = { active: true, x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+      try {
+        wrap.setPointerCapture(e.pointerId);
+      } catch {
+        // Capture can be refused if the pointer is already gone. The move and
+        // up handlers are on the element either way.
+      }
       takeOver();
     };
 
     const move = (e: PointerEvent) => {
-      if (!dragging || e.pointerId !== pointer) return;
-      rotateBy(e.clientX - lastX, e.clientY - lastY);
-      lastX = e.clientX;
-      lastY = e.clientY;
+      const d = drag.current;
+      if (!d.active || e.pointerId !== d.pointerId) return;
+      rotateBy(e.clientX - d.x, e.clientY - d.y);
+      d.x = e.clientX;
+      d.y = e.clientY;
     };
 
     const up = (e: PointerEvent) => {
-      if (e.pointerId !== pointer) return;
-      dragging = false;
-      pointer = -1;
+      const d = drag.current;
+      if (e.pointerId !== d.pointerId) return;
+      d.active = false;
+      d.pointerId = -1;
       if (wrap.hasPointerCapture(e.pointerId)) wrap.releasePointerCapture(e.pointerId);
     };
 
@@ -274,6 +318,7 @@ export function Globe({
     wrap.addEventListener('pointermove', move);
     wrap.addEventListener('pointerup', up);
     wrap.addEventListener('pointercancel', up);
+    wrap.addEventListener('lostpointercapture', up);
     wrap.addEventListener('wheel', wheel, { passive: false });
     wrap.addEventListener('keydown', key);
 
@@ -282,6 +327,7 @@ export function Globe({
       wrap.removeEventListener('pointermove', move);
       wrap.removeEventListener('pointerup', up);
       wrap.removeEventListener('pointercancel', up);
+      wrap.removeEventListener('lostpointercapture', up);
       wrap.removeEventListener('wheel', wheel);
       wrap.removeEventListener('keydown', key);
     };
@@ -372,8 +418,8 @@ export function Globe({
         rotation: view.current,
         radius: (Math.min(width, height) / 2) * view.current.radiusScale,
         palette: palette.current ?? readPalette(wrap),
-        points,
-        activeIndex,
+        points: live.current.points,
+        activeIndex: live.current.activeIndex,
         route: previous.current && target.current
           ? { from: previous.current, to: target.current, t: progress.current }
           : null,
@@ -393,7 +439,9 @@ export function Globe({
       motionQuery.removeEventListener('change', syncMotion);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [points, activeIndex]);
+    // Mounts once. Everything that changes per stop is read from `live`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div

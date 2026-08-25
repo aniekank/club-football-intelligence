@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Globe, type GlobePoint } from './Globe';
 import { Figure, Crest, LiveDot } from '@/components/ui';
@@ -78,11 +78,18 @@ export function WorldTour({ stops, suffix }: { stops: TourStop[]; suffix: string
     };
   }, [reduced, playing, paused, grabbed, stops.length]);
 
+  // Stable identity: the globe compares this against its own effects, and a
+  // fresh array every three seconds is a fresh set of effects every three
+  // seconds.
+  const points: GlobePoint[] = useMemo(
+    () => stops.map((s) => ({ key: s.matchId, lat: s.lat, lon: s.lon })),
+    [stops],
+  );
+
   if (!stops.length) return null;
 
   const stop = stops[index] as TourStop;
   const next = stops[(index + 1) % stops.length] as TourStop;
-  const points: GlobePoint[] = stops.map((s) => ({ key: s.matchId, lat: s.lat, lon: s.lon }));
   const where = [stop.venue, stop.city].filter(Boolean).join(', ') || stop.country;
   const played = stop.homeScore !== null && stop.awayScore !== null;
 
