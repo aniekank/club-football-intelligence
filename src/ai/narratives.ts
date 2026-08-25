@@ -407,8 +407,10 @@ export function generateBriefing(
   input: NarrativeContext,
   liveElsewhere: { competitionName: string; count: number }[] = [],
 ): Briefing {
+  // No longer runs the story engine: the briefing is built from the table, and
+  // generating a dozen insights to read one field off the first was the most
+  // expensive line on the home page.
   const ctx = buildCtx(input);
-  const insights = generateInsights(input);
   const competition = ctx.snapshot.competition.name;
   const label = ctx.snapshot.season.label;
 
@@ -427,16 +429,34 @@ export function generateBriefing(
     ? `${leader?.name ?? 'The champions'} win the ${competition}`
     : `${leader?.name ?? 'The leaders'} lead the ${competition} after ${ctx.played}`;
 
-  const bullets = insights.slice(0, 4).map((i) => i.title);
-  for (const l of liveElsewhere) {
-    bullets.push(`${l.count} match${l.count === 1 ? '' : 'es'} live now in the ${l.competitionName}`);
-  }
+  /**
+   * The briefing states where the season STANDS. It does not retell the
+   * stories.
+   *
+   * It used to return the leading insight's body as its body and the top four
+   * insight titles as its bullets — and it sits directly above a spotlight
+   * that leads with that same insight. The reader was shown one story three
+   * times in one screen, which reads as an editing failure rather than
+   * emphasis. Two surfaces, two jobs: this one is the table and the clock, the
+   * spotlight is the stories.
+   */
+  const second = ctx.standings[1];
+  const chaser = second ? ctx.teamById.get(second.teamId) : undefined;
+  const margin = second ? ctx.standings[0]!.points - second.points : null;
 
-  return {
-    headline,
-    body: insights[0]?.body ?? `${ctx.played} matchweeks played, ${ctx.gamesLeft} to go.`,
-    bullets,
-  };
+  const body = done
+    ? `${ctx.played} matchweeks played. The table is final.`
+    : margin === null || !chaser
+      ? `${ctx.played} matchweeks played, ${ctx.gamesLeft} to go.`
+      : margin === 0
+        ? `Level on points with ${chaser.name} at the top, and ${ctx.gamesLeft} matchweeks still to play.`
+        : `${margin} point${margin === 1 ? '' : 's'} clear of ${chaser.name}, with ${ctx.gamesLeft} matchweeks still to play.`;
+
+  const bullets = liveElsewhere.map(
+    (l) => `${l.count} match${l.count === 1 ? '' : 'es'} live now in the ${l.competitionName}`,
+  );
+
+  return { headline, body, bullets };
 }
 
 function ordinal(n: number): string {

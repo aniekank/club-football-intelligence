@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Card, CardHeader, EmptyState, Skeleton, Badge } from '@/components/ui';
 import { AppShell } from '@/components/layout/AppShell';
 import { resolveActive } from '@/server/active';
-import { LeagueBriefing } from '@/components/ai/LeagueBriefing';
+import { StorylinesDoor } from '@/components/ai/StorylinesDoor';
 import { Coverage } from '@/components/data/Coverage';
 import { BumpChart } from '@/components/charts/BumpChart';
 import { buildProgression, mostMoved } from '@/analytics/progression';
@@ -200,7 +200,7 @@ export default function TablePage({
         ) : null}
 
         {snapshot ? (
-          <LeagueBriefing insights={insights} snapshot={snapshot} suffix={suffix} />
+          <StorylinesDoor insights={insights} href={`/storylines${suffix}`} />
         ) : null}
 
         {snapshot ? (
