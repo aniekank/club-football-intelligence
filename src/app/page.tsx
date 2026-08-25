@@ -4,14 +4,13 @@ import { MatchCard } from '@/components/match/MatchCard';
 import { Figure, Card, CardHeader, Skeleton, EmptyState, Badge } from '@/components/ui';
 import { Spotlight } from '@/components/ai/Spotlight';
 import { generateInsights, generateBriefing } from '@/ai/narratives';
+import { narrativeContext } from '@/server/narrative';
 import { MatchdayPanel } from '@/components/match/MatchdayPanel';
 import { matchdaysAcross } from '@/server/matchday';
 import { allSnapshots } from '@/data/store';
-import { predictMatch } from '@/analytics/poisson';
-import { minutesFloor } from '@/server/players';
 import { resolveActive, liveAcrossCompetitions } from '@/server/active';
 import { formatDate, dayKey, pct, relativeTime, num } from '@/lib/format';
-import type { Match, Team, VenueKind } from '@/domain/types';
+import type { Match } from '@/domain/types';
 import { entitySuffix } from '@/lib/entityLink';
 
 export const dynamic = 'force-dynamic';
@@ -35,19 +34,10 @@ export default function HomePage({
     }, {}),
   ).map(([competitionName, count]) => ({ competitionName, count }));
 
-  const narrativeCtx = snapshot
-    ? {
-        snapshot,
-        forecasts: forecast?.forecasts ?? [],
-        // The model is injected rather than imported by the engine, so the
-        // engine decides which games matter and this decides what they look
-        // like. Same `predictMatch` the match pages use, so a fixture card and
-        // the page it links to can never disagree.
-        predict: (home: Team, away: Team, venueKind: VenueKind) =>
-          predictMatch(home, away, { venueKind }),
-        minutesFloor: minutesFloor(snapshot),
-      }
-    : null;
+  // Built by one function shared with the storylines page: the engine takes its
+  // model as an argument rather than importing one, and that design only buys
+  // anything if the argument is identical everywhere.
+  const narrativeCtx = narrativeContext(snapshot, forecast?.forecasts ?? []);
   const insights = narrativeCtx ? generateInsights(narrativeCtx) : [];
   const briefing = narrativeCtx ? generateBriefing(narrativeCtx, liveElsewhere) : null;
   const seasonSuffix = entitySuffix(competition.id, searchParams.season);
@@ -166,10 +156,10 @@ export default function HomePage({
             <div className="mb-2 flex items-baseline justify-between">
               <h2 className="eyebrow">Storylines</h2>
               <Link
-                href={`/ask${seasonSuffix}`}
+                href={`/storylines${seasonSuffix}`}
                 className="text-xs font-medium text-ink-secondary underline-offset-2 hover:text-ink hover:underline"
               >
-                Ask a question
+                All {insights.length} storylines
               </Link>
             </div>
             <Spotlight insights={insights.slice(0, 6)} suffix={seasonSuffix} />
