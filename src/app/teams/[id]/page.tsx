@@ -14,10 +14,13 @@ import { pct, num, signed, int, ordinal } from '@/lib/format';
 import { zoneForRank } from '@/domain/competitions';
 import { entitySuffix } from '@/lib/entityLink';
 import { Disclosure } from '@/components/ui/Disclosure';
+import { SeasonHistory } from '@/components/team/SeasonHistory';
+import { Honours, CoachLedger, VenueFacts } from '@/components/team/ClubRecord';
+import { fetchClubHistory } from '@/data/providers/fotmobClub';
 
 export const dynamic = 'force-dynamic';
 
-export default function TeamPage({
+export default async function TeamPage({
   params, searchParams,
 }: {
   params: { id: string };
@@ -41,6 +44,17 @@ export default function TeamPage({
   const played = matches.filter((m) => m.status === 'FINISHED');
   const upcoming = matches.filter((m) => m.status === 'SCHEDULED').slice(0, 5);
   const recent = played.slice(-5).reverse();
+
+  /**
+   * Club history is fetched HERE, per request, rather than at boot.
+   *
+   * It comes from a per-club endpoint and the product carries hundreds of
+   * clubs; loading it with the snapshot would multiply boot cost for data that
+   * changes about once a year. It is cached for a day and returns null on
+   * failure, so a club page whose history is unavailable is a page without a
+   * history section rather than an error.
+   */
+  const history = team ? await fetchClubHistory(team.id) : null;
 
   const zone = standing ? zoneForRank(competition, standing.rank) : null;
   const shots = snapshot
@@ -108,6 +122,9 @@ export default function TeamPage({
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
                     <span className="figure">{team.code}</span>
                     {team.venue ? <span>· {team.venue}</span> : null}
+                    {history?.venue?.capacity ? (
+                      <span>· {history.venue.capacity.toLocaleString()} capacity</span>
+                    ) : null}
                     {team.manager ? <span>· {team.manager.name}</span> : null}
                   </div>
                 </div>
@@ -240,6 +257,42 @@ export default function TeamPage({
                     estimate
                   />
                 </div>
+              </Disclosure>
+            ) : null}
+
+            {history && history.seasons.length >= 2 ? (
+              <Disclosure
+                title="Season by season"
+                hint={`${history.seasons.length} seasons`}
+              >
+                <SeasonHistory seasons={history.seasons} />
+              </Disclosure>
+            ) : null}
+
+            {history && (history.trophies.length || history.coaches.length) ? (
+              <div className="grid items-start gap-6 lg:grid-cols-2">
+                {history.trophies.length ? (
+                  <Disclosure
+                    title="Honours"
+                    hint={`${history.trophies.reduce((n, t) => n + t.won, 0)} titles`}
+                  >
+                    <Honours trophies={history.trophies} />
+                  </Disclosure>
+                ) : null}
+                {history.coaches.length ? (
+                  <Disclosure
+                    title="In the dugout"
+                    hint={`${new Set(history.coaches.map((c) => c.name)).size} managers`}
+                  >
+                    <CoachLedger coaches={history.coaches} />
+                  </Disclosure>
+                ) : null}
+              </div>
+            ) : null}
+
+            {history?.venue ? (
+              <Disclosure title="The ground" hint={history.venue.name ?? undefined}>
+                <VenueFacts venue={history.venue} />
               </Disclosure>
             ) : null}
 

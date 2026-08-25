@@ -203,6 +203,66 @@ export interface Season {
  * these for the Premier League and another for the Champions League, and the
  * team page fuses them.
  */
+/**
+ * A club's history, fetched separately from the season snapshot.
+ *
+ * This lives outside `DatasetSnapshot` on purpose. The snapshot is ONE season
+ * of one competition and is rebuilt on every refresh; a club's honours and its
+ * finishing positions since 2010 change roughly once a year. Folding them in
+ * would mean re-fetching thirty-seven seasons of history every time a scoreline
+ * changed, and would put a per-club endpoint into a per-competition boot —
+ * about seven hundred extra requests across the competitions loaded here.
+ */
+export interface ClubSeasonRank {
+  season: string;
+  competitionName: string;
+  position: number;
+  outOf: number;
+  points: number;
+  won: number;
+  drawn: number;
+  lost: number;
+}
+
+export interface ClubTrophy {
+  competitionName: string;
+  country: string | null;
+  won: number;
+  runnerUp: number;
+  /** Seasons won, most recent first. */
+  seasons: string[];
+}
+
+/** One manager's record in one season — the club's own coaching ledger. */
+export interface CoachSpell {
+  managerId: ID;
+  name: string;
+  season: string;
+  competitionName: string;
+  won: number;
+  drawn: number;
+  lost: number;
+  pointsPerGame: number | null;
+  winRate: number | null;
+}
+
+export interface ClubVenue {
+  name: string | null;
+  city: string | null;
+  capacity: number | null;
+  opened: number | null;
+  surface: string | null;
+}
+
+export interface ClubHistory {
+  teamId: ID;
+  fetchedAt: ISODate;
+  trophies: ClubTrophy[];
+  seasons: ClubSeasonRank[];
+  coaches: CoachSpell[];
+  venue: ClubVenue | null;
+}
+
 export interface CompetitionMembership {
   teamId: ID;
   seasonId: ID;
