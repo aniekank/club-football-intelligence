@@ -266,6 +266,73 @@
     }
   }
 
+  /**
+   * The collapsible rail.
+   *
+   * The open/closed state is an attribute on <html>, written before first paint
+   * — so the layout is correct on arrival rather than corrected after it. That
+   * also means the CASCADE does the work: no JavaScript reads or sets a width,
+   * and the button's only job is flipping one attribute.
+   *
+   * Width is on the rail itself and the grid column is `auto`, which avoids
+   * needing `:has()` to tell a parent what its child is doing. The column
+   * simply measures what is in it.
+   */
+  .rail {
+    width: 100%;
+  }
+
+  .rail-chevron {
+    transition: transform var(--duration-normal) var(--ease-standard);
+  }
+
+  /* Collapsed: the body goes, the head stays. Below the large breakpoint the
+     rail is a full-width block above nothing, so only its contents fold. */
+  :root[data-rail='closed'] .rail-body {
+    display: none;
+  }
+
+  :root[data-rail='closed'] .rail-chevron {
+    transform: rotate(180deg);
+  }
+
+  @media (min-width: 1024px) {
+    .rail {
+      width: var(--rail-open, 22rem);
+      transition: width var(--duration-normal) var(--ease-standard);
+    }
+
+    :root[data-rail='closed'] .rail {
+      width: 3rem;
+    }
+
+    /* The spine. One label element rotated into the width it has, rather than a
+       second hidden copy of the same words — two copies is how the visible one
+       and the announced one drift apart. */
+    :root[data-rail='closed'] .rail-head {
+      flex-direction: column;
+      gap: var(--space-3);
+      /* Tall enough to read as an edge rather than a stray icon, and to be hit
+         without aiming. */
+      min-height: 11rem;
+      align-items: center;
+      justify-content: flex-start;
+      padding-top: var(--space-2);
+    }
+
+    :root[data-rail='closed'] .rail-label {
+      writing-mode: vertical-rl;
+      white-space: nowrap;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rail,
+    .rail-chevron {
+      transition: none;
+    }
+  }
+
   /* Horizontal-scroll container for wide tables and charts. The page body must
      never scroll sideways; the offending element owns its own overflow. */
   .scroll-x {

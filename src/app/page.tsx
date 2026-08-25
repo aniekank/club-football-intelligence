@@ -5,6 +5,7 @@ import { Figure, Card, CardHeader, Skeleton, EmptyState, Badge } from '@/compone
 import { Spotlight } from '@/components/ai/Spotlight';
 import { generateInsights, generateBriefing } from '@/ai/narratives';
 import { narrativeContext } from '@/server/narrative';
+import { Rail } from '@/components/layout/Rail';
 import { MatchdayPanel } from '@/components/match/MatchdayPanel';
 import { matchdaysAcross } from '@/server/matchday';
 import { allSnapshots } from '@/data/store';
@@ -169,7 +170,7 @@ export default function HomePage({
         {!snapshot ? (
           <LoadingState />
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+          <div className="grid gap-6 lg:grid-cols-[1fr_auto]">
             <div className="min-w-0 space-y-6">
               {liveDay ? <MatchdayPanel day={liveDay} suffix={seasonSuffix} /> : null}
               <FixtureFeed snapshot={snapshot} suffix={seasonSuffix} />
@@ -186,7 +187,7 @@ export default function HomePage({
               Each door states the one number that would make a reader open it.
               That is the whole job: not to inform, but to be worth a click.
             */}
-            <aside className="space-y-3">
+            <Rail label="Where to next" count={4}>
               <Door
                 href={`/season${seasonSuffix}`}
                 eyebrow={`${(forecast?.runs ?? 8000).toLocaleString()} simulated seasons`}
@@ -219,7 +220,7 @@ export default function HomePage({
                 title="Betting edge"
                 note="Where the model and the bookmakers disagree, and why that is not profit."
               />
-            </aside>
+            </Rail>
           </div>
         )}
       </div>

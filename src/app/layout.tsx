@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Fraunces, Archivo, JetBrains_Mono } from 'next/font/google';
 import { themeScript } from '@/components/layout/ThemeToggle';
+import { railScript } from '@/components/layout/Rail';
 import './globals.css';
 
 /**
@@ -100,6 +101,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Applies the stored theme before first paint — without it every
             navigation flashes the OS theme before snapping to the chosen one. */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Same job for the sidebar: applied after hydration, the reader would
+            watch a 22rem column shut itself on every navigation. */}
+        <script dangerouslySetInnerHTML={{ __html: railScript }} />
       </head>
       <body>
         <a href="#main" className="sr-only-focusable absolute left-4 top-4 z-toast rounded-md bg-brand px-4 py-2 text-sm font-semibold text-brand-ink">
