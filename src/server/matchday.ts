@@ -121,23 +121,38 @@ export function matchdaysAcross(
       }
 
       /**
-       * The pick order: quality first, then how close it is.
+       * Live first, then quality, then how close it is.
        *
-       * Two evenly-matched mid-table sides are a better watch than a mismatch
-       * between two strong ones, so balance breaks ties among comparable
-       * fixtures rather than driving the order — a 0-0 between the two worst
-       * clubs in a league is perfectly balanced and worth nobody's evening.
+       * Live football leads for the same reason it leads the globe's tour: it
+       * is the only thing on the list anyone could be watching right now, and a
+       * better fixture tomorrow is not a substitute for a goal going in this
+       * minute. The home page used to solve that with a SECOND strip above this
+       * one, which showed the same matches twice on a page already accused of
+       * being too much.
+       *
+       * Below that, quality. Two evenly-matched mid-table sides are a better
+       * watch than a mismatch between two strong ones, so balance breaks ties
+       * among comparable fixtures rather than driving the order — a 0-0 between
+       * the two worst clubs in a league is perfectly balanced and worth
+       * nobody's evening.
        */
+      const liveFirst = (a: DayMatch, b: DayMatch) =>
+        Number(b.match.status === 'LIVE' || b.match.status === 'HALFTIME')
+        - Number(a.match.status === 'LIVE' || a.match.status === 'HALFTIME');
+
       const headline = matches
         .filter((d) => d.quality !== null)
         .sort((a, b) =>
-          (b.quality as number) - (a.quality as number)
+          liveFirst(a, b)
+          || (b.quality as number) - (a.quality as number)
           || (b.balance ?? 0) - (a.balance ?? 0))
         .slice(0, 5);
 
       return {
         date,
-        matches,
+        // Live to the top of the full list too, so the short day and the long
+        // one agree about what matters most on it.
+        matches: [...matches].sort(liveFirst),
         byHour: [...hours.entries()]
           .map(([hour, count]) => ({ hour, count }))
           .sort((a, b) => a.hour - b.hour),

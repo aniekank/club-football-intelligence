@@ -2,16 +2,14 @@ import { LeagueTable } from '@/components/table/LeagueTable';
 import Link from 'next/link';
 import { Card, CardHeader, EmptyState, Skeleton, Badge } from '@/components/ui';
 import { AppShell } from '@/components/layout/AppShell';
-import { resolveActive } from '@/server/active';
+import { resolveActive, liveAcrossCompetitions } from '@/server/active';
 import { StorylinesDoor } from '@/components/ai/StorylinesDoor';
 import { Coverage } from '@/components/data/Coverage';
 import { BumpChart } from '@/components/charts/BumpChart';
 import { buildProgression, mostMoved } from '@/analytics/progression';
 import { Disclosure } from '@/components/ui/Disclosure';
-import { generateInsights } from '@/ai/narratives';
-import { predictMatch } from '@/analytics/poisson';
-import { minutesFloor } from '@/server/players';
-import type { Team, VenueKind } from '@/domain/types';
+import { generateInsights, generateBriefing } from '@/ai/narratives';
+import { narrativeContext } from '@/server/narrative';
 import { hasConferences } from '@/domain/competitions';
 import { relativeTime } from '@/lib/format';
 import { entitySuffix } from '@/lib/entityLink';
@@ -61,15 +59,35 @@ export default function TablePage({
   const progression = snapshot ? buildProgression(snapshot) : null;
   const movers = progression ? mostMoved(progression, 3) : [];
 
-  const insights = snapshot
-    ? generateInsights({
-        snapshot,
-        forecasts: forecast?.forecasts ?? [],
-        predict: (home: Team, away: Team, venueKind: VenueKind) =>
-          predictMatch(home, away, { venueKind }),
-        minutesFloor: minutesFloor(snapshot),
-      })
-    : [];
+  /**
+   * One context, built by the shared function.
+   *
+   * This page was the third place assembling the narrative engine's input by
+   * hand. The engine takes its model as an argument rather than importing one
+   * precisely so a fixture named on one page and the same fixture opened on
+   * another cannot disagree — and that buys nothing if the argument is built
+   * three times.
+   */
+  const narrativeCtx = narrativeContext(snapshot, forecast?.forecasts ?? []);
+  const insights = narrativeCtx ? generateInsights(narrativeCtx) : [];
+
+  /**
+   * The briefing moved here from the home page.
+   *
+   * It is a sentence about ONE competition — "Brighton lead the Premier League
+   * after 1, level with Arsenal" — and it was sitting on a screen whose job is
+   * football everywhere. This is that competition's page; it is the first thing
+   * the sentence should be next to.
+   */
+  const live = liveAcrossCompetitions();
+  const liveElsewhere = Object.entries(
+    live.reduce<Record<string, number>>((acc, l) => {
+      const name = l.snapshot.competition.name;
+      if (name !== competition.name) acc[name] = (acc[name] ?? 0) + 1;
+      return acc;
+    }, {}),
+  ).map(([competitionName, count]) => ({ competitionName, count }));
+  const briefing = narrativeCtx ? generateBriefing(narrativeCtx, liveElsewhere) : null;
 
   return (
     <AppShell
@@ -79,6 +97,26 @@ export default function TablePage({
       activeEditionKey={edition?.key}
     >
       <div className="mx-auto max-w-container px-4 py-6">
+        {briefing ? (
+          <Card className="mb-6">
+            <div className="p-5">
+              <p className="eyebrow">Where it stands</p>
+              <h2 className="mt-1 font-display text-2xl leading-tight">{briefing.headline}</h2>
+              <p className="mt-2 max-w-prose text-ink-secondary">{briefing.body}</p>
+              {briefing.bullets.length ? (
+                <ul className="mt-3 grid gap-1 sm:grid-cols-2">
+                  {briefing.bullets.map((b) => (
+                    <li key={b} className="flex gap-2 text-sm text-ink-secondary">
+                      <span aria-hidden="true" className="mt-2 h-1 w-1 shrink-0 rounded-full bg-comp" />
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </Card>
+        ) : null}
+
         <Card>
           <CardHeader
             eyebrow={`${competition.country} · ${snapshot?.season.label ?? ''}`}
