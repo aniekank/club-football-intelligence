@@ -62,6 +62,20 @@ export function hasSnapshot(): boolean {
 }
 
 /** Every edition loaded so far, for instant switching. */
+/**
+ * Every loaded snapshot, for surfaces that reason ACROSS competitions.
+ *
+ * Almost everything here is scoped to one competition, deliberately. Cross-
+ * league ranking is the exception that needs the whole set at once: leagues can
+ * only be placed against each other through the continental matches that
+ * connect them, and that evidence lives spread across every snapshot.
+ */
+export function allSnapshots(): DatasetSnapshot[] {
+  return loadedKeys()
+    .map((k) => getCachedSnapshot(k))
+    .filter((s): s is DatasetSnapshot => s !== undefined);
+}
+
 export function loadedKeys(): string[] {
   return [...snapshotCache().keys()];
 }
