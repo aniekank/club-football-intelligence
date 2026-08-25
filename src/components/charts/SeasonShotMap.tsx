@@ -138,8 +138,12 @@ export function SeasonShotMap({
                   fill={isGoal ? 'var(--series-1)' : 'transparent'}
                   fillOpacity={isGoal ? 0.55 : 0}
                   stroke={isActive ? 'var(--text-primary)' : 'var(--series-1)'}
-                  strokeWidth={isGoal ? 0.5 : 0.35}
-                  strokeOpacity={isGoal ? 1 : 0.55}
+                  /* A big chance gets a heavier outline. Marker AREA already
+                     carries xG, but area is hard to judge at the small end —
+                     a 0.35 and a 0.12 look alike — and "was this a real
+                     opening" is the question a reader asks of a miss. */
+                  strokeWidth={s.isBigChance ? 0.9 : isGoal ? 0.5 : 0.35}
+                  strokeOpacity={isGoal || s.isBigChance ? 1 : 0.55}
                   className="cursor-pointer"
                   onMouseEnter={() => setActive(s)}
                   onMouseLeave={() => setActive(null)}
@@ -154,7 +158,10 @@ export function SeasonShotMap({
             <p className="text-ink-secondary">
               {active.outcome.replace(/_/g, ' ')} · {active.bodyPart.replace(/_/g, ' ')}
             </p>
-            <p className="text-ink-muted">{active.situation.replace(/_/g, ' ')}</p>
+            <p className="text-ink-muted">
+              {active.situation.replace(/_/g, ' ')}
+              {active.isBigChance ? ' · big chance' : ''}
+            </p>
           </div>
         ) : null}
       </div>
@@ -172,9 +179,14 @@ export function SeasonShotMap({
             label="xG per shot"
             value={filtered.length ? (xg / filtered.length).toFixed(3) : '—'}
           />
+          <Stat
+            label="Big chances"
+            value={String(filtered.filter((s) => s.isBigChance).length)}
+          />
         </div>
         <p className="text-2xs text-ink-muted">
-          Marker area is expected-goal value. Filled markers are goals.
+          Marker area is expected-goal value. Filled markers are goals; a heavier
+          outline is a big chance (our threshold, not the provider&rsquo;s).
           {filtered.length !== shots.length ? ` Filtered from ${shots.length} shots.` : ''}
         </p>
       </figcaption>

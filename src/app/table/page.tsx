@@ -4,6 +4,8 @@ import { Card, CardHeader, EmptyState, Skeleton, Badge } from '@/components/ui';
 import { AppShell } from '@/components/layout/AppShell';
 import { resolveActive } from '@/server/active';
 import { LeagueBriefing } from '@/components/ai/LeagueBriefing';
+import { Coverage } from '@/components/data/Coverage';
+import { Disclosure } from '@/components/ui/Disclosure';
 import { generateInsights } from '@/ai/narratives';
 import { predictMatch } from '@/analytics/poisson';
 import { minutesFloor } from '@/server/players';
@@ -173,6 +175,18 @@ export default function TablePage({
 
         {snapshot ? (
           <LeagueBriefing insights={insights} snapshot={snapshot} suffix={suffix} />
+        ) : null}
+
+        {snapshot ? (
+          <Disclosure
+            title="What this competition carries"
+            hint={`${
+              Object.entries(snapshot.meta.capabilities)
+                .filter(([k, v]) => k.startsWith('has') && v === true).length
+            } of 9 data types`}
+          >
+            <Coverage meta={snapshot.meta} />
+          </Disclosure>
         ) : null}
       </div>
     </AppShell>

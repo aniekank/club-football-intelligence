@@ -206,6 +206,12 @@ interface FmStatItem { title?: string; key?: string; stats?: (string | number | 
 interface FmStatGroup { title?: string; stats?: FmStatItem[] }
 
 interface FmMatchDetails {
+  header?: {
+    status?: {
+      /** The club that LOST a shootout, by name. No score is published. */
+      whoLostOnPenalties?: string | null;
+    };
+  };
   general?: {
     matchId?: number | string; leagueId?: number; matchRound?: number | string;
     started?: boolean; finished?: boolean; matchTimeUTC?: string;
@@ -791,9 +797,10 @@ export async function buildSnapshot(
         awayTeamId: String(f.away.id),
         homeScore: score.home,
         awayScore: score.away,
+        // Filled from match detail below, where the events are.
         homeScoreHT: null,
         awayScoreHT: null,
-        penalties: null,
+        shootoutWinnerTeamId: null,
         teamStats: {},
         events: [],
         shots: [],
@@ -879,6 +886,46 @@ export async function buildSnapshot(
         target.homeTeamId,
         target.awayTeamId,
       );
+
+      /**
+       * Half-time score, DERIVED from the goals rather than read from a field.
+       *
+       * The feed publishes half timings but not a half-time scoreline. The goal
+       * events carry a minute each and were verified complete against
+       * independently-ingested lineups (CFI-006: 25 of 25 goals), so counting
+       * the ones before the interval is sound arithmetic rather than a guess.
+       *
+       * Stoppage time counts toward the half it belongs to — a 45+2 goal is a
+       * first-half goal, and treating it as a second-half one would misreport
+       * exactly the goals most likely to change a half-time story.
+       */
+      const firstHalf = target.events.filter(
+        (e) => e.type === 'GOAL' && e.minute <= 45,
+      );
+      if (target.status === 'FINISHED' || target.status === 'HALFTIME') {
+        target.homeScoreHT = firstHalf.filter((e) => e.teamId === target.homeTeamId).length;
+        target.awayScoreHT = firstHalf.filter((e) => e.teamId === target.awayTeamId).length;
+      }
+
+      /**
+       * A shootout, when there was one.
+       *
+       * FotMob names the LOSER (`whoLostOnPenalties`), so the winner is the
+       * other side. Without this a tie decided on penalties renders as a draw,
+       * which across seven knockout competitions is the single most misleading
+       * thing the match list can say.
+       */
+      const lost = details.header?.status?.whoLostOnPenalties;
+      if (typeof lost === 'string' && lost.trim()) {
+        const homeName = teamById.get(target.homeTeamId)?.name ?? '';
+        const awayName = teamById.get(target.awayTeamId)?.name ?? '';
+        const loserIsHome = lost.trim() === homeName;
+        const loserIsAway = lost.trim() === awayName;
+        // Only when the name matches one of the two — never a guess.
+        if (loserIsHome !== loserIsAway) {
+          target.shootoutWinnerTeamId = loserIsHome ? target.awayTeamId : target.homeTeamId;
+        }
+      }
 
       const formation = details.content?.lineup;
       if (formation) {

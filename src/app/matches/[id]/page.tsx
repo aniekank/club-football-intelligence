@@ -20,7 +20,7 @@ import { Disclosure } from '@/components/ui/Disclosure';
 import { Tactics } from '@/components/match/Tactics';
 import { PlayersToWatch } from '@/components/match/PlayersToWatch';
 import { teamStyle } from '@/analytics/style';
-import type { Match, MatchTeamStats, Team } from '@/domain/types';
+import type { DatasetSnapshot, Match, MatchTeamStats, Team } from '@/domain/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,6 +65,7 @@ export default function MatchPage({
             knownPlayerIds={knownPlayerIds}
             snapshot={snapshot}
             suffix={suffix}
+            capabilities={snapshot.meta.capabilities}
           />
         )}
       </div>
@@ -74,7 +75,10 @@ export default function MatchPage({
 
 function MatchDetail({
   match, home, away, competitionName, hasMomentum, knownPlayerIds, snapshot, suffix,
+  capabilities,
 }: {
+  /** Gates the sections whose data this competition may simply not publish. */
+  capabilities: DatasetSnapshot['meta']['capabilities'];
   match: Match;
   /** The whole snapshot: style profiles and squads are SEASON questions. */
   snapshot: NonNullable<ReturnType<typeof resolveActive>['snapshot']>;
@@ -200,7 +204,36 @@ function MatchDetail({
               </Figure>
             )}
             {match.status === 'FINISHED' ? (
-              <span className="text-2xs uppercase tracking-caps text-ink-muted">Full time</span>
+              <span className="text-2xs uppercase tracking-caps text-ink-muted">
+                {match.shootoutWinnerTeamId ? 'After penalties' : 'Full time'}
+              </span>
+            ) : null}
+
+            {/*
+              A tie decided on penalties is not a draw, and rendering it as one
+              is the most misleading thing a knockout scoreline can do. No
+              shootout score is shown because the feed does not publish one —
+              naming the winner is knowable, 5-4 is not.
+            */}
+            {match.shootoutWinnerTeamId ? (
+              <Badge tone="brand">
+                {(match.shootoutWinnerTeamId === home?.id ? home : away)?.shortName} on penalties
+              </Badge>
+            ) : null}
+
+            {/*
+              Half-time, shown only when it DIFFERS from the final score. A
+              1-0 that was 1-0 at the break says nothing; a 3-2 that was 0-2 is
+              the whole match.
+            */}
+            {played
+              && match.homeScoreHT !== null
+              && match.awayScoreHT !== null
+              && (match.homeScoreHT !== match.homeScore || match.awayScoreHT !== match.awayScore) ? (
+              <span className="text-2xs text-ink-muted">
+                Half-time{' '}
+                <Figure>{match.homeScoreHT}–{match.awayScoreHT}</Figure>
+              </span>
             ) : null}
           </div>
           <TeamHero team={away} align="end" />
@@ -297,7 +330,7 @@ function MatchDetail({
         </Disclosure>
       ) : null}
 
-      {hasShots && home && away ? (
+      {capabilities.hasShotLocations && hasShots && home && away ? (
         <div className="grid items-start gap-6 xl:grid-cols-2">
           <Disclosure
             title="The xG race"
@@ -345,7 +378,7 @@ function MatchDetail({
         </Disclosure>
       ) : null}
 
-      {match.lineups && Object.keys(match.lineups).length && home && away ? (
+      {capabilities.hasLineups && match.lineups && Object.keys(match.lineups).length && home && away ? (
         <Disclosure
           title="Line-ups"
           hint={`${Object.values(match.lineups).flat().length} players`}

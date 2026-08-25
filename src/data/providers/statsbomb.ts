@@ -64,8 +64,24 @@ export function buildFromEdition(edition: StatsBombEdition): DatasetSnapshot {
   }));
   const teamIds = teams.map((t) => t.id);
 
+  /**
+   * The cached edition is an EXTERNAL artifact with its own shape, and it is
+   * normalised here like any vendor payload.
+   *
+   * It was written before `penalties` became `shootoutWinnerTeamId`, and it is
+   * 5.6MB of committed data — rewriting the file to chase a type rename would
+   * put a schema migration in a git diff for no gain. Mapping at the boundary
+   * is what the boundary is for, and it means an older cache keeps working.
+   */
+  const matches: Match[] = edition.matches.map((m) => ({
+    ...m,
+    homeScoreHT: m.homeScoreHT ?? null,
+    awayScoreHT: m.awayScoreHT ?? null,
+    shootoutWinnerTeamId: m.shootoutWinnerTeamId ?? null,
+  }));
+
   const standings = computeStandings({
-    matches: edition.matches,
+    matches,
     teamIds,
     competition,
     seasonId,
@@ -169,7 +185,7 @@ export function buildFromEdition(edition: StatsBombEdition): DatasetSnapshot {
     teams,
     players: edition.players,
     playerStats: edition.playerStats,
-    matches: edition.matches,
+    matches,
     standings,
     // StatsBomb open data carries no transfer records, and inventing an empty
     // window is honest: the capability flags say the surface has nothing.

@@ -142,7 +142,9 @@ export const matchSchema = z.object({
   awayScore: z.number().int().nonnegative().nullable(),
   homeScoreHT: z.number().int().nonnegative().nullable(),
   awayScoreHT: z.number().int().nonnegative().nullable(),
-  penalties: z.object({ home: z.number().int(), away: z.number().int() }).nullable(),
+  /** The winner of a shootout. No score: the feed publishes the loser's name
+   *  and nothing else, so a scoreline here would be invented. */
+  shootoutWinnerTeamId: z.string().nullable(),
   aggregateMatchId: z.string().optional(),
   teamStats: z.record(z.string(), z.object({ teamId: z.string() }).passthrough()),
   events: z.array(z.object({ id: z.string(), matchId: z.string() }).passthrough()),

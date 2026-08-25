@@ -21,7 +21,7 @@ function makeMatch(id: string, home: string, away: string, over: Partial<Match> 
     kickoff: new Date().toISOString(), status: 'SCHEDULED', minute: 0,
     venueKind: 'home-away', venue: null, homeTeamId: home, awayTeamId: away,
     homeScore: null, awayScore: null, homeScoreHT: null, awayScoreHT: null,
-    penalties: null, teamStats: {}, events: [], shots: [], ...over,
+    shootoutWinnerTeamId: null, teamStats: {}, events: [], shots: [], ...over,
   };
 }
 

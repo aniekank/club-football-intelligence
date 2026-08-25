@@ -431,7 +431,15 @@ export interface Match {
   awayScore: number | null;
   homeScoreHT: number | null;
   awayScoreHT: number | null;
-  penalties: { home: number; away: number } | null;
+  /**
+   * Set when a tie went to a shootout, holding the club that WON it.
+   *
+   * Deliberately not a `{ home, away }` score. FotMob reports the loser by
+   * name (`whoLostOnPenalties`) and does not publish the shootout scoreline
+   * anywhere I could find, so modelling a score would mean inventing one. The
+   * fact that matters — this was not really a draw — is knowable; 5-4 is not.
+   */
+  shootoutWinnerTeamId: ID | null;
   /** Two-legged ties: the aggregate partner, for cup rounds. */
   aggregateMatchId?: ID;
   teamStats: Record<ID, MatchTeamStats>;

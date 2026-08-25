@@ -24,7 +24,7 @@ function makeMatch(home: string, away: string, hs: number | null, as: number | n
     status: played ? 'FINISHED' : 'SCHEDULED', minute: played ? 90 : 0,
     venueKind: 'home-away', venue: null, homeTeamId: home, awayTeamId: away,
     homeScore: hs, awayScore: as, homeScoreHT: null, awayScoreHT: null,
-    penalties: null, teamStats: {}, events: [], shots: [],
+    shootoutWinnerTeamId: null, teamStats: {}, events: [], shots: [],
   };
 }
 

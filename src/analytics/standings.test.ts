@@ -40,7 +40,7 @@ function match(
     awayScore: as,
     homeScoreHT: null,
     awayScoreHT: null,
-    penalties: null,
+    shootoutWinnerTeamId: null,
     teamStats: {},
     events: [],
     shots: [],
