@@ -1,10 +1,8 @@
 import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { MatchCard } from '@/components/match/MatchCard';
-import { LeagueTable } from '@/components/table/LeagueTable';
-import { SeasonProjection } from '@/components/charts/SeasonProjection';
-import { Card, CardHeader, Skeleton, EmptyState, Badge, StatTile } from '@/components/ui';
-import { InsightCard } from '@/components/ai/InsightCard';
+import { Figure, Card, CardHeader, Skeleton, EmptyState, Badge } from '@/components/ui';
+import { Spotlight } from '@/components/ai/Spotlight';
 import { generateInsights, generateBriefing } from '@/ai/narratives';
 import { MatchdayPanel } from '@/components/match/MatchdayPanel';
 import { matchdaysAcross } from '@/server/matchday';
@@ -62,6 +60,13 @@ export default function HomePage({
    * hundred and twenty-four others kicked off elsewhere. "What is on today" is
    * not a per-competition question.
    */
+  /** The one number that makes the season door worth opening. */
+  const leaderForecast = [...(forecast?.forecasts ?? [])]
+    .sort((a, b) => b.winTitle - a.winTitle)[0];
+  const leaderName = leaderForecast
+    ? snapshot?.teams.find((t) => t.id === leaderForecast.teamId)?.shortName
+    : undefined;
+
   const today = new Date().toISOString().slice(0, 10);
   /**
    * `?date=` lets a reader stand on any matchday, not just this one.
@@ -149,6 +154,15 @@ export default function HomePage({
 
         {insights.length ? (
           <section className="mb-6">
+            {/*
+              One story at a time, not six at once.
+              
+              Six cards in a grid gives every storyline equal weight, which
+              means the reader assigns none — and the sixth-best story is read
+              by nobody either way. The spotlight was built for this: it gives
+              each story the full width for a few seconds, pauses on hover and
+              on focus, and does not rotate at all under reduced motion.
+            */}
             <div className="mb-2 flex items-baseline justify-between">
               <h2 className="eyebrow">Storylines</h2>
               <Link
@@ -158,15 +172,7 @@ export default function HomePage({
                 Ask a question
               </Link>
             </div>
-            <div className="grid items-stretch gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {insights.slice(0, 6).map((i) => (
-                <InsightCard
-                  key={i.id}
-                  insight={i}
-                  href={i.entityType === 'team' && i.entityId ? `/teams/${i.entityId}${seasonSuffix}` : undefined}
-                />
-              ))}
-            </div>
+            <Spotlight insights={insights.slice(0, 6)} suffix={seasonSuffix} />
           </section>
         ) : null}
 
@@ -179,70 +185,50 @@ export default function HomePage({
               <FixtureFeed snapshot={snapshot} suffix={seasonSuffix} />
             </div>
 
-            <aside className="space-y-6">
-              <Card>
-                <CardHeader
-                  eyebrow="Season"
-                  title={competition.name}
-                  action={
-                    <Badge tone={snapshot.meta.degradedKind === 'stale-cache' ? 'warning' : 'neutral'}>
-                      {/* "12 months ago" describes when a completed season was
-                          INGESTED, which tells a reader nothing. The season
-                          label is the fact that matters. */}
-                      {snapshot.season.isCurrent
-                        ? relativeTime(snapshot.meta.fetchedAt)
-                        : `${snapshot.season.label} · complete`}
-                    </Badge>
-                  }
-                />
-                <div className="grid grid-cols-2 gap-2 p-4">
-                  <StatTile
-                    label="Matchweek"
-                    value={
-                      <>
-                        {snapshot.season.currentMatchweek ?? 0}
-                        <span className="text-ink-muted">/{snapshot.season.totalMatchweeks ?? '—'}</span>
-                      </>
-                    }
-                  />
-                  <StatTile
-                    label="Played"
-                    value={snapshot.matches.filter((m) => m.status === 'FINISHED').length}
-                    sub={`of ${snapshot.matches.length}`}
-                  />
-                </div>
-              </Card>
+            {/*
+              The aside is a set of DOORS, not a second page.
 
-              {forecast && forecast.remainingFixtures > 0 ? (
-                <Card>
-                  <CardHeader
-                    eyebrow={`${forecast.runs.toLocaleString()} simulated seasons`}
-                    title="Projected finish"
-                    description="Where the model expects each club to end up, and how wide the range is."
-                  />
-                  <div className="p-4">
-                    <SeasonProjection
-                      forecasts={forecast.forecasts}
-                      teams={snapshot.teams}
-                      limit={8}
-                    />
-                  </div>
-                </Card>
-              ) : null}
+              It previously carried a season card, an eight-tile projection
+              block and a truncated ten-club chart — each a compressed version
+              of something that has its own room now. Compressing a Monte Carlo
+              into a 120px tile is not a summary, it is a receipt.
 
-              <Card>
-                <CardHeader eyebrow="Standings" title="Table" action={
-                  <Link
-                    href={`/table?competition=${competition.id}`}
-                    className="text-xs font-medium text-ink-secondary underline-offset-2 hover:text-ink hover:underline"
-                  >
-                    Full table
-                  </Link>
-                } />
-                <div className="mt-3">
-                  <CompactTable snapshot={snapshot} suffix={seasonSuffix} />
-                </div>
-              </Card>
+              Each door states the one number that would make a reader open it.
+              That is the whole job: not to inform, but to be worth a click.
+            */}
+            <aside className="space-y-3">
+              <Door
+                href={`/season${seasonSuffix}`}
+                eyebrow={`${(forecast?.runs ?? 8000).toLocaleString()} simulated seasons`}
+                title="The season, projected"
+                stat={leaderForecast ? pct(leaderForecast.winTitle, 0) : undefined}
+                statLabel={leaderName ? `${leaderName} to win it` : undefined}
+                note="Where every club finishes, and how wide the range is."
+              />
+              <Door
+                href={`/table${seasonSuffix}`}
+                eyebrow={snapshot.competition.name}
+                title="The table"
+                stat={
+                  snapshot.season.isCurrent && snapshot.season.currentMatchweek
+                    ? `${snapshot.season.currentMatchweek}/${snapshot.season.totalMatchweeks ?? '—'}`
+                    : undefined
+                }
+                statLabel="matchweek"
+                note="Standings, form, and how the season has moved."
+              />
+              <Door
+                href="/rankings"
+                eyebrow="Across every competition"
+                title="World rankings"
+                note="Club ratings re-based onto one scale using continental results."
+              />
+              <Door
+                href={`/edge${seasonSuffix}`}
+                eyebrow="Model versus market"
+                title="Betting edge"
+                note="Where the model and the bookmakers disagree, and why that is not profit."
+              />
             </aside>
           </div>
         )}
@@ -375,18 +361,41 @@ function FixtureFeed({ snapshot, suffix }: { snapshot: NonNullable<ReturnType<ty
   );
 }
 
-function CompactTable({ snapshot, suffix }: { snapshot: NonNullable<ReturnType<typeof resolveActive>['snapshot']>; suffix: string }) {
-  if (!snapshot.standings.length) {
-    return <EmptyState title="No table for this format" />;
-  }
+/**
+ * A door: an eyebrow, a name, one number, one line.
+ *
+ * The number is what distinguishes a door from a nav link. "The season,
+ * projected" is a label; "68% — Palmeiras to win it" is a reason to go.
+ */
+function Door({
+  href, eyebrow, title, stat, statLabel, note,
+}: {
+  href: string;
+  eyebrow: string;
+  title: string;
+  stat?: string;
+  statLabel?: string;
+  note: string;
+}) {
   return (
-    <LeagueTable
-      competition={snapshot.competition}
-      standings={snapshot.standings.slice(0, 8)}
-      teams={snapshot.teams}
-      suffix={suffix}
-      compact
-    />
+    <Link
+      href={href}
+      className="lit-edge group block rounded-lg border border-border-subtle bg-surface-1 p-4 transition-[transform,border-color,box-shadow] duration-normal ease-standard hover:-translate-y-px hover:border-border hover:shadow-md"
+    >
+      <p className="eyebrow truncate">{eyebrow}</p>
+      <div className="mt-1 flex items-baseline justify-between gap-3">
+        <h3 className="min-w-0 truncate font-display text-lg leading-tight">{title}</h3>
+        {stat ? (
+          <span className="shrink-0 text-right">
+            <Figure className="text-xl font-semibold leading-none">{stat}</Figure>
+          </span>
+        ) : null}
+      </div>
+      {stat && statLabel ? (
+        <p className="mt-[0.125rem] text-right text-2xs text-ink-muted">{statLabel}</p>
+      ) : null}
+      <p className="mt-2 text-sm leading-snug text-ink-secondary">{note}</p>
+    </Link>
   );
 }
 

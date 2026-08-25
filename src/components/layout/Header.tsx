@@ -44,6 +44,7 @@ export function Header({
           <NavLink href="/players">Players</NavLink>
           <NavLink href="/explore">Explore</NavLink>
           <NavLink href="/transfers">Transfers</NavLink>
+          <NavLink href="/season">Season</NavLink>
           <NavLink href="/rankings">Rankings</NavLink>
           <NavLink href="/edge">Betting Edge</NavLink>
           <NavLink href="/ask">Ask</NavLink>
