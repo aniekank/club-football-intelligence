@@ -125,6 +125,10 @@ const config: Config = {
       caps: 'var(--tracking-caps)',
     },
     lineHeight: {
+      /* A display number or a scoreline sets its own leading — the type scale's
+         smallest step is still 1.1, which shows as a visible gap under a 48px
+         figure. */
+      none: 'var(--leading-none)',
       tight: 'var(--leading-tight)',
       snug: 'var(--leading-snug)',
       normal: 'var(--leading-normal)',

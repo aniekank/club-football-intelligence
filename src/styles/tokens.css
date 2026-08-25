@@ -181,6 +181,7 @@
   --text-4xl: 3rem;      /* 48px — hero numbers */
   --text-5xl: 4rem;      /* 64px — scoreline hero */
 
+  --leading-none: 1;
   --leading-tight: 1.1;
   --leading-snug: 1.25;
   --leading-normal: 1.5;

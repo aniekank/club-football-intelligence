@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import config from '../../tailwind.config';
 
 /**
  * The spacing scale is a NAMED token scale, and Tailwind-idiomatic classes
@@ -78,5 +79,74 @@ describe('spacing utilities stay inside the token scale', () => {
   it('finds no class outside steps 0-10', () => {
     expect(offenders, `use an arbitrary value instead, e.g. h-[0.375rem]:\n${offenders.join('\n')}`)
       .toEqual([]);
+  });
+});
+
+
+/**
+ * Every other named scale, guarded the same way — and read from the config
+ * rather than restated here.
+ *
+ * `theme.spacing` was not the only key set outright: `fontSize`,
+ * `borderRadius`, `boxShadow`, `transitionDuration`, `transitionTimingFunction`
+ * and `zIndex` are all REPLACEMENTS too. So `text-6xl` is not a small mistake
+ * against a large scale, it is not a class — and it fails exactly as `h-1.5`
+ * did, by rendering the element at its inherited size with no warning
+ * anywhere. A hero number written `text-6xl` came out the size of body copy.
+ *
+ * The allowed values are derived from `tailwind.config.ts` at test time, so
+ * adding a step to the theme cannot leave this list behind.
+ */
+const theme = config.theme as Record<string, Record<string, unknown>>;
+const keysOf = (scale: string) => new Set(Object.keys(theme[scale] ?? {}));
+
+/**
+ * `text-` is overloaded: it takes a size, a colour and an alignment. Only
+ * size-SHAPED tokens are checked, so `text-ink-muted` and `text-center` pass
+ * through untouched and a genuinely misspelt size still fails.
+ */
+const SIZE_SHAPED = /^(?:[0-9]*xs|sm|base|lg|[0-9]*xl)$/;
+
+const FAMILIES: { prefix: string; scale: string; only?: RegExp }[] = [
+  { prefix: 'text', scale: 'fontSize', only: SIZE_SHAPED },
+  { prefix: 'shadow', scale: 'boxShadow' },
+  { prefix: 'duration', scale: 'transitionDuration' },
+  { prefix: 'ease', scale: 'transitionTimingFunction' },
+  { prefix: 'z', scale: 'zIndex' },
+  { prefix: 'leading', scale: 'lineHeight' },
+];
+
+describe('named theme scales are not invented at the call site', () => {
+  const offenders: string[] = [];
+
+  for (const { prefix, scale, only } of FAMILIES) {
+    const valid = keysOf(scale);
+    // Arbitrary values (`text-[2rem]`) and slash opacity are the escape hatch
+    // and are deliberately not matched.
+    const pattern = new RegExp(
+      String.raw`(?<![\w-])(?:[a-z-]+:)?${prefix}-([a-z0-9]+)(?![\w./\[-])`,
+      'g',
+    );
+
+    for (const file of walk(join(process.cwd(), 'src'))) {
+      readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
+        const trimmed = line.trimStart();
+        if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return;
+        for (const m of line.matchAll(pattern)) {
+          const token = m[1] as string;
+          if (only && !only.test(token)) continue;
+          if (!valid.has(token)) {
+            offenders.push(`${file.replace(process.cwd() + '/', '')}:${i + 1}  ${m[0]}  (${scale})`);
+          }
+        }
+      });
+    }
+  }
+
+  it('finds no utility outside its scale', () => {
+    expect(
+      offenders,
+      `these compile to nothing — use a real step or an arbitrary value:\n${offenders.join('\n')}`,
+    ).toEqual([]);
   });
 });
