@@ -34,7 +34,7 @@ services:
   - type: web
     name: club-football-intelligence-staging
     runtime: node
-    plan: starter
+    plan: free             # staging can sleep; prod stays always-on (halves cost per DEPLOY.md guidance)
     region: oregon
     branch: staging
     buildCommand: npm ci && npm run build
