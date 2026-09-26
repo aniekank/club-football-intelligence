@@ -21,8 +21,9 @@ export const dynamic = 'force-dynamic';
  *
  * A point: { kind, text, home?, away?, score?, minute?, kickoff?, model?, link }
  *   kind  live      a match on now (score, minute)
- *         result    a finished match from the last four days, biggest margin first
- *         fixture   the next week's tightest and heaviest matches, with the model's 1X2 (model: {home, draw, away})
+ *         result    the latest round's results, biggest margin first
+ *         fixture   the next round's tightest and heaviest matches, with the model's 1X2 (model: {home, draw, away})
+ *                   (rounds, not a date window: an international break leaves a fortnight with no football)
  *         table     who leads, and by how much
  *         story     the storyline engine's lead insights (title race, relegation, form, xG luck)
  */
@@ -69,9 +70,11 @@ export async function GET(req: Request) {
     });
   }
 
-  // results from the last four days, the biggest margins first
+  // the latest round's results (the last ten finished), the biggest margins first
   const recent = snapshot.matches
-    .filter((m) => m.status === 'FINISHED' && m.homeScore !== null && m.awayScore !== null && now - Date.parse(m.kickoff) < 4 * 86_400_000)
+    .filter((m) => m.status === 'FINISHED' && m.homeScore !== null && m.awayScore !== null)
+    .sort((a, b) => b.kickoff.localeCompare(a.kickoff))
+    .slice(0, 10)
     .sort((a, b) => Math.abs(b.homeScore! - b.awayScore!) - Math.abs(a.homeScore! - a.awayScore!))
     .slice(0, 3);
   for (const m of recent) {
@@ -80,9 +83,11 @@ export async function GET(req: Request) {
       text: `${name(m.homeTeamId)} ${score} ${name(m.awayTeamId)}`, link: matchLink(m) });
   }
 
-  // the next week: the tightest match and the most one-sided, with the model's 1X2
+  // the next round (the next ten scheduled): the tightest match and the most one-sided, with the model's 1X2
   const upcoming = snapshot.matches
-    .filter((m) => m.status === 'SCHEDULED' && Date.parse(m.kickoff) > now && Date.parse(m.kickoff) - now < 7 * 86_400_000)
+    .filter((m) => m.status === 'SCHEDULED' && Date.parse(m.kickoff) > now)
+    .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
+    .slice(0, 10)
     .flatMap((m) => {
       const h = team.get(m.homeTeamId), a = team.get(m.awayTeamId);
       if (!h || !a) return [];
@@ -111,7 +116,9 @@ export async function GET(req: Request) {
   }
   if (ctx) {
     for (const i of generateInsights(ctx).filter((x) => x.severity !== 'low').slice(0, 3)) {
-      points.push({ kind: 'story', text: i.title, link: `${SITE}/storylines${q}` });
+      // the body's first sentence is the claim; the title alone ("Liverpool v Arsenal") is a label
+      const first = i.body.split(/(?<=[.!?])\s+/)[0] ?? i.title;
+      points.push({ kind: 'story', text: first, link: `${SITE}/storylines${q}` });
     }
   }
 
