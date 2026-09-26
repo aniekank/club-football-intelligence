@@ -116,9 +116,9 @@ export async function GET(req: Request) {
   }
   if (ctx) {
     for (const i of generateInsights(ctx).filter((x) => x.severity !== 'low').slice(0, 3)) {
-      // the body's first sentence is the claim; the title alone ("Liverpool v Arsenal") is a label
+      // the title names it ("Liverpool v Arsenal"), the body's first sentence is the claim; either alone reads half a thought
       const first = i.body.split(/(?<=[.!?])\s+/)[0] ?? i.title;
-      points.push({ kind: 'story', text: first, link: `${SITE}/storylines${q}` });
+      points.push({ kind: 'story', text: `${i.title.replace(/[.:]$/, '')}: ${first}`, link: `${SITE}/storylines${q}` });
     }
   }
 
