@@ -18,7 +18,8 @@ export const dynamic = 'force-dynamic';
  *
  *   GET /api/talk?competition=epl[&follow=Arsenal,Liverpool]   (default epl)
  *   follow: club names (or short names) whose own latest result and next match come too (kind "team", team: the name)
- *   → { app, competition, url, generatedAt, points: Point[] }
+ *   → { app, competition, url, generatedAt, points: Point[], leaders: Board[] }
+ *   leaders: the season's top five by goals, assists and (keepers only) clean sheets, for a scoreboard
  *
  * A point: { kind, text, home?, away?, score?, minute?, kickoff?, model?, link }
  *   kind  live      a match on now (score, minute)
@@ -151,8 +152,21 @@ export async function GET(req: Request) {
     }
   }
 
+  // the leaderboards: this competition's season only (a player's European numbers are a different record)
+  const who = new Map(snapshot.players.map((pl) => [pl.id, pl]));
+  const season = snapshot.playerStats.filter((st) => st.competitionId === snapshot.competition.id && st.seasonId === snapshot.season.id);
+  const board = (stat: string, pick: (st: (typeof season)[number]) => number, keepersOnly = false) => ({
+    stat,
+    rows: season
+      .filter((st) => pick(st) > 0 && who.has(st.playerId) && (!keepersOnly || who.get(st.playerId)!.position === 'GK'))
+      .sort((a, b) => pick(b) - pick(a) || a.minutes - b.minutes)
+      .slice(0, 5)
+      .map((st) => { const pl = who.get(st.playerId)!; return { name: pl.name, team: name(pl.teamId), value: pick(st), link: `${SITE}/players/${pl.id}${q}` }; }),
+  });
+  const leaders = [board('Goals', (st) => st.goals), board('Assists', (st) => st.assists), board('Clean sheets', (st) => st.cleanSheets, true)].filter((b) => b.rows.length);
+
   return NextResponse.json(
-    { app: 'cfi', competition: competition.id, competitionName: competition.name, url: SITE, generatedAt: new Date().toISOString(), points },
+    { app: 'cfi', competition: competition.id, competitionName: competition.name, url: SITE, generatedAt: new Date().toISOString(), points, leaders },
     { headers },
   );
 }
