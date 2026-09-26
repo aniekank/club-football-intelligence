@@ -20,6 +20,8 @@ export const dynamic = 'force-dynamic';
  *   follow: club names (or short names) whose own latest result and next match come too (kind "team", team: the name)
  *   → { app, competition, url, generatedAt, points: Point[], leaders: Board[] }
  *   leaders: the season's top five by goals, assists and (keepers only) clean sheets, for a scoreboard
+ *   board:   the whole table (form, goal difference, points), the power rankings (the model's rating), and the
+ *            projections (the season simulation: mean points, title / top four / Europe / relegation odds)
  *
  * A point: { kind, text, home?, away?, score?, minute?, kickoff?, model?, link }
  *   kind  live      a match on now (score, minute)
@@ -170,8 +172,26 @@ export async function GET(req: Request) {
   });
   const leaders = [board('Goals', (st) => st.goals), board('Assists', (st) => st.assists), board('Clean sheets', (st) => st.cleanSheets, true)].filter((b) => b.rows.length);
 
+  // the board: table, power rankings, projections
+  const fc = forecast?.forecasts ?? [];
+  const pct1 = (v: number) => Math.round(v * 1000) / 10;
+  const boardOut = {
+    table: [...(snapshot.standings ?? [])].sort((a, b) => a.rank - b.rank).map((r) => ({
+      rank: r.rank, team: name(r.teamId), logo: crest(r.teamId), p: r.played, w: r.won, d: r.drawn, l: r.lost,
+      gd: r.goalDifference, pts: r.points, form: (r.form ?? []).slice(-5).join(''),
+    })),
+    rankings: [...fc].sort((a, b) => a.powerRank - b.powerRank).map((f) => ({
+      rank: f.powerRank, team: name(f.teamId), logo: crest(f.teamId), rating: Math.round(f.powerRating),
+    })),
+    projections: [...fc].sort((a, b) => b.projectedPoints.mean - a.projectedPoints.mean).map((f) => ({
+      team: name(f.teamId), logo: crest(f.teamId), pts: Math.round(f.projectedPoints.mean * 10) / 10,
+      rank: Math.round(f.projectedRank.mean * 10) / 10, title: pct1(f.winTitle), top4: pct1(f.top4), europe: pct1(f.europeanQualification), releg: pct1(f.relegation),
+    })),
+    link: { table: `${SITE}/table${q}`, season: `${SITE}/season${q}` },
+  };
+
   return NextResponse.json(
-    { app: 'cfi', competition: competition.id, competitionName: competition.name, url: SITE, generatedAt: new Date().toISOString(), points, leaders },
+    { app: 'cfi', competition: competition.id, competitionName: competition.name, url: SITE, generatedAt: new Date().toISOString(), points, leaders, board: boardOut },
     { headers },
   );
 }
