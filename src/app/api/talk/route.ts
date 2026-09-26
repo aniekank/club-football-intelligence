@@ -33,6 +33,9 @@ type Point = {
   kind: 'live' | 'result' | 'fixture' | 'table' | 'story' | 'team';
   team?: string;
   detail?: string;
+  /** the clubs' crests (the upstream media CDN, as the site shows them) */
+  homeLogo?: string | null;
+  awayLogo?: string | null;
   text: string;
   home?: string;
   away?: string;
@@ -59,6 +62,8 @@ export async function GET(req: Request) {
 
   const team = new Map<string, Team>(snapshot.teams.map((t) => [t.id, t]));
   const name = (tid: string) => team.get(tid)?.shortName || team.get(tid)?.name || 'TBC';
+  const crest = (tid: string) => team.get(tid)?.crestUrl ?? null;
+  const logos = (m: Match) => ({ homeLogo: crest(m.homeTeamId), awayLogo: crest(m.awayTeamId) });
   const q = `?competition=${competition.id}`;
   const matchLink = (m: Match) => `${SITE}/matches/${m.id}${q}`;
   const now = Date.now();
@@ -68,7 +73,7 @@ export async function GET(req: Request) {
   for (const m of snapshot.matches.filter((x) => x.status === 'LIVE' || x.status === 'HALFTIME').slice(0, 3)) {
     const score = `${m.homeScore ?? 0}-${m.awayScore ?? 0}`;
     points.push({
-      kind: 'live', home: name(m.homeTeamId), away: name(m.awayTeamId), score, minute: m.minute,
+      kind: 'live', home: name(m.homeTeamId), away: name(m.awayTeamId), score, minute: m.minute, ...logos(m),
       text: `${name(m.homeTeamId)} ${score} ${name(m.awayTeamId)}, ${m.status === 'HALFTIME' ? 'half-time' : `${m.minute}'`}`,
       link: matchLink(m),
     });
@@ -83,7 +88,7 @@ export async function GET(req: Request) {
     .slice(0, 3);
   for (const m of recent) {
     const score = `${m.homeScore}-${m.awayScore}`;
-    points.push({ kind: 'result', home: name(m.homeTeamId), away: name(m.awayTeamId), score, kickoff: m.kickoff,
+    points.push({ kind: 'result', home: name(m.homeTeamId), away: name(m.awayTeamId), score, kickoff: m.kickoff, ...logos(m),
       text: `${name(m.homeTeamId)} ${score} ${name(m.awayTeamId)}`, link: matchLink(m) });
   }
 
@@ -103,7 +108,7 @@ export async function GET(req: Request) {
   for (const { m, p } of picks as typeof upcoming) {
     const model = { home: pct(p.homeWin), draw: pct(p.draw), away: pct(p.awayWin) };
     points.push({
-      kind: 'fixture', home: name(m.homeTeamId), away: name(m.awayTeamId), kickoff: m.kickoff, model,
+      kind: 'fixture', home: name(m.homeTeamId), away: name(m.awayTeamId), kickoff: m.kickoff, model, ...logos(m),
       text: `${name(m.homeTeamId)} v ${name(m.awayTeamId)}: model ${model.home}/${model.draw}/${model.away} (home/draw/away)`,
       link: matchLink(m),
     });
@@ -120,7 +125,7 @@ export async function GET(req: Request) {
     const next = theirs.filter((m) => m.status === 'SCHEDULED' && Date.parse(m.kickoff) > now).sort((a, b) => a.kickoff.localeCompare(b.kickoff))[0];
     for (const m of [live ?? last].filter(Boolean) as Match[]) {
       const score = `${m.homeScore ?? 0}-${m.awayScore ?? 0}`, state = m.status === 'FINISHED' ? 'FT' : m.status === 'HALFTIME' ? 'half-time' : `${m.minute}'`;
-      points.push({ kind: 'team', team: club.shortName, home: name(m.homeTeamId), away: name(m.awayTeamId), score, detail: state, kickoff: m.kickoff,
+      points.push({ kind: 'team', team: club.shortName, home: name(m.homeTeamId), away: name(m.awayTeamId), score, detail: state, kickoff: m.kickoff, ...logos(m),
         text: `${name(m.homeTeamId)} ${score} ${name(m.awayTeamId)} (${state})`, link: matchLink(m) });
     }
     if (next) {
@@ -129,7 +134,7 @@ export async function GET(req: Request) {
         const p = predictMatch(h, a, { venueKind: next.venueKind });
         const model = { home: pct(p.homeWin), draw: pct(p.draw), away: pct(p.awayWin) };
         const mine = next.homeTeamId === club.id ? model.home : model.away;
-        points.push({ kind: 'team', team: club.shortName, home: name(next.homeTeamId), away: name(next.awayTeamId), kickoff: next.kickoff, model,
+        points.push({ kind: 'team', team: club.shortName, home: name(next.homeTeamId), away: name(next.awayTeamId), kickoff: next.kickoff, model, ...logos(next),
           text: `${name(next.homeTeamId)} v ${name(next.awayTeamId)}: ${club.shortName} ${mine}% to win (est.)`, link: matchLink(next) });
       }
     }
@@ -140,7 +145,7 @@ export async function GET(req: Request) {
   const rows = snapshot.standings ?? [];
   if (rows.length >= 2 && rows[0]!.played > 0) {
     const gap = rows[0]!.points - rows[1]!.points;
-    points.push({ kind: 'table', home: name(rows[0]!.teamId), away: name(rows[1]!.teamId),
+    points.push({ kind: 'table', home: name(rows[0]!.teamId), away: name(rows[1]!.teamId), homeLogo: crest(rows[0]!.teamId), awayLogo: crest(rows[1]!.teamId),
       text: gap === 0 ? `${name(rows[0]!.teamId)} top on goal difference from ${name(rows[1]!.teamId)}` : `${name(rows[0]!.teamId)} top, ${gap} clear of ${name(rows[1]!.teamId)}`,
       link: `${SITE}/table${q}` });
   }
@@ -161,7 +166,7 @@ export async function GET(req: Request) {
       .filter((st) => pick(st) > 0 && who.has(st.playerId) && (!keepersOnly || who.get(st.playerId)!.position === 'GK'))
       .sort((a, b) => pick(b) - pick(a) || a.minutes - b.minutes)
       .slice(0, 5)
-      .map((st) => { const pl = who.get(st.playerId)!; return { name: pl.name, team: name(pl.teamId), value: pick(st), link: `${SITE}/players/${pl.id}${q}` }; }),
+      .map((st) => { const pl = who.get(st.playerId)!; return { name: pl.name, team: name(pl.teamId), teamLogo: crest(pl.teamId), value: pick(st), link: `${SITE}/players/${pl.id}${q}` }; }),
   });
   const leaders = [board('Goals', (st) => st.goals), board('Assists', (st) => st.assists), board('Clean sheets', (st) => st.cleanSheets, true)].filter((b) => b.rows.length);
 
