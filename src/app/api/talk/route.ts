@@ -16,7 +16,8 @@ export const dynamic = 'force-dynamic';
  * (the Poisson model for a fixture, the table, the storyline engine). Nothing here is invented, and a
  * model number always travels labelled as the model's.
  *
- *   GET /api/talk?competition=epl   (default epl)
+ *   GET /api/talk?competition=epl[&follow=Arsenal,Liverpool]   (default epl)
+ *   follow: club names (or short names) whose own latest result and next match come too (kind "team", team: the name)
  *   → { app, competition, url, generatedAt, points: Point[] }
  *
  * A point: { kind, text, home?, away?, score?, minute?, kickoff?, model?, link }
@@ -28,7 +29,9 @@ export const dynamic = 'force-dynamic';
  *         story     the storyline engine's lead insights (title race, relegation, form, xG luck)
  */
 type Point = {
-  kind: 'live' | 'result' | 'fixture' | 'table' | 'story';
+  kind: 'live' | 'result' | 'fixture' | 'table' | 'story' | 'team';
+  team?: string;
+  detail?: string;
   text: string;
   home?: string;
   away?: string;
@@ -103,6 +106,32 @@ export async function GET(req: Request) {
       text: `${name(m.homeTeamId)} v ${name(m.awayTeamId)}: model ${model.home}/${model.draw}/${model.away} (home/draw/away)`,
       link: matchLink(m),
     });
+  }
+
+  // the followed clubs: their latest result and their next match (with the model's 1X2)
+  const follow = (new URL(req.url).searchParams.get('follow') ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean).slice(0, 8);
+  for (const want of follow) {
+    const club = snapshot.teams.find((t) => t.name.toLowerCase() === want || t.shortName.toLowerCase() === want);
+    if (!club) continue;
+    const theirs = snapshot.matches.filter((m) => m.homeTeamId === club.id || m.awayTeamId === club.id);
+    const last = theirs.filter((m) => m.status === 'FINISHED' && m.homeScore !== null).sort((a, b) => b.kickoff.localeCompare(a.kickoff))[0];
+    const live = theirs.find((m) => m.status === 'LIVE' || m.status === 'HALFTIME');
+    const next = theirs.filter((m) => m.status === 'SCHEDULED' && Date.parse(m.kickoff) > now).sort((a, b) => a.kickoff.localeCompare(b.kickoff))[0];
+    for (const m of [live ?? last].filter(Boolean) as Match[]) {
+      const score = `${m.homeScore ?? 0}-${m.awayScore ?? 0}`, state = m.status === 'FINISHED' ? 'FT' : m.status === 'HALFTIME' ? 'half-time' : `${m.minute}'`;
+      points.push({ kind: 'team', team: club.shortName, home: name(m.homeTeamId), away: name(m.awayTeamId), score, detail: state, kickoff: m.kickoff,
+        text: `${name(m.homeTeamId)} ${score} ${name(m.awayTeamId)} (${state})`, link: matchLink(m) });
+    }
+    if (next) {
+      const h = team.get(next.homeTeamId), a = team.get(next.awayTeamId);
+      if (h && a) {
+        const p = predictMatch(h, a, { venueKind: next.venueKind });
+        const model = { home: pct(p.homeWin), draw: pct(p.draw), away: pct(p.awayWin) };
+        const mine = next.homeTeamId === club.id ? model.home : model.away;
+        points.push({ kind: 'team', team: club.shortName, home: name(next.homeTeamId), away: name(next.awayTeamId), kickoff: next.kickoff, model,
+          text: `${name(next.homeTeamId)} v ${name(next.awayTeamId)}: ${club.shortName} ${mine}% to win (est.)`, link: matchLink(next) });
+      }
+    }
   }
 
   // the table and the stories
