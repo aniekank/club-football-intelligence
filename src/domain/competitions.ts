@@ -604,6 +604,83 @@ export const CANADA_PL = league({
   size: 8, relegated: 0, titleDecidedByPlayoff: true,
 });
 
+/**
+ * The strength history both AFCON entries are rated from. Six qualifiers is far
+ * too few games to rate a national team on, so the prior is fitted from every
+ * CAF result FotMob holds for the last cycle: the previous qualifying campaign,
+ * the 2025 finals in Morocco and the 2026 World Cup qualifiers (ten games a
+ * side). See `fitPriorsFromResults` in analytics/ratings.ts.
+ */
+const CAF_PRIOR_SOURCES = [
+  { fotmobId: 10608, season: '2024/2025' },
+  { fotmobId: 289, season: '2025' },
+  { fotmobId: 10196, season: '2023/2025' },
+];
+
+/**
+ * Africa Cup of Nations qualifying — twelve groups of four, home and away.
+ *
+ * The top two of each group go to the finals, EXCEPT in the three groups that
+ * contain a host: Kenya, Uganda and Tanzania are already in, so only the best
+ * placed of the other three qualifies. Twenty-one qualifiers plus three hosts
+ * make the twenty-four. That rule is not a band on a rank, so it lives in
+ * `qualification` and the zones below describe the ordinary group.
+ *
+ * CAF breaks a tie head-to-head FIRST (points, then goal difference, then goals
+ * in the matches between the tied sides) and only then overall goal
+ * difference — the reverse of FIFA's order for the Club World Cup.
+ */
+export const AFCON_QUALIFIERS: Competition = {
+  id: 'afconq',
+  name: 'Africa Cup of Nations Qualifying',
+  shortName: 'AFCON Q',
+  format: 'group-knockout',
+  tier: 'continental',
+  country: 'Africa',
+  countryCode: 'INT',
+  accentKey: 'afcon',
+  tiebreakers: ['points', 'head-to-head', 'goal-difference', 'goals-for', 'disciplinary', 'drawn-lots'],
+  headToHeadChain: ['points', 'goal-difference', 'goals-for'],
+  zones: [
+    { kind: 'qualified', fromRank: 1, toRank: 2, label: 'Qualify for AFCON 2027', shortLabel: 'Q' },
+    { kind: 'eliminated', fromRank: 3, toRank: 4, label: 'Eliminated', shortLabel: 'OUT' },
+  ],
+  pointsForWin: 3,
+  pointsForDraw: 1,
+  // Nobody wins a qualifying group of anything but a place.
+  titleDecidedByPlayoff: true,
+  qualification: {
+    perGroup: 2,
+    hosts: ['Kenya', 'Uganda', 'Tanzania'],
+    prize: 'AFCON 2027',
+  },
+  priorSources: CAF_PRIOR_SOURCES,
+  nationalTeams: true,
+};
+
+/**
+ * Africa Cup of Nations finals — six groups of four, then a round of sixteen:
+ * the top two of every group plus the four best third-placed teams.
+ *
+ * Played at neutral grounds except for the hosts, which is why the venue is
+ * data: Morocco at home in 2025, Kenya, Uganda and Tanzania in 2027.
+ */
+export const AFCON: Competition = {
+  ...AFCON_QUALIFIERS,
+  id: 'afcon',
+  name: 'Africa Cup of Nations',
+  shortName: 'AFCON',
+  zones: [
+    { kind: 'knockout-direct', fromRank: 1, toRank: 2, label: 'Round of 16', shortLabel: 'R16' },
+    { kind: 'knockout-playoff', fromRank: 3, toRank: 3, label: 'Best third-placed teams go through', shortLabel: '3RD' },
+    { kind: 'eliminated', fromRank: 4, toRank: 4, label: 'Eliminated', shortLabel: 'OUT' },
+  ],
+  qualification: { perGroup: 2, bestThirds: 4, prize: 'Round of 16' },
+  neutralVenue: {
+    hostsBySeason: { '2025': ['Morocco'], '2027': ['Kenya', 'Uganda', 'Tanzania'] },
+  },
+};
+
 export const COMPETITIONS: Competition[] = [
   PREMIER_LEAGUE,
   LA_LIGA,
@@ -617,6 +694,8 @@ export const COMPETITIONS: Competition[] = [
   LIBERTADORES,
   CONCACAF_CHAMPIONS_CUP,
   AFC_CHAMPIONS_ELITE,
+  AFCON_QUALIFIERS,
+  AFCON,
   MLS,
   LIGA_MX,
   CHAMPIONSHIP,

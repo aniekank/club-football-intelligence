@@ -45,13 +45,16 @@ export const BOOT_COMPETITIONS = [
   // come first and the long tail waits, rather than the reverse.
   'epl', 'laliga', 'seriea', 'bundesliga', 'ligue1',
   'ucl', 'uel', 'uecl',
+  // AFCON qualifying is live through March 2027; the finals entry follows
+  // FotMob's current edition (2025 in Morocco until the 2027 finals open).
+  'afconq',
   'championship', 'superlig', 'eredivisie', 'primeira', 'belgianpro',
   'scotprem', 'brasileirao', 'mls', 'ligamx',
   'bundesliga2', 'serieb', 'ligue2', 'laliga2', 'league-one', 'league-two',
   'allsvenskan', 'eliteserien', 'superligaen',
   'swiss', 'austria', 'ekstraklasa', 'greece', 'saudi', 'aleague',
   'argentina', 'costarica', 'honduras', 'guatemala', 'elsalvador', 'panama', 'canada',
-  'cwc', 'libertadores', 'concacaf', 'afc',
+  'cwc', 'libertadores', 'concacaf', 'afc', 'afcon',
 ];
 
 const LIVE_EDITIONS: Edition[] = BOOT_COMPETITIONS.map((competitionId) => ({

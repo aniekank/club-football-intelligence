@@ -123,7 +123,11 @@ export default function TablePage({
             title={competition.name}
             description={
               snapshot
-                ? snapshot.competition.titleDecidedByPlayoff
+                ? snapshot.competition.qualification
+                  ? snapshot.competition.qualification.bestThirds
+                    ? `Group stage · the top ${snapshot.competition.qualification.perGroup} of each group and the ${snapshot.competition.qualification.bestThirds} best third-placed teams reach the ${snapshot.competition.qualification.prize}`
+                    : `Group stage · the top ${snapshot.competition.qualification.perGroup} of each group qualify for ${snapshot.competition.qualification.prize}`
+                  : snapshot.competition.titleDecidedByPlayoff
                   // Topping this table wins a seeding, not a trophy, and the
                   // page must not imply otherwise.
                   ? `Regular season · the title is decided by play-off`
@@ -183,7 +187,19 @@ export default function TablePage({
               */
               <div className="space-y-6">
                 {(snapshot.competition.conferences ?? []).map((conference) => {
-                  const rows = snapshot.standings.filter((r) => r.groupId === conference);
+                  // With a qualification rule the simulator ranks within each
+                  // group, so its numbers DO describe this group (AFCON).
+                  const odds = snapshot.competition.qualification
+                    ? new Map((forecast?.forecasts ?? []).map((f) => [f.teamId, f]))
+                    : null;
+                  const rows = snapshot.standings
+                    .filter((r) => r.groupId === conference)
+                    .map((r) => {
+                      const f = odds?.get(r.teamId);
+                      return f && f.groupWin != null
+                        ? { ...r, titleProbability: f.groupWin, top4Probability: f.qualify ?? null, relegationProbability: null }
+                        : r;
+                    });
                   if (!rows.length) return null;
                   return (
                     <section key={conference}>
@@ -193,7 +209,8 @@ export default function TablePage({
                         standings={rows}
                         teams={snapshot.teams}
                         suffix={suffix}
-                        showModel={false}
+                        showModel={Boolean(odds)}
+                        groupOdds={Boolean(odds)}
                         sortable
                         detail={detail}
                         sort={searchParams.sort}
@@ -202,11 +219,22 @@ export default function TablePage({
                     </section>
                   );
                 })}
-                <p className="px-3 text-xs text-ink-muted">
-                  Projections are not shown for a competition played in groups.
-                  The season model ranks one combined table, so its numbers would
-                  not describe the group you are looking at.
-                </p>
+                {snapshot.competition.qualification ? (
+                  <p className="px-3 text-xs text-ink-muted">
+                    {snapshot.competition.qualification.hosts?.length
+                      ? `${snapshot.competition.qualification.hosts.join(', ')} qualify automatically as hosts; in their groups only the best-placed other team goes through. `
+                      : ''}
+                    {snapshot.competition.qualification.bestThirds
+                      ? `The top ${snapshot.competition.qualification.perGroup} of each group and the ${snapshot.competition.qualification.bestThirds} best third-placed teams reach the ${snapshot.competition.qualification.prize}.`
+                      : `Qualification is decided within each group, and the chances above are simulated that way.`}
+                  </p>
+                ) : (
+                  <p className="px-3 text-xs text-ink-muted">
+                    Projections are not shown for a competition played in groups.
+                    The season model ranks one combined table, so its numbers would
+                    not describe the group you are looking at.
+                  </p>
+                )}
               </div>
             ) : (
               <LeagueTable

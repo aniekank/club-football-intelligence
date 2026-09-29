@@ -68,14 +68,17 @@ export function computeRates(matches: Match[], teamIds: ID[]): Map<ID, TeamRates
     // not mistaken for a weak one. Without this, an unbalanced early-season
     // fixture list is read as a difference in quality.
     home.played += 1; away.played += 1;
-    home.gf += hs / 1.12; home.ga += as / 0.94;
-    away.gf += as / 0.94; away.ga += hs / 1.12;
+    // A neutral ground (a tournament final stage) has no home side to discount.
+    const hm = m.venueKind === 'neutral' ? 1 : 1.12;
+    const am = m.venueKind === 'neutral' ? 1 : 0.94;
+    home.gf += hs / hm; home.ga += as / am;
+    away.gf += as / am; away.ga += hs / hm;
 
     const hx = m.teamStats[m.homeTeamId]?.xG;
     const ax = m.teamStats[m.awayTeamId]?.xG;
     if (hx !== null && hx !== undefined && ax !== null && ax !== undefined) {
-      home.xgf += hx / 1.12; home.xga += ax / 0.94; home.xgGames += 1;
-      away.xgf += ax / 0.94; away.xga += hx / 1.12; away.xgGames += 1;
+      home.xgf += hx / hm; home.xga += ax / am; home.xgGames += 1;
+      away.xgf += ax / am; away.xga += hx / hm; away.xgGames += 1;
     }
   }
 
@@ -295,6 +298,108 @@ export function derivePriors(
       teamId,
       attackRatio: clamp(1 + REGRESSION * (attackRatio - 1), 0.4, 2.2),
       defenseRatio: clamp(1 + REGRESSION * (defenseRatio - 1), 0.4, 2.2),
+      promoted: false,
+    };
+  });
+}
+
+
+// ── Fitting a prior from a results history (national teams) ────────────────
+
+/** One finished match from a competition used only to seed the ratings. */
+export interface PriorResult {
+  homeTeamId: ID;
+  awayTeamId: ID;
+  homeGoals: number;
+  awayGoals: number;
+  neutral: boolean;
+}
+
+/** Unplayed-for-a-cycle national teams: a touch below average, like a promoted club. */
+export const UNRATED_NATION_ATTACK_RATIO = 0.9;
+export const UNRATED_NATION_DEFENSE_RATIO = 1.12;
+
+/**
+ * Attack and defence ratios fitted from a set of results, correcting for WHO
+ * each team played.
+ *
+ * `derivePriors` reads a league table, which works because in a league
+ * everybody plays everybody. International football breaks that: a qualifying
+ * group is four teams, and Morocco's goals against Lesotho say little until
+ * Lesotho's own results against everyone else are in the picture. So this fits
+ * a multiplicative goal model — expected goals = average × attack(team) ×
+ * defence(opponent) × venue — by alternating updates until it settles, the
+ * standard iterative fit for this model.
+ *
+ * Each team carries `pseudoGames` games of exactly-average football, which is
+ * the shrinkage: a nation seen in three matches cannot be rated off the chart
+ * by one big win. The result is then regressed toward the mean by the same 0.75
+ * as a club prior and clamped to the schema's bounds.
+ */
+export function fitPriorsFromResults(
+  results: PriorResult[],
+  currentTeamIds: ID[],
+  opts: { iterations?: number; pseudoGames?: number } = {},
+): PriorRating[] {
+  const { iterations = 60, pseudoGames = 4 } = opts;
+  const usable = results.filter(
+    (r) => r.homeTeamId !== r.awayTeamId && Number.isFinite(r.homeGoals) && Number.isFinite(r.awayGoals),
+  );
+  if (!usable.length) return [];
+
+  const totalGoals = usable.reduce((s, r) => s + r.homeGoals + r.awayGoals, 0);
+  const avg = totalGoals / (2 * usable.length);
+  if (!(avg > 0)) return [];
+
+  const ids = [...new Set(usable.flatMap((r) => [r.homeTeamId, r.awayTeamId]))];
+  const atk = new Map<ID, number>(ids.map((id) => [id, 1]));
+  const def = new Map<ID, number>(ids.map((id) => [id, 1]));
+  const venue = (r: PriorResult, side: 'home' | 'away') => (r.neutral ? 1 : side === 'home' ? 1.12 : 0.94);
+
+  for (let it = 0; it < iterations; it++) {
+    const gf = new Map<ID, number>(ids.map((id) => [id, pseudoGames * avg]));
+    const ga = new Map<ID, number>(ids.map((id) => [id, pseudoGames * avg]));
+    const expF = new Map<ID, number>(ids.map((id) => [id, pseudoGames * avg]));
+    const expA = new Map<ID, number>(ids.map((id) => [id, pseudoGames * avg]));
+    for (const r of usable) {
+      const h = r.homeTeamId, a = r.awayTeamId;
+      gf.set(h, (gf.get(h) as number) + r.homeGoals);
+      gf.set(a, (gf.get(a) as number) + r.awayGoals);
+      ga.set(h, (ga.get(h) as number) + r.awayGoals);
+      ga.set(a, (ga.get(a) as number) + r.homeGoals);
+      // Expected scored, given the opponent's defence; expected conceded, given its attack.
+      expF.set(h, (expF.get(h) as number) + avg * (def.get(a) as number) * venue(r, 'home'));
+      expF.set(a, (expF.get(a) as number) + avg * (def.get(h) as number) * venue(r, 'away'));
+      expA.set(h, (expA.get(h) as number) + avg * (atk.get(a) as number) * venue(r, 'away'));
+      expA.set(a, (expA.get(a) as number) + avg * (atk.get(h) as number) * venue(r, 'home'));
+    }
+    for (const id of ids) {
+      atk.set(id, (gf.get(id) as number) / (expF.get(id) as number));
+      def.set(id, (ga.get(id) as number) / (expA.get(id) as number));
+    }
+    // Pin both scales to a geometric mean of 1, or they drift against each other.
+    const gm = (m: Map<ID, number>) => Math.exp(ids.reduce((s, id) => s + Math.log(m.get(id) as number), 0) / ids.length);
+    const ga0 = gm(atk), gd0 = gm(def);
+    for (const id of ids) {
+      atk.set(id, (atk.get(id) as number) / ga0);
+      def.set(id, (def.get(id) as number) / gd0);
+    }
+  }
+
+  const REGRESSION = 0.75;
+  return currentTeamIds.map((teamId): PriorRating => {
+    if (!atk.has(teamId)) {
+      return {
+        teamId,
+        attackRatio: UNRATED_NATION_ATTACK_RATIO,
+        defenseRatio: UNRATED_NATION_DEFENSE_RATIO,
+        promoted: true,
+      };
+    }
+    return {
+      teamId,
+      attackRatio: clamp(1 + REGRESSION * ((atk.get(teamId) as number) - 1), 0.4, 2.2),
+      defenseRatio: clamp(1 + REGRESSION * ((def.get(teamId) as number) - 1), 0.4, 2.2),
       promoted: false,
     };
   });

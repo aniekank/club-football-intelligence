@@ -70,3 +70,34 @@ source's own legend wins where present and the static registry is the fallback.
 Tiebreaker chains are the opposite: they are stable regulation, they differ
 between leagues in ways no feed exposes, and getting them wrong silently
 reorders a table — so they live in the registry as data with tests.
+
+## AFCON here, not in World Cup Intelligence (2026-09-29)
+
+The Africa Cup of Nations was the first national-team competition. Two homes
+were possible: revive the parked World Cup chassis, or add it here. It came
+here because the World Cup app's live feed is gone (API-Football lapsed to its
+free tier, which refuses current seasons) while FotMob serves the 2027
+qualifiers (10608) and the finals (289) free, in the same composite-group shape
+this adapter already reads for the Club World Cup.
+
+What national teams needed that clubs did not:
+
+- **A qualification rule, as data.** In qualifying, the three host groups send
+  through the host plus only the best OTHER side; the finals take the top two
+  and the four best thirds. Neither is a zone on a rank, so `Competition.qualification`
+  carries it, the adapter rewrites host-group zones, and the season simulation
+  ranks within each group and tallies `groupWin` / `qualify`. The global
+  "title" number is never shown for these competitions.
+- **A prior from a results history.** Six qualifiers cannot rate a nation, and
+  a league-table prior assumes everyone played everyone. `fitPriorsFromResults`
+  fits a multiplicative goal model over the last CAF cycle (previous
+  qualifiers, the 2025 finals, the World Cup qualifiers), correcting for
+  opponents, with pseudo-games as shrinkage. Awarded results are excluded.
+- **Neutral grounds.** Finals matches are neutral except for a host at home,
+  keyed by season because each edition has different hosts.
+- **Wording.** "Team", not "Club"; no "title chance"; no club honours (the club
+  endpoint does not carry international titles, and "0 titles" under Morocco
+  would be false).
+
+Not done: the finals knockout bracket (the best-thirds pairings follow CAF's
+own table), so there are no title odds for the finals yet.

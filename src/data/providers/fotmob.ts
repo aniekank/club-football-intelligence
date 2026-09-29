@@ -1,7 +1,7 @@
 import { fetchJson, mapLimit } from '../http';
 import { computeStandings } from '@/analytics/standings';
 import { getCompetition, zoneForRank } from '@/domain/competitions';
-import { derivePriors, type PriorSeasonRow } from '@/analytics/ratings';
+import { derivePriors, fitPriorsFromResults, type PriorResult, type PriorSeasonRow } from '@/analytics/ratings';
 import {
   foldMatch, newFold, finaliseFold,
   type FmLineup, type FmPlayerStats,
@@ -58,6 +58,8 @@ export const FOTMOB_LEAGUES: Record<string, number> = {
   libertadores: 45,
   concacaf: 297,
   afc: 525,
+  afconq: 10608,
+  afcon: 289,
   mls: 130,
   ligamx: 230,
   // Wider coverage. Every one of these was probed for xG before inclusion —
@@ -552,6 +554,24 @@ export interface LoadOptions {
 }
 
 /**
+ * Finished matches from a competition's `priorSources`, ready for
+ * `fitPriorsFromResults`. Awarded results are left out: a 3-0 by forfeit says
+ * nothing about how good either side is.
+ */
+export function priorResultsFrom(league: FmLeagueResponse, neutral = false): PriorResult[] {
+  const out: PriorResult[] = [];
+  for (const f of league.fixtures?.allMatches ?? []) {
+    if (!f.status?.finished || f.status.cancelled) continue;
+    const r = f.status.reason as { short?: string; long?: string } | undefined;
+    if (r?.short === 'AW' || /awarded/i.test(r?.long ?? '')) continue;
+    const { home, away } = parseScore(f.status.scoreStr);
+    if (home === null || away === null) continue;
+    out.push({ homeTeamId: String(f.home.id), awayTeamId: String(f.away.id), homeGoals: home, awayGoals: away, neutral });
+  }
+  return out;
+}
+
+/**
  * Load ONE competition into a snapshot. Structural data costs a single request;
  * match detail is fetched only for a recent window and anything in play.
  */
@@ -566,7 +586,25 @@ export async function loadCompetition(
   // One extra request buys a sane August forecast. A failure here is not fatal:
   // the model simply shrinks toward league average instead of last season.
   let previousSeason: FmLeagueResponse | undefined;
-  if (!opts.skipPriors) {
+  let priorResults: PriorResult[] | undefined;
+  const competition = getCompetition(competitionId);
+  if (!opts.skipPriors && competition?.priorSources?.length) {
+    // National teams: rate from a whole cycle of results instead of one table.
+    const batches = await Promise.all(
+      competition.priorSources.map(async (src) => {
+        try {
+          const payload = src.season
+            ? await fetchLeagueSeason(src.fotmobId, src.season)
+            : await fetchLeague(src.fotmobId);
+          // A finals tournament (289) is played at neutral grounds.
+          return priorResultsFrom(payload, src.fotmobId === FOTMOB_LEAGUES.afcon);
+        } catch {
+          return [];
+        }
+      }),
+    );
+    priorResults = batches.flat();
+  } else if (!opts.skipPriors) {
     const seasons = league.allAvailableSeasons ?? [];
     const current = league.details?.selectedSeason;
     const previous = seasons.find((s) => s !== current);
@@ -579,7 +617,7 @@ export async function loadCompetition(
     }
   }
 
-  return buildSnapshot(competitionId, league, { ...opts, previousSeason });
+  return buildSnapshot(competitionId, league, { ...opts, previousSeason, priorResults });
 }
 
 /** A specific season of a competition, for the previous-season prior. */
@@ -605,6 +643,7 @@ export async function buildSnapshot(
   opts: LoadOptions & {
     fetchDetails?: (id: string) => Promise<FmMatchDetails>;
     previousSeason?: FmLeagueResponse;
+    priorResults?: PriorResult[];
   } = {},
 ): Promise<DatasetSnapshot> {
   const {
@@ -613,6 +652,7 @@ export async function buildSnapshot(
     concurrency = 4,
     fetchDetails = fetchMatchDetails,
     previousSeason,
+    priorResults,
   } = opts;
 
   const competition = getCompetition(competitionId);
@@ -628,7 +668,11 @@ export async function buildSnapshot(
    * block would give a fifteen-club league missing half the division.
    */
   const allBlocks = (tableData?.tables ?? []).filter(
-    (t) => (t.table?.all?.length ?? 0) > 0,
+    (t) => (t.table?.all?.length ?? 0) > 0 &&
+      // AFCON ships a derived "Best 3rd placed teams" ranking beside its six
+      // groups. It is a view of the groups, not a group: kept, it would put six
+      // nations in the table twice.
+      !/best\s*3rd|third[-\s]placed/i.test(t.leagueName ?? ''),
   );
 
   /**
@@ -772,6 +816,14 @@ export async function buildSnapshot(
   const teamIds = new Set(teams.map((t) => t.id));
 
   // ── Matches ──────────────────────────────────────────────────────────────
+  // A finals tournament is played at neutral grounds, except that a host nation
+  // is at home in every match it plays.
+  const hostNames = new Set(
+    (competition.neutralVenue?.hostsBySeason[rawSeason] ?? []).map((n) => n.toLowerCase()),
+  );
+  const isNeutral = (homeId: string) =>
+    Boolean(competition.neutralVenue) && !hostNames.has((nameById.get(homeId) ?? '').toLowerCase());
+
   const seasonId = `${competitionId}-${seasonLabel.replace(/\//g, '-')}`;
   const matches: Match[] = fixtures
     // Drop fixtures involving a club outside this table (qualifiers, oddities).
@@ -789,7 +841,7 @@ export async function buildSnapshot(
         kickoff: f.status.utcTime,
         status,
         minute,
-        venueKind: 'home-away',
+        venueKind: isNeutral(String(f.home.id)) ? 'neutral' : 'home-away',
         venue: null,
         // Verified against matchDetails: these fields are authoritative. The
         // pageUrl slug is NOT — it reverses the sides for some fixtures.
@@ -1091,6 +1143,34 @@ export async function buildSnapshot(
       })
     : globalStandings;
 
+  /**
+   * Host groups. In AFCON qualifying a host nation is already in the finals, so
+   * its group sends through only the best-placed OTHER side. A rank band would
+   * mark the wrong team whenever the host is not in the top two: third-placed
+   * Tanzania would read "eliminated" and the runner-up "qualify" when the truth
+   * is the other way round for one of them.
+   */
+  const hosts = new Set((competition.qualification?.hosts ?? []).map((n) => n.toLowerCase()));
+  if (hosts.size && conferences.length) {
+    const isHost = (teamId: string) => hosts.has((nameById.get(teamId) ?? '').toLowerCase());
+    const byGroup = new Map<string, StandingRow[]>();
+    for (const row of standings) {
+      if (!row.groupId) continue;
+      byGroup.set(row.groupId, [...(byGroup.get(row.groupId) ?? []), row]);
+    }
+    const perGroup = competition.qualification?.perGroup ?? 2;
+    for (const rows of byGroup.values()) {
+      const hostCount = rows.filter((r) => isHost(r.teamId)).length;
+      if (!hostCount) continue;
+      let places = Math.max(0, perGroup - hostCount);
+      for (const row of [...rows].sort((a, b) => a.rank - b.rank)) {
+        if (isHost(row.teamId)) { row.zone = 'qualified'; continue; }
+        row.zone = places > 0 ? 'qualified' : 'eliminated';
+        places -= 1;
+      }
+    }
+  }
+
   // Upstream xG season totals are more complete than ours, because they cover
   // every fixture while our shot data only covers the detail window.
   const xgById = new Map(xgRows.map((r) => [String(r.id), r]));
@@ -1174,7 +1254,9 @@ export async function buildSnapshot(
   // results-driven rating ranks whoever won 4-0 above Liverpool, because it has
   // no way to know Liverpool are Liverpool.
   let priorRatings: PriorRating[] = [];
-  if (previousSeason) {
+  if (priorResults?.length) {
+    priorRatings = fitPriorsFromResults(priorResults, teams.map((t) => t.id));
+  } else if (previousSeason) {
     const prevRows = previousSeason.table?.[0]?.data?.table?.all ?? [];
     const prevXg = previousSeason.table?.[0]?.data?.table?.xg ?? [];
     const xgById = new Map(prevXg.map((r) => [String(r.id), r]));

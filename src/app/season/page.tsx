@@ -9,6 +9,7 @@ import { buildProgression } from '@/analytics/progression';
 import { resolveActive } from '@/server/active';
 import { entitySuffix } from '@/lib/entityLink';
 import { pct } from '@/lib/format';
+import type { DatasetSnapshot, SeasonForecast } from '@/domain/types';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Season' };
@@ -59,7 +60,9 @@ export default function SeasonPage({
       activeEditionKey={edition?.key}
     >
       <div className="mx-auto max-w-container space-y-6 px-4 py-6">
-        {!snapshot || !forecasts.length ? (
+        {snapshot && forecasts.length && competition.qualification ? (
+          <QualificationRace snapshot={snapshot} forecasts={forecasts} runs={forecast?.runs ?? 8000} suffix={suffix} />
+        ) : !snapshot || !forecasts.length ? (
           <Card>
             <CardHeader eyebrow="Season" title={competition.name} />
             <EmptyState
@@ -184,5 +187,124 @@ export default function SeasonPage({
         )}
       </div>
     </AppShell>
+  );
+}
+
+
+/**
+ * The Season page for a group stage with a qualification rule (AFCON).
+ *
+ * There is no title to be favourite for. Ranking forty-eight nations on "title
+ * chance" read as "Morocco are favourites, 30%" — the chance of topping a
+ * combined table nobody plays. The question a group stage answers is who goes
+ * through, group by group, so that is what this page shows.
+ */
+function QualificationRace({
+  snapshot, forecasts, runs, suffix,
+}: {
+  snapshot: DatasetSnapshot;
+  forecasts: SeasonForecast[];
+  runs: number;
+  suffix: string;
+}) {
+  const rule = snapshot.competition.qualification!;
+  const byTeam = new Map(forecasts.map((f) => [f.teamId, f]));
+  const teamById = new Map(snapshot.teams.map((t) => [t.id, t]));
+  const hosts = new Set((rule.hosts ?? []).map((h) => h.toLowerCase()));
+  const groups = snapshot.competition.conferences ?? [];
+
+  const q = (id: string) => byTeam.get(id)?.qualify ?? 0;
+  const all = forecasts.filter((f) => f.qualify != null);
+  const nearlyIn = all.filter((f) => (f.qualify as number) >= 0.9).length;
+  const open = all.filter((f) => (f.qualify as number) > 0.2 && (f.qualify as number) < 0.8).length;
+  // The group whose outcome is least settled: the most probability outside 0 and 1.
+  const uncertainty = (g: string) =>
+    snapshot.standings
+      .filter((r) => r.groupId === g)
+      .reduce((s, r) => s + q(r.teamId) * (1 - q(r.teamId)), 0);
+  const tightest = [...groups].sort((a, b) => uncertainty(b) - uncertainty(a))[0];
+  // Every chance is 0 or 1: the group stage is over and there is no race left.
+  const settled = all.every((f) => (f.qualify as number) === 0 || (f.qualify as number) === 1);
+  const through = all.filter((f) => f.qualify === 1).length;
+
+  return (
+    <>
+      <Card className="lit-edge relative isolate overflow-hidden">
+        <div className="p-6 md:p-8">
+          <p className="eyebrow">
+            {snapshot.competition.name} · {snapshot.season.label} · {runs.toLocaleString()} simulated group stages
+          </p>
+          <h1 className="mt-2 max-w-prose font-display text-4xl leading-tight sm:text-5xl">
+            {settled
+              ? `The ${rule.prize} line-up is settled`
+              : `The race for ${rule.bestThirds ? `the ${rule.prize}` : rule.prize}`}
+          </h1>
+          {settled ? (
+            <p className="mt-3 max-w-prose text-ink-secondary">
+              The group stage is over: {through} {through === 1 ? 'nation' : 'nations'} went through. Each group below shows who made it.
+            </p>
+          ) : (
+          <p className="mt-3 max-w-prose text-ink-secondary">
+            {nearlyIn} {nearlyIn === 1 ? 'nation is' : 'nations are'} at 90% or better to go through, and {open}{' '}
+            {open === 1 ? 'place is' : 'places are'} genuinely open, between 20% and 80%.
+            {tightest ? ` The most open group right now: ${tightest}.` : ''}
+            {rule.hosts?.length ? ` ${rule.hosts.join(', ')} are already in as hosts.` : ''}
+          </p>
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          eyebrow="Group by group"
+          title="Chances of going through"
+          description={rule.hosts?.length
+            ? 'The top two of each group qualify. In a host\u2019s group the host is already in, so only the best of the other three goes through.'
+            : `The top ${rule.perGroup} of each group${rule.bestThirds ? ` and the ${rule.bestThirds} best third-placed teams` : ''} go through.`}
+        />
+        <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
+          {groups.map((g) => {
+            const rows = snapshot.standings
+              .filter((r) => r.groupId === g)
+              .sort((a, b) => q(b.teamId) - q(a.teamId));
+            return (
+              <section key={g} className="rounded-md border border-border-subtle p-3">
+                <h3 className="mb-2 font-display text-lg">{g}</h3>
+                <ul className="space-y-2">
+                  {rows.map((r) => {
+                    const team = teamById.get(r.teamId);
+                    const p = q(r.teamId);
+                    const isHost = team ? hosts.has(team.name.toLowerCase()) : false;
+                    return (
+                      <li key={r.teamId} className="text-sm">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <Link href={`/teams/${r.teamId}${suffix}`} className="min-w-0 truncate hover:underline">
+                            {team?.name ?? r.teamId}
+                            {isHost ? <span className="ml-1 text-2xs uppercase tracking-caps text-ink-muted">host</span> : null}
+                          </Link>
+                          <span className="figure shrink-0 font-semibold">{pct(p, 0)}</span>
+                        </div>
+                        <div className="mt-1 h-[0.375rem] w-full rounded-full bg-surface-inset" aria-hidden="true">
+                          <div
+                            className="h-[0.375rem] rounded-full"
+                            style={{ width: `${Math.max(0, Math.min(100, p * 100))}%`, background: 'var(--comp-' + snapshot.competition.accentKey + ', var(--comp-default))' }}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
+        <p className="px-4 pb-4 text-xs text-ink-muted">
+          Each group is simulated on its own with the remaining fixtures played {runs.toLocaleString()} times
+          from the teams&rsquo; attack and defence ratings. Ratings start from every CAF result in the last cycle —
+          the previous qualifiers, the 2025 finals and the World Cup qualifiers — because six games is too few to
+          rate a national team on. A shown 0% means it did not occur in the simulations, not that it is impossible.
+        </p>
+      </Card>
+    </>
   );
 }

@@ -131,7 +131,43 @@ export type ZoneKind =
   // League-phase specific: straight through to the R16 vs into the play-off
   | 'knockout-direct'
   | 'knockout-playoff'
-  | 'eliminated';
+  | 'eliminated'
+  // A qualifying group: this position books a place in the finals
+  | 'qualified';
+
+/**
+ * How a group stage turns into qualifiers, when it is not simply "top N of each
+ * group go through".
+ *
+ * AFCON qualifying is the case. In most groups the top two qualify, but three
+ * groups contain a host nation that is already in the finals — there, only the
+ * best-placed team OTHER than the host goes through. And the finals themselves
+ * send the top two of six groups plus the four best third-placed teams to a
+ * round of sixteen. Neither rule is a zone on a rank, so it is data here and
+ * the season simulation reads it.
+ */
+export interface QualificationRule {
+  /** Places per group before hosts are taken out. */
+  perGroup: number;
+  /** Best teams in the next position across all groups that also go through. */
+  bestThirds?: number;
+  /** Teams already qualified as hosts, by FotMob team name. */
+  hosts?: string[];
+  /** What qualifying earns, for labels: "AFCON 2027", "Round of 16". */
+  prize: string;
+}
+
+/**
+ * A strength history for competitions whose own season is too short to rate
+ * anyone. National teams play six qualifiers; a prior fitted from the previous
+ * qualifying campaign, the last finals and the World Cup qualifiers is what
+ * stops one lucky win from ranking Gambia above Ivory Coast.
+ */
+export interface PriorSource {
+  fotmobId: number;
+  /** FotMob season label; omitted = that competition's current season. */
+  season?: string;
+}
 
 /** A contiguous band of finishing positions and what it earns. 1-indexed, inclusive. */
 export interface Zone {
@@ -178,6 +214,17 @@ export interface Competition {
    * The UI must not call a regular-season leader "champions".
    */
   titleDecidedByPlayoff?: boolean;
+  /** National-team group stages: who goes through, beyond a rank band. */
+  qualification?: QualificationRule;
+  /** Past competitions whose results seed the ratings (national teams). */
+  priorSources?: PriorSource[];
+  /**
+   * Finals played at neutral grounds, except for the host nations playing at
+   * home. Keyed by FotMob season label, since each edition has its own hosts.
+   */
+  neutralVenue?: { hostsBySeason: Record<string, string[]> };
+  /** National teams rather than clubs — changes wording, not the maths. */
+  nationalTeams?: boolean;
 }
 
 export interface Season {
@@ -633,6 +680,10 @@ export interface SeasonForecast {
   top4: number;
   europeanQualification: number;
   relegation: number;
+  /** Group stages only: P(finish first in the group). */
+  groupWin?: number | null;
+  /** Group stages with a qualification rule: P(go through). */
+  qualify?: number | null;
   /** Full projected-points distribution, for the fan chart. */
   projectedPoints: { mean: number; p10: number; p25: number; p50: number; p75: number; p90: number };
   projectedRank: { mean: number; p10: number; p90: number };

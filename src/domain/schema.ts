@@ -60,6 +60,15 @@ export const competitionSchema = z.object({
   pointsForDraw: z.number().int(),
   conferences: z.array(z.string()).optional(),
   titleDecidedByPlayoff: z.boolean().optional(),
+  qualification: z.object({
+    perGroup: z.number().int().min(1),
+    bestThirds: z.number().int().min(0).optional(),
+    hosts: z.array(z.string()).optional(),
+    prize: z.string().min(1),
+  }).optional(),
+  priorSources: z.array(z.object({ fotmobId: z.number().int(), season: z.string().optional() })).optional(),
+  neutralVenue: z.object({ hostsBySeason: z.record(z.string(), z.array(z.string())) }).optional(),
+  nationalTeams: z.boolean().optional(),
 });
 
 export const seasonSchema = z.object({

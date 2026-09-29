@@ -217,7 +217,26 @@ export default async function TeamPage({
               </div>
             ) : null}
 
-            {teamForecast ? (
+            {teamForecast && snapshot?.competition.qualification && teamForecast.qualify != null ? (
+              // A group stage: the question is whether they go through, not a title.
+              <Disclosure
+                title="Where the group stage ends"
+                hint={
+                  <span className="flex items-center gap-2">
+                    <span className="figure">{pct(teamForecast.qualify, 0)}</span>
+                    <span>to qualify</span>
+                  </span>
+                }
+              >
+                <p className="mb-3 text-2xs text-ink-muted">
+                  From {forecast?.runs.toLocaleString()} simulated group stages.
+                </p>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <StatTile label="Win the group" value={pct(teamForecast.groupWin ?? null, 1)} estimate />
+                  <StatTile label={`Qualify · ${snapshot.competition.qualification.prize}`} value={pct(teamForecast.qualify, 1)} estimate />
+                </div>
+              </Disclosure>
+            ) : teamForecast ? (
               <Disclosure
                 title="Where the season ends"
                 hint={
@@ -288,9 +307,12 @@ export default async function TeamPage({
               </Disclosure>
             ) : null}
 
-            {history && (history.trophies.length || history.coaches.length) ? (
+            {/* A national side's page gets the club endpoint's trophy list,
+                which does not cover international titles; "0 titles" under
+                Morocco would be false, so honours are club-only. */}
+            {history && ((history.trophies.length && !snapshot?.competition.nationalTeams) || history.coaches.length) ? (
               <div className="grid items-start gap-6 lg:grid-cols-2">
-                {history.trophies.length ? (
+                {history.trophies.length && !snapshot?.competition.nationalTeams ? (
                   <Disclosure
                     title="Honours"
                     hint={`${history.trophies.reduce((n, t) => n + t.won, 0)} titles`}

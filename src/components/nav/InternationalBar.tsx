@@ -22,7 +22,7 @@ import type { Competition } from '@/domain/types';
  */
 
 /** Display order. Anything unlisted sorts last, alphabetically. */
-const REGION_ORDER = ['Europe', 'World', 'South America', 'North America', 'Asia'];
+const REGION_ORDER = ['Europe', 'World', 'Africa', 'South America', 'North America', 'Asia'];
 
 export function InternationalBar({
   competitions, activeId,
@@ -47,7 +47,7 @@ export function InternationalBar({
 
   return (
     <nav
-      aria-label="International club competitions"
+      aria-label="International competitions"
       className="border-b border-border-subtle bg-surface-1/40"
     >
       {/*

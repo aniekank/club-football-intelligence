@@ -122,6 +122,23 @@ export function simulateSeason(
   );
 
   const n = simTeams.length;
+
+  // ── Groups ────────────────────────────────────────────────────────────────
+  // A group stage is ranked within each group, not as one table: topping all
+  // forty-eight AFCON qualifiers is not a thing, winning Group C is. Groups come
+  // from the standings (the adapter's per-group ranking); a league has none and
+  // this whole block is inert.
+  const groupIdOf = new Map<ID, string>();
+  for (const row of snapshot.standings) if (row.groupId) groupIdOf.set(row.teamId, row.groupId);
+  const groupKeys = [...new Set(simTeams.map((t) => groupIdOf.get(t.id)).filter((g): g is string => Boolean(g)))];
+  const groups: number[][] = groupKeys.map((g) => simTeams.filter((t) => groupIdOf.get(t.id) === g).map((t) => t.index));
+  const qualification = competition.qualification;
+  const hostNames = new Set((qualification?.hosts ?? []).map((h) => h.toLowerCase()));
+  const isHost = simTeams.map((t) => hostNames.has(t.team.name.toLowerCase()));
+  const groupWinCounts = new Array<number>(n).fill(0);
+  const qualifyCounts = new Array<number>(n).fill(0);
+  const grouped = groups.length > 1;
+
   const rankCounts = Array.from({ length: n }, () => new Array<number>(n + 1).fill(0));
   const pointSamples = Array.from({ length: n }, () => [] as number[]);
   const rankSum = new Array<number>(n).fill(0);
@@ -168,7 +185,7 @@ export function simulateSeason(
       }
     }
 
-    order.sort((a, b) => {
+    const better = (a: number, b: number) => {
       const pd = (points[b] as number) - (points[a] as number);
       if (pd !== 0) return pd;
       const gdA = (gf[a] as number) - (ga[a] as number);
@@ -179,7 +196,35 @@ export function simulateSeason(
       // Genuinely level — split at random rather than alphabetically, which
       // would hand the same club every tie across all 8,000 runs.
       return (jitter[a] as number) - (jitter[b] as number);
-    });
+    };
+    order.sort(better);
+
+    if (grouped) {
+      const nextPlaced: number[] = [];
+      for (const members of groups) {
+        const ranked = [...members].sort(better);
+        const winner = ranked[0];
+        if (winner !== undefined) groupWinCounts[winner] = (groupWinCounts[winner] as number) + 1;
+        if (!qualification) continue;
+        // Hosts are through already; the group's remaining places go to the
+        // best of everyone else.
+        let places = qualification.perGroup - ranked.filter((i) => isHost[i]).length;
+        let placed = 0;
+        for (const i of ranked) {
+          if (isHost[i]) { qualifyCounts[i] = (qualifyCounts[i] as number) + 1; continue; }
+          if (places > 0) { qualifyCounts[i] = (qualifyCounts[i] as number) + 1; places -= 1; placed += 1; continue; }
+          // The first side to miss out is this group's entry in the
+          // best-placed ranking across groups (AFCON finals: best thirds).
+          if (placed === qualification.perGroup) { nextPlaced.push(i); placed += 1; }
+        }
+      }
+      const extra = qualification?.bestThirds ?? 0;
+      if (extra > 0) {
+        for (const i of nextPlaced.sort(better).slice(0, extra)) {
+          qualifyCounts[i] = (qualifyCounts[i] as number) + 1;
+        }
+      }
+    }
 
     for (let pos = 0; pos < n; pos++) {
       const teamIdx = order[pos] as number;
@@ -222,6 +267,8 @@ export function simulateSeason(
       top4: probOfRankAtMost(top4Cutoff),
       europeanQualification: probOfRankAtMost(europeanCutoff),
       relegation: probOfRanksIn(relegationRanks),
+      groupWin: grouped ? (groupWinCounts[t.index] as number) / runs : null,
+      qualify: grouped && qualification ? (qualifyCounts[t.index] as number) / runs : null,
       projectedPoints: {
         mean: round1(mean(samples)),
         p10: quantile(samples, 0.1),

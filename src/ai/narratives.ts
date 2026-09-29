@@ -425,6 +425,35 @@ export function generateBriefing(
   const leader = ctx.teamById.get(ctx.standings[0]!.teamId);
   const done = ctx.gamesLeft === 0;
 
+  /**
+   * A group stage with a qualification rule has no leader. Morocco "leading"
+   * AFCON qualifying two points clear of Egypt compares two teams in different
+   * groups who will never meet, and nobody wins the qualifiers. The sentence
+   * that is true is how the race for places stands.
+   */
+  const rule = ctx.snapshot.competition.qualification;
+  if (rule) {
+    const perfect = ctx.standings
+      .filter((r) => r.played > 0 && r.won === r.played)
+      .map((r) => ctx.teamById.get(r.teamId)?.name)
+      .filter((n): n is string => Boolean(n));
+    const hosts = rule.hosts?.length ? ` ${rule.hosts.join(', ')} are already through as hosts.` : '';
+    const list = perfect.length > 4 ? `${perfect.slice(0, 4).join(', ')} and ${perfect.length - 4} more` : perfect.join(', ');
+    return done
+      ? {
+          headline: `The ${competition} ${label} group stage is complete`,
+          body: `Every group has been played out; the table shows who ${rule.bestThirds ? `reached the ${rule.prize}` : `qualified for ${rule.prize}`}.${hosts}`,
+          bullets: [],
+        }
+      : {
+          headline: `${competition}: ${ctx.played} matchday${ctx.played === 1 ? '' : 's'} played, ${ctx.gamesLeft} to go`,
+          body: perfect.length
+            ? `${perfect.length} ${perfect.length === 1 ? 'nation has' : 'nations have'} won every game so far: ${list}.${hosts}`
+            : `No one has a perfect record yet.${hosts}`,
+          bullets: [],
+        };
+  }
+
   const headline = done
     ? `${leader?.name ?? 'The champions'} win the ${competition}`
     : `${leader?.name ?? 'The leaders'} lead the ${competition} after ${ctx.played}`;

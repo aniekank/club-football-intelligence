@@ -47,6 +47,7 @@ const BAND: Record<ZoneKind, string> = {
   'uel-qualifying': 'var(--band-uel)',
   'conference-qualifying': 'var(--band-conference)',
   'knockout-direct': 'var(--band-ucl)',
+  qualified: 'var(--band-champion)',
   'knockout-playoff': 'var(--band-relegation-playoff)',
   eliminated: 'var(--band-relegation)',
   promotion: 'var(--band-champion)',

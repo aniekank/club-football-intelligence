@@ -26,7 +26,7 @@ export type FlagKind =
   | 'SCO' | 'NED' | 'POR' | 'TUR' | 'BEL' | 'BRA'
   | 'DEN' | 'NOR' | 'SWE' | 'SUI' | 'AUT' | 'POL' | 'GRE' | 'KSA' | 'AUS'
   | 'ARG' | 'CRC' | 'HON' | 'GUA' | 'SLV' | 'PAN' | 'CAN'
-  | 'UEFA' | 'FIFA' | 'CONMEBOL' | 'CONCACAF' | 'AFC';
+  | 'UEFA' | 'FIFA' | 'CONMEBOL' | 'CONCACAF' | 'AFC' | 'CAF';
 
 /** Competition id → the mark that identifies it. */
 export const FLAG_FOR: Record<string, FlagKind> = {
@@ -73,6 +73,8 @@ export const FLAG_FOR: Record<string, FlagKind> = {
   libertadores: 'CONMEBOL',
   concacaf: 'CONCACAF',
   afc: 'AFC',
+  afconq: 'CAF',
+  afcon: 'CAF',
 };
 
 const ITALY_GREEN = '#009246';
@@ -393,6 +395,18 @@ function Marks({ kind }: { kind: FlagKind }) {
           <rect width="32" height="32" fill="#7a1f5c" />
           <circle cx="16" cy="16" r="8" fill="none" stroke="#fff" strokeWidth="1.6" />
           <path d="M16 8c4 4 4 12 0 16-4-4-4-12 0-16z" fill="#fff" />
+        </>
+      );
+    case 'CAF':
+      // A gold continent on black: the confederation's own colours, and a
+      // silhouette no other mark in the rail shares.
+      return (
+        <>
+          <rect width="32" height="32" fill="#161412" />
+          <path
+            d="M12.5 7.5h6.2l2.6 2.6 1.9 4.4-1.5 2.1.2 3.1-2.4 3.9-2.3 1.9-1.4-3.6-.9-3.8-2.9-2.1-2.2-.6-.9-3.4 1.9-3.1z"
+            fill="#e0a526"
+          />
         </>
       );
   }

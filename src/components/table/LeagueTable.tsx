@@ -41,11 +41,12 @@ const BAND_TOKEN: Record<ZoneKind, string> = {
   'knockout-direct': 'var(--band-ucl)',
   'knockout-playoff': 'var(--band-relegation-playoff)',
   eliminated: 'var(--band-relegation)',
+  qualified: 'var(--band-champion)',
 };
 
 export function LeagueTable({
   competition, standings, teams, showModel = true, highlightTeamId, compact = false,
-  sort, dir, sortable = false, suffix, detail = 'essential',
+  sort, dir, sortable = false, suffix, detail = 'essential', groupOdds = false,
 }: {
   competition: Competition;
   /**
@@ -81,6 +82,14 @@ export function LeagueTable({
    * scroll works, and nobody scrolls it.
    */
   compact?: boolean;
+  /**
+   * A group of a group stage with a qualification rule (AFCON). The model
+   * columns become "win the group" and "qualify", read from the per-group
+   * simulation — `titleProbability` carries the first, `top4Probability` the
+   * second. Nobody wins a qualifying group of anything but a place, so the
+   * word "Title" must not appear.
+   */
+  groupOdds?: boolean;
 }) {
   const teamById = new Map(teams.map((t) => [t.id, t]));
 
@@ -131,11 +140,14 @@ export function LeagueTable({
     (z) => z.kind === 'relegation' || z.kind === 'relegation-playoff',
   );
   const playoffLeague = competition.titleDecidedByPlayoff === true;
-  const topLabel = playoffLeague ? '1st' : 'Title';
-  const topTitle = playoffLeague
+  const topLabel = groupOdds ? 'Win grp' : playoffLeague ? '1st' : 'Title';
+  const topTitle = groupOdds
+    ? 'Chance of finishing first in the group'
+    : playoffLeague
     ? 'Chance of finishing top of the regular season. The title itself is decided by the play-offs.'
     : 'Chance of winning the league';
   const anyNote = standings.some((r) => r.tiebreakerNote);
+  const hostNames = new Set((competition.qualification?.hosts ?? []).map((h) => h.toLowerCase()));
 
   // Only show the bands this table actually uses, in finishing order.
   const usedZones = new Map<ZoneKind, string>();
@@ -188,7 +200,7 @@ export function LeagueTable({
                   left a 700px gulf between the club name and its points once
                   the table was cut to eight. With every column sized, the
                   browser scales them proportionally instead. */}
-              <Th className="w-[18rem] text-left">Club</Th>
+              <Th className="w-[18rem] text-left">{competition.nationalTeams ? 'Team' : 'Club'}</Th>
               <Col k="played" label="Pl" className="w-10" />
               {deep ? <Col k="wins" label="W" className="hidden w-10 sm:table-cell" /> : null}
               {deep ? <Th className="hidden w-10 sm:table-cell">D</Th> : null}
@@ -206,6 +218,11 @@ export function LeagueTable({
               {compact ? null : <Th className="hidden w-[8rem] md:table-cell text-left">Form</Th>}
               {hasModel ? (
                 <Col k="titleProbability" label={topLabel} title={topTitle} className="w-[5rem]" />
+              ) : null}
+              {hasModel && groupOdds ? (
+                <Th className="w-[5rem]" title={`Chance of qualifying: ${competition.qualification?.prize ?? 'next stage'}`}>
+                  Qualify
+                </Th>
               ) : null}
               {hasModel && hasRelegation ? (
                 <Col k="relegationProbability" label="Rel" better={false} className="hidden w-[5rem] lg:table-cell" />
@@ -264,6 +281,16 @@ export function LeagueTable({
                         // Never crash on a lookup miss — render the id.
                         <span className="text-ink-muted">{row.teamId}</span>
                       )}
+                      {team && hostNames.has(team.name.toLowerCase()) ? (
+                        // A host is through before a ball is kicked, which is
+                        // why fourth place can read 100% to qualify.
+                        <abbr
+                          title="Qualified automatically as a host nation"
+                          className="cursor-help rounded-sm border border-border-subtle px-1 text-2xs font-semibold uppercase tracking-caps text-ink-muted no-underline"
+                        >
+                          Host
+                        </abbr>
+                      ) : null}
                       {row.tiebreakerNote ? (
                         <abbr
                           title={row.tiebreakerNote}
@@ -304,6 +331,11 @@ export function LeagueTable({
                   {hasModel ? (
                     <td className="px-1 py-2">
                       <ProbabilityCell value={row.titleProbability} tone="good" />
+                    </td>
+                  ) : null}
+                  {hasModel && groupOdds ? (
+                    <td className="px-1 py-2">
+                      <ProbabilityCell value={row.top4Probability} tone="good" />
                     </td>
                   ) : null}
                   {hasModel && hasRelegation ? (
@@ -347,12 +379,14 @@ export function LeagueTable({
         ) : null}
         {hasModel ? (
           <p>
-            {playoffLeague
+            {groupOdds
+              ? 'Group and qualification chances are Monte Carlo estimates over the remaining group fixtures'
+              : playoffLeague
               ? 'Chances of finishing top of the regular season are Monte Carlo estimates over the remaining fixtures'
               : `${hasRelegation ? 'Title and relegation chances are' : 'Title chances are'} Monte Carlo estimates over the remaining fixtures`}
             <EstimateMark /> A shown 0% means it did not occur in 8,000 simulated
             seasons — not that it is impossible.
-            {playoffLeague ? ' The play-offs themselves are not simulated.' : ''}
+            {playoffLeague && !groupOdds ? ' The play-offs themselves are not simulated.' : ''}
           </p>
         ) : null}
       </div>
