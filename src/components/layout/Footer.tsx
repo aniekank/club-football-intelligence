@@ -1,3 +1,4 @@
+import { currentSite } from '@/server/site';
 import Link from 'next/link';
 import type { Competition } from '@/domain/types';
 
@@ -80,7 +81,7 @@ export function Footer({ competitions }: { competitions: Competition[] }) {
         <div className="grid gap-8 lg:grid-cols-[1.1fr_2.4fr]">
           <div>
             <p className="font-display text-lg font-semibold tracking-tight">
-              Club Football <span className="text-brand">Intelligence</span>
+              {currentSite().product} <span className="text-brand">Intelligence</span>
             </p>
             <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-secondary">
               Ratings, projections and market comparison across{' '}

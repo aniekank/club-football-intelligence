@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { currentSite } from '@/server/site';
 import { CountryRail } from '@/components/nav/CountryRail';
 import { InternationalBar } from '@/components/nav/InternationalBar';
 import { DivisionStrip } from '@/components/nav/DivisionStrip';
@@ -33,8 +34,12 @@ export function AppShell({
    * not and belongs in the centred bar. Deriving it means adding a competition
    * is a registry edit and nothing else.
    */
-  const domestic = competitions.filter((c) => c.tier === 'domestic-league');
-  const international = competitions.filter((c) => c.tier !== 'domestic-league');
+  // On afcon.taskintel.app the navigation is the tournament alone: European
+  // league flags above the Africa Cup of Nations would send a reader who came
+  // for AFCON somewhere they did not ask to go.
+  const onAfcon = currentSite().id === 'afcon';
+  const domestic = onAfcon ? [] : competitions.filter((c) => c.tier === 'domestic-league');
+  const international = competitions.filter((c) => c.tier !== 'domestic-league' && (!onAfcon || c.nationalTeams));
 
   // The tiers of whichever country you are in — empty for a continental
   // competition, and a single entry for a country with only a top flight, in

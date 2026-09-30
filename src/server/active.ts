@@ -1,3 +1,4 @@
+import { currentSite } from './site';
 import { getCachedSnapshot, getSnapshot, loadedKeys } from '@/data/store';
 import {
   getForecast, snapshotKey, BOOT_COMPETITIONS, editionsFor, getEdition, type Edition,
@@ -35,6 +36,13 @@ export interface ActiveView {
  */
 export function resolveActive(competitionId?: string, seasonKey?: string): ActiveView {
   const loaded = new Set(loadedKeys());
+  // afcon.taskintel.app opens on the tournament: the finals while one is being
+  // played, the qualifiers otherwise.
+  if (!competitionId && currentSite().id === 'afcon') {
+    const finals = getCachedSnapshot(snapshotKey('afcon'));
+    const finalsLive = finals?.matches.some((m) => m.status !== 'FINISHED' && m.status !== 'CANCELLED');
+    competitionId = finalsLive ? 'afcon' : 'afconq';
+  }
   const available = COMPETITIONS.filter(
     (c) => loaded.has(snapshotKey(c.id)) || BOOT_COMPETITIONS.includes(c.id),
   );

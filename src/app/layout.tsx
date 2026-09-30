@@ -4,6 +4,7 @@ import { themeScript } from '@/components/layout/ThemeToggle';
 import { railScript } from '@/components/layout/Rail';
 import { IntroSplash, introScript } from '@/components/intro/IntroSplash';
 import './globals.css';
+import { currentSite } from '@/server/site';
 
 /**
  * Three typefaces, three jobs.
@@ -43,7 +44,24 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3010';
 const DESCRIPTION =
   'Cross-league club football analytics: live matches, league tables, Monte Carlo season odds, xG, and a model-vs-market betting edge.';
 
-export const metadata: Metadata = {
+/**
+ * Titles and cards follow the address: afcon.taskintel.app is "AFCON
+ * Intelligence" everywhere a crawler or a browser tab reads it.
+ */
+export function generateMetadata(): Metadata {
+  const site = currentSite();
+  if (site.id === 'club') return metadata;
+  return {
+    ...metadata,
+    title: { default: site.fullName, template: `%s · ${site.fullName}` },
+    description: site.description,
+    applicationName: site.fullName,
+    openGraph: { ...metadata.openGraph, siteName: site.fullName, title: site.fullName, description: site.description },
+    twitter: { ...metadata.twitter, title: site.fullName, description: site.description },
+  };
+}
+
+const metadata: Metadata = {
   /**
    * `metadataBase` is what makes the social card resolve.
    *
@@ -115,7 +133,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         {children}
-        <IntroSplash />
+        <IntroSplash name={currentSite().fullName} />
       </body>
     </html>
   );

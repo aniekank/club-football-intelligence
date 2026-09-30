@@ -24,7 +24,7 @@ import { cn } from '@/lib/cn';
  * The leading between the lines is deliberately tight for the same reason. Give
  * them room and they become two things.
  */
-export function Wordmark({ className }: { className?: string }) {
+export function Wordmark({ className, product = 'Club Football' }: { className?: string; product?: string }) {
   return (
     <span className={cn('inline-flex flex-col items-stretch gap-[0.2rem]', className)}>
       <span className="flex items-center gap-2">
@@ -46,7 +46,7 @@ export function Wordmark({ className }: { className?: string }) {
 
       <span className="inline-flex items-baseline gap-2">
         <span className="font-display text-lg font-semibold leading-none tracking-tight">
-          Club Football
+          {product}
         </span>
         <span className="figure text-2xs font-semibold uppercase tracking-caps text-brand">
           Intelligence

@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation';
+import { currentSite } from '@/server/site';
 import Link from 'next/link';
 import { AppShell } from '@/components/layout/AppShell';
 import { Figure, Skeleton } from '@/components/ui';
@@ -21,6 +23,12 @@ export default function HomePage({
 }: {
   searchParams: { date?: string; competition?: string; season?: string };
 }) {
+  // afcon.taskintel.app has no club-football front page: its home is the
+  // tournament. The race (qualifying) or the bracket (finals) is the page a
+  // reader who typed that address came for.
+  if (!searchParams.competition && currentSite().id === 'afcon') {
+    redirect(`/season?competition=${resolveActive().competition.id}`);
+  }
   const { competition, snapshot, available, forecast, editions, edition } = resolveActive(searchParams.competition, searchParams.season);
   // Built by one function shared with the storylines page: the engine takes its
   // model as an argument rather than importing one, and that design only buys

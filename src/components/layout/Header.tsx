@@ -1,3 +1,4 @@
+import { currentSite } from '@/server/site';
 import Link from 'next/link';
 import { Wordmark } from '@/components/brand/Wordmark';
 import { ThemeToggle } from './ThemeToggle';
@@ -28,7 +29,7 @@ export function Header({
           href="/"
           className="shrink-0 rounded-sm transition-opacity duration-fast ease-standard hover:opacity-80"
         >
-          <Wordmark />
+          <Wordmark product={currentSite().product} />
         </Link>
 
         {/*

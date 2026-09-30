@@ -31,7 +31,7 @@ import { useEffect, useState } from 'react';
  * pulls the attribute after four seconds, so the worst case is a short black
  * screen rather than a permanently hidden app.
  */
-export function IntroSplash() {
+export function IntroSplash({ name = 'Club Football Intelligence' }: { name?: string } = {}) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -169,7 +169,7 @@ export function IntroSplash() {
       <div className="cfi-ground" />
 
       <div className="cfi-word">
-        <b>Club Football Intelligence</b>
+        <b>{name}</b>
         <small>Task Enterprises</small>
       </div>
       <div className="cfi-skip">tap to skip ›</div>
