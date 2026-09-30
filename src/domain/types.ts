@@ -225,6 +225,13 @@ export interface Competition {
   neutralVenue?: { hostsBySeason: Record<string, string[]> };
   /** National teams rather than clubs — changes wording, not the maths. */
   nationalTeams?: boolean;
+  /**
+   * The knockout bracket that follows the groups, when the model plays it out.
+   * 'six-groups-best-thirds': six groups, the top two and four best thirds to
+   * a round of sixteen whose third-placed pairings follow a fixed table (UEFA's
+   * Euro 2016 table, which CAF uses for AFCON — verified against 2023 and 2025).
+   */
+  knockout?: 'six-groups-best-thirds';
 }
 
 export interface Season {
@@ -684,6 +691,8 @@ export interface SeasonForecast {
   groupWin?: number | null;
   /** Group stages with a qualification rule: P(go through). */
   qualify?: number | null;
+  /** Tournaments whose bracket is simulated: P(reach each round), P(win it). */
+  knockout?: { quarterFinal: number; semiFinal: number; final: number; champion: number } | null;
   /** Full projected-points distribution, for the fan chart. */
   projectedPoints: { mean: number; p10: number; p25: number; p50: number; p75: number; p90: number };
   projectedRank: { mean: number; p10: number; p90: number };

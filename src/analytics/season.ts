@@ -2,6 +2,7 @@ import { Rng, hashSeed } from '@/lib/rng';
 import { sampleScore, type GoalModelConfig } from './poisson';
 import { countsTowardTable } from './standings';
 import { zoneForRank } from '@/domain/competitions';
+import { fillRoundOf16, groupLetter, R16_SLOTS, type GroupLetter } from './bracket';
 import type {
   Competition, DatasetSnapshot, ID, Match, SeasonForecast, Team, ZoneKind,
 } from '@/domain/types';
@@ -139,6 +140,41 @@ export function simulateSeason(
   const qualifyCounts = new Array<number>(n).fill(0);
   const grouped = groups.length > 1;
 
+  // ── The knockout, when the model plays it out (AFCON finals) ─────────────
+  // Real knockout results are used wherever a tie has been played; only the
+  // rest is simulated. A tie is looked up by its two teams, so it does not
+  // matter which side FotMob lists as home.
+  const withKnockout = competition.knockout === 'six-groups-best-thirds' && groups.length === 6;
+  const letterOfGroup = groupKeys.map((g) => groupLetter(g));
+  const pairKey = (a: number, b: number) => (a < b ? `${a}:${b}` : `${b}:${a}`);
+  const realTie = new Map<string, number>();       // pair -> winner index
+  const realR16Opponent = new Map<number, number>(); // team -> its actual R16 opponent
+  const hostsThisEdition = new Set(
+    (competition.neutralVenue?.hostsBySeason[snapshot.season.label] ?? []).map((h) => h.toLowerCase()),
+  );
+  const isEditionHost = simTeams.map((t) => hostsThisEdition.has(t.team.name.toLowerCase()));
+  if (withKnockout) {
+    for (const m of snapshot.matches) {
+      if (inTable(m)) continue;
+      const hi = indexOf.get(m.homeTeamId);
+      const ai = indexOf.get(m.awayTeamId);
+      if (hi === undefined || ai === undefined) continue;
+      if (/16|1\/8/.test(m.roundLabel ?? '')) {
+        realR16Opponent.set(hi, ai);
+        realR16Opponent.set(ai, hi);
+      }
+      if (m.status !== 'FINISHED' || m.homeScore === null || m.awayScore === null) continue;
+      const winner = m.homeScore > m.awayScore ? hi
+        : m.awayScore > m.homeScore ? ai
+        : m.shootoutWinnerTeamId ? indexOf.get(m.shootoutWinnerTeamId) : undefined;
+      if (winner !== undefined) realTie.set(pairKey(hi, ai), winner);
+    }
+  }
+  const qfCounts = new Array<number>(n).fill(0);
+  const sfCounts = new Array<number>(n).fill(0);
+  const finalCounts = new Array<number>(n).fill(0);
+  const championCounts = new Array<number>(n).fill(0);
+
   const rankCounts = Array.from({ length: n }, () => new Array<number>(n + 1).fill(0));
   const pointSamples = Array.from({ length: n }, () => [] as number[]);
   const rankSum = new Array<number>(n).fill(0);
@@ -201,8 +237,11 @@ export function simulateSeason(
 
     if (grouped) {
       const nextPlaced: number[] = [];
-      for (const members of groups) {
+      const rankedByLetter = new Map<GroupLetter, number[]>();
+      for (const [gi, members] of groups.entries()) {
         const ranked = [...members].sort(better);
+        const letter = letterOfGroup[gi];
+        if (letter) rankedByLetter.set(letter, ranked);
         const winner = ranked[0];
         if (winner !== undefined) groupWinCounts[winner] = (groupWinCounts[winner] as number) + 1;
         if (!qualification) continue;
@@ -219,9 +258,50 @@ export function simulateSeason(
         }
       }
       const extra = qualification?.bestThirds ?? 0;
-      if (extra > 0) {
-        for (const i of nextPlaced.sort(better).slice(0, extra)) {
-          qualifyCounts[i] = (qualifyCounts[i] as number) + 1;
+      const thirdsThrough: number[] = extra > 0 ? nextPlaced.sort(better).slice(0, extra) : [];
+      for (const i of thirdsThrough) qualifyCounts[i] = (qualifyCounts[i] as number) + 1;
+
+      if (withKnockout) {
+        const thirdLetters = thirdsThrough
+          .map((i) => letterOfGroup[groupKeys.indexOf(groupIdOf.get(simTeams[i]!.id) as string)])
+          .filter((l): l is GroupLetter => Boolean(l));
+        const ties = fillRoundOf16(rankedByLetter, thirdLetters);
+        if (ties) {
+          // Once the real round of sixteen exists, trust it over our own
+          // reconstruction: the slot's fixed side (a winner or runner-up)
+          // finds its actual opponent, which absorbs any tiebreak (fair play,
+          // lots) the sampler does not model.
+          const r16 = ties.map(([a, b], slot) => {
+            const fixed = R16_SLOTS[slot]![0].startsWith('3') ? b : a;
+            const opp = realR16Opponent.get(fixed);
+            return opp !== undefined ? ([fixed, opp] as [number, number]) : ([a, b] as [number, number]);
+          });
+          const play = (a: number, b: number): number => {
+            const real = realTie.get(pairKey(a, b));
+            if (real !== undefined) return real;
+            // Neutral ground unless a host nation is playing.
+            const home = isEditionHost[b] && !isEditionHost[a] ? b : a;
+            const away = home === a ? b : a;
+            const venueKind = isEditionHost[home] ? 'home-away' : 'neutral';
+            const ht = simTeams[home]!.team, at = simTeams[away]!.team;
+            const ft = sampleScore(rngNext, ht, at, { ...goalModel, venueKind });
+            if (ft.home !== ft.away) return ft.home > ft.away ? home : away;
+            // Extra time: thirty minutes at a third of the full-match rate.
+            const et = sampleScore(rngNext, ht, at, {
+              ...goalModel, venueKind, leagueAvgGoals: (goalModel.leagueAvgGoals ?? 1.38) / 3,
+            });
+            if (et.home !== et.away) return et.home > et.away ? home : away;
+            // Penalties: a coin flip. Shoot-out skill is not in the data.
+            return rng.next() < 0.5 ? home : away;
+          };
+          const qf = r16.map(([a, b]) => play(a, b));
+          for (const i of qf) qfCounts[i] = (qfCounts[i] as number) + 1;
+          const sf = [play(qf[0]!, qf[1]!), play(qf[2]!, qf[3]!), play(qf[4]!, qf[5]!), play(qf[6]!, qf[7]!)];
+          for (const i of sf) sfCounts[i] = (sfCounts[i] as number) + 1;
+          const fin = [play(sf[0]!, sf[1]!), play(sf[2]!, sf[3]!)];
+          for (const i of fin) finalCounts[i] = (finalCounts[i] as number) + 1;
+          const champ = play(fin[0]!, fin[1]!);
+          championCounts[champ] = (championCounts[champ] as number) + 1;
         }
       }
     }
@@ -257,7 +337,8 @@ export function simulateSeason(
       return c / runs;
     };
 
-    const winTitle = (counts[1] ?? 0) / runs;
+    // With a simulated bracket the title is the tournament, not topping a table.
+    const winTitle = withKnockout ? (championCounts[t.index] as number) / runs : (counts[1] ?? 0) / runs;
 
     return {
       teamId: t.id,
@@ -269,6 +350,14 @@ export function simulateSeason(
       relegation: probOfRanksIn(relegationRanks),
       groupWin: grouped ? (groupWinCounts[t.index] as number) / runs : null,
       qualify: grouped && qualification ? (qualifyCounts[t.index] as number) / runs : null,
+      knockout: withKnockout
+        ? {
+            quarterFinal: (qfCounts[t.index] as number) / runs,
+            semiFinal: (sfCounts[t.index] as number) / runs,
+            final: (finalCounts[t.index] as number) / runs,
+            champion: (championCounts[t.index] as number) / runs,
+          }
+        : null,
       projectedPoints: {
         mean: round1(mean(samples)),
         p10: quantile(samples, 0.1),

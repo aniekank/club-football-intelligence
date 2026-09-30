@@ -190,3 +190,60 @@ describe('national-team priors', () => {
     expect(priorResultsFrom(payload as never)).toHaveLength(1);
   });
 });
+
+describe('AFCON finals knockout', () => {
+  // Six groups of four; the lower number always wins its group games 1-0, except
+  // that each third place beats fourth by more in later groups, so the best
+  // thirds are C, D, E, F — AFCON 2025's combination.
+  const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const members = letters.map((g, gi) =>
+    [1, 2, 3, 4].map((r): [number, string] => [gi * 10 + r, `${r}${g}`]));
+  const groupFixtures = members.flatMap((m, gi) => {
+    const out = [];
+    let id = 5000 + gi * 100;
+    for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {
+      const margin = i === 2 && j === 3 ? gi + 1 : 1;
+      out.push(fixture(id++, m[i]!, m[j]!, '1', `${margin} - 0`));
+    }
+    return out;
+  });
+  const ko = (id: number, a: [number, string], b: [number, string], round: string, score: string | null) =>
+    ({ ...fixture(id, a, b, '1/8', score), round, roundName: round });
+  const t = (label: string) => members.flat().find(([, n]) => n === label)!;
+
+  const league = (knockout: ReturnType<typeof ko>[]) => ({
+    details: { id: 289, name: 'Africa Cup of Nations', selectedSeason: '2025' },
+    table: [{ data: { composite: true, tables: members.map((m, gi) => group(`Grp. ${letters[gi]}`, m)), isCurrentSeason: true } }],
+    fixtures: { allMatches: [...groupFixtures, ...knockout] },
+  });
+
+  it('plays a full bracket: sixteen, eight, four, two, one', async () => {
+    const snap = await buildSnapshot('afcon', league([]) as never, { maxDetailRequests: 0 });
+    const { teams, leagueAvgGoals } = rateTeams(snap);
+    const { forecasts } = simulateSeason(snap, teams, { runs: 2000, goalModel: { leagueAvgGoals } });
+    const sum = (k: 'quarterFinal' | 'semiFinal' | 'final' | 'champion') =>
+      forecasts.reduce((s, f) => s + (f.knockout?.[k] ?? 0), 0);
+    expect(sum('quarterFinal')).toBeCloseTo(8, 6);
+    expect(sum('semiFinal')).toBeCloseTo(4, 6);
+    expect(sum('final')).toBeCloseTo(2, 6);
+    expect(sum('champion')).toBeCloseTo(1, 6);
+    // The title is the tournament now, so winTitle is the champion chance.
+    for (const f of forecasts) expect(f.winTitle).toBeCloseTo(f.knockout?.champion ?? 0, 9);
+  });
+
+  it('uses real results, including a shoot-out, instead of replaying them', async () => {
+    const snap = await buildSnapshot('afcon', league([
+      ko(9001, t('2A'), t('2C'), 'Round of 16', '1 - 1'),   // 2C win on penalties
+      ko(9002, t('1D'), t('3E'), 'Round of 16', '0 - 2'),   // the third wins
+    ]) as never, { maxDetailRequests: 0 });
+    const pens = snap.matches.find((m) => m.id === '9001')!;
+    pens.shootoutWinnerTeamId = String(t('2C')[0]);
+    const { teams, leagueAvgGoals } = rateTeams(snap);
+    const { forecasts } = simulateSeason(snap, teams, { runs: 500, goalModel: { leagueAvgGoals } });
+    const qf = (label: string) => forecasts.find((f) => f.teamId === String(t(label)[0]))?.knockout?.quarterFinal;
+    expect(qf('2C')).toBe(1);
+    expect(qf('2A')).toBe(0);
+    expect(qf('3E')).toBe(1);
+    expect(qf('1D')).toBe(0);
+  });
+});

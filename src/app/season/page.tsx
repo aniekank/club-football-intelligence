@@ -10,6 +10,7 @@ import { resolveActive } from '@/server/active';
 import { entitySuffix } from '@/lib/entityLink';
 import { pct } from '@/lib/format';
 import type { DatasetSnapshot, SeasonForecast } from '@/domain/types';
+import { buildBracketView, type BracketTie } from '@/analytics/bracket';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Season' };
@@ -227,19 +228,41 @@ function QualificationRace({
   const settled = all.every((f) => (f.qualify as number) === 0 || (f.qualify as number) === 1);
   const through = all.filter((f) => f.qualify === 1).length;
 
+  // A simulated bracket: who wins the whole thing.
+  const bracket = buildBracketView(snapshot);
+  const byChampion = forecasts.filter((f) => f.knockout).sort((a, b) => (b.knockout!.champion - a.knockout!.champion));
+  const favourite = byChampion[0];
+  const favouriteTeam = favourite ? teamById.get(favourite.teamId) : undefined;
+  const championTeam = bracket?.champion ? teamById.get(bracket.champion) : undefined;
+
   return (
     <>
       <Card className="lit-edge relative isolate overflow-hidden">
         <div className="p-6 md:p-8">
           <p className="eyebrow">
-            {snapshot.competition.name} · {snapshot.season.label} · {runs.toLocaleString()} simulated group stages
+            {snapshot.competition.name} · {snapshot.season.label} · {runs.toLocaleString()} simulated {bracket ? 'tournaments' : 'group stages'}
           </p>
           <h1 className="mt-2 max-w-prose font-display text-4xl leading-tight sm:text-5xl">
-            {settled
+            {championTeam
+              ? `${championTeam.name} won the ${snapshot.competition.name}`
+              : favouriteTeam && favourite && favourite.knockout!.champion > 0
+              ? `${favouriteTeam.name} are favourites, at ${pct(favourite.knockout!.champion, 0)}`
+              : settled
               ? `The ${rule.prize} line-up is settled`
               : `The race for ${rule.bestThirds ? `the ${rule.prize}` : rule.prize}`}
           </h1>
-          {settled ? (
+          {championTeam ? (
+            <p className="mt-3 max-w-prose text-ink-secondary">
+              The tournament is complete. The bracket below shows every tie as it was played.
+            </p>
+          ) : favouriteTeam && favourite && byChampion[1] ? (
+            <p className="mt-3 max-w-prose text-ink-secondary">
+              Every remaining match, groups and knockout, played {runs.toLocaleString()} times.
+              Next: {teamById.get(byChampion[1].teamId)?.name ?? '—'} on {pct(byChampion[1].knockout!.champion, 0)}
+              {byChampion[2] ? `, then ${teamById.get(byChampion[2].teamId)?.name ?? '—'} on ${pct(byChampion[2].knockout!.champion, 0)}` : ''}.
+              Level after extra time, a tie is settled by a coin flip — shoot-out skill is not in the data.
+            </p>
+          ) : settled ? (
             <p className="mt-3 max-w-prose text-ink-secondary">
               The group stage is over: {through} {through === 1 ? 'nation' : 'nations'} went through. Each group below shows who made it.
             </p>
@@ -253,6 +276,45 @@ function QualificationRace({
           )}
         </div>
       </Card>
+
+      {bracket ? <BracketCard bracket={bracket} teamById={teamById} suffix={suffix} /> : null}
+      {byChampion.length && !championTeam ? (
+        <Card>
+          <CardHeader
+            eyebrow="The knockout"
+            title="How far each team goes"
+            description={`Chance of reaching each round, from ${runs.toLocaleString()} simulated tournaments.`}
+          />
+          <div className="overflow-x-auto p-4">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-2xs uppercase tracking-caps text-ink-muted">
+                  <th scope="col" className="py-2 pr-2 font-semibold">Team</th>
+                  <th scope="col" className="px-2 py-2 text-right font-semibold">R16</th>
+                  <th scope="col" className="px-2 py-2 text-right font-semibold">QF</th>
+                  <th scope="col" className="px-2 py-2 text-right font-semibold">SF</th>
+                  <th scope="col" className="px-2 py-2 text-right font-semibold">Final</th>
+                  <th scope="col" className="px-2 py-2 text-right font-semibold">Win</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byChampion.filter((f) => (f.qualify ?? 0) > 0).slice(0, 16).map((f) => (
+                  <tr key={f.teamId} className="border-t border-border-subtle">
+                    <td className="py-2 pr-2">
+                      <Link href={`/teams/${f.teamId}${suffix}`} className="hover:underline">{teamById.get(f.teamId)?.name ?? f.teamId}</Link>
+                    </td>
+                    <td className="figure px-2 py-2 text-right">{pct(f.qualify ?? null, 0)}</td>
+                    <td className="figure px-2 py-2 text-right">{pct(f.knockout!.quarterFinal, 0)}</td>
+                    <td className="figure px-2 py-2 text-right">{pct(f.knockout!.semiFinal, 0)}</td>
+                    <td className="figure px-2 py-2 text-right">{pct(f.knockout!.final, 0)}</td>
+                    <td className="figure px-2 py-2 text-right font-semibold">{pct(f.knockout!.champion, 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader
@@ -306,5 +368,71 @@ function QualificationRace({
         </p>
       </Card>
     </>
+  );
+}
+
+
+/**
+ * The bracket, round by round. Real ties show their score; a tie not yet
+ * reached shows what fills it ("Winner Group D", "Winner QF 2"). Before the
+ * groups finish, the round of sixteen is "if it ended now" and says so.
+ */
+function BracketCard({
+  bracket, teamById, suffix,
+}: {
+  bracket: NonNullable<ReturnType<typeof buildBracketView>>;
+  teamById: Map<string, DatasetSnapshot['teams'][number]>;
+  suffix: string;
+}) {
+  const side = (id: string | null, label: string, won: boolean) => {
+    const team = id ? teamById.get(id) : undefined;
+    return team ? (
+      <Link href={`/teams/${team.id}${suffix}`} className={`min-w-0 truncate hover:underline ${won ? 'font-semibold text-ink' : 'text-ink-secondary'}`}>
+        {team.name}
+      </Link>
+    ) : (
+      <span className="min-w-0 truncate text-ink-muted">{label}</span>
+    );
+  };
+  const score = (tie: BracketTie, home: boolean) => {
+    const m = tie.match;
+    if (!m || m.homeScore === null || m.awayScore === null) return null;
+    const mine = (m.homeTeamId === (home ? tie.home : tie.away)) ? m.homeScore : m.awayScore;
+    return <span className="figure shrink-0">{mine}</span>;
+  };
+  return (
+    <Card>
+      <CardHeader
+        eyebrow="The bracket"
+        title={bracket.provisional ? 'If the groups ended now' : 'The knockout'}
+        description={bracket.provisional
+          ? 'The round of sixteen from the current tables, with third-placed teams paired by CAF\u2019s fixed table. It changes as the groups do.'
+          : 'Every tie, with the winner in bold. Shoot-out winners are marked (p).'}
+      />
+      <div className="grid gap-4 p-4 md:grid-cols-4">
+        {bracket.rounds.map((round) => (
+          <section key={round.label} className="flex flex-col justify-around gap-3">
+            <h3 className="text-2xs font-semibold uppercase tracking-caps text-ink-muted">{round.label}</h3>
+            {round.ties.map((tie, i) => (
+              <div key={i} className="rounded-md border border-border-subtle bg-surface-1 px-3 py-2 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  {side(tie.home, tie.homeLabel, tie.winner !== null && tie.winner === tie.home)}
+                  {score(tie, true)}
+                </div>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  {side(tie.away, tie.awayLabel, tie.winner !== null && tie.winner === tie.away)}
+                  {score(tie, false)}
+                </div>
+                {tie.match?.shootoutWinnerTeamId ? (
+                  <p className="mt-1 text-2xs text-ink-muted">
+                    (p) {teamById.get(tie.match.shootoutWinnerTeamId)?.name ?? ''} on penalties
+                  </p>
+                ) : null}
+              </div>
+            ))}
+          </section>
+        ))}
+      </div>
+    </Card>
   );
 }

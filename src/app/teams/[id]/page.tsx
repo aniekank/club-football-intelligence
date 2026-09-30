@@ -220,11 +220,11 @@ export default async function TeamPage({
             {teamForecast && snapshot?.competition.qualification && teamForecast.qualify != null ? (
               // A group stage: the question is whether they go through, not a title.
               <Disclosure
-                title="Where the group stage ends"
+                title={teamForecast.knockout ? "Where the tournament ends" : "Where the group stage ends"}
                 hint={
                   <span className="flex items-center gap-2">
-                    <span className="figure">{pct(teamForecast.qualify, 0)}</span>
-                    <span>to qualify</span>
+                    <span className="figure">{pct(teamForecast.knockout ? teamForecast.knockout.champion : teamForecast.qualify, 0)}</span>
+                    <span>{teamForecast.knockout ? 'to win it' : 'to qualify'}</span>
                   </span>
                 }
               >
@@ -234,6 +234,14 @@ export default async function TeamPage({
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                   <StatTile label="Win the group" value={pct(teamForecast.groupWin ?? null, 1)} estimate />
                   <StatTile label={`Qualify · ${snapshot.competition.qualification.prize}`} value={pct(teamForecast.qualify, 1)} estimate />
+                  {teamForecast.knockout ? (
+                    <>
+                      <StatTile label="Quarter-finals" value={pct(teamForecast.knockout.quarterFinal, 1)} estimate />
+                      <StatTile label="Semi-finals" value={pct(teamForecast.knockout.semiFinal, 1)} estimate />
+                      <StatTile label="Final" value={pct(teamForecast.knockout.final, 1)} estimate />
+                      <StatTile label={`Win the ${snapshot.competition.shortName}`} value={pct(teamForecast.knockout.champion, 1)} estimate />
+                    </>
+                  ) : null}
                 </div>
               </Disclosure>
             ) : teamForecast ? (

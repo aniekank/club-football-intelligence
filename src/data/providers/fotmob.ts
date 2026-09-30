@@ -864,14 +864,33 @@ export async function buildSnapshot(
   const teamById = new Map(teams.map((t) => [t.id, t]));
   const now = Date.now();
   const windowStart = now - detailWindowDays * 86_400_000;
-  const detailTargets = matches
-    .filter((m) => {
-      if (m.status === 'LIVE' || m.status === 'HALFTIME') return true;
-      if (m.status !== 'FINISHED') return false;
-      return Date.parse(m.kickoff) >= windowStart;
-    })
-    .sort((a, b) => b.kickoff.localeCompare(a.kickoff))
-    .slice(0, maxDetailRequests);
+  /**
+   * Ties settled on penalties are always fetched, whatever their age.
+   *
+   * The fixture list says only "After penalties" — who WON the shoot-out is in
+   * the match detail alone. Without it a knockout bracket cannot tell Mali from
+   * Tunisia after a 1-1, and the tournament simulation would replay a tie that
+   * has already been decided. There are a handful per tournament, so they sit
+   * outside the recent-window budget rather than competing with it.
+   */
+  const shootoutIds = new Set(
+    fixtures
+      .filter((f) => f.status?.finished && /penalties/i.test(`${f.status.reason?.shortKey ?? ''} ${f.status.reason?.long ?? ''}`))
+      .map((f) => String(f.id)),
+  );
+  const shootouts = matches.filter((m) => shootoutIds.has(m.id));
+  const detailTargets = [
+    ...shootouts,
+    ...matches
+      .filter((m) => {
+        if (shootoutIds.has(m.id)) return false;
+        if (m.status === 'LIVE' || m.status === 'HALFTIME') return true;
+        if (m.status !== 'FINISHED') return false;
+        return Date.parse(m.kickoff) >= windowStart;
+      })
+      .sort((a, b) => b.kickoff.localeCompare(a.kickoff))
+      .slice(0, maxDetailRequests),
+  ];
 
   let detailFailures = 0;
   const byId = new Map(matches.map((m) => [m.id, m]));

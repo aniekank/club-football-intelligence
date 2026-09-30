@@ -99,5 +99,13 @@ What national teams needed that clubs did not:
   endpoint does not carry international titles, and "0 titles" under Morocco
   would be false).
 
-Not done: the finals knockout bracket (the best-thirds pairings follow CAF's
-own table), so there are no title odds for the finals yet.
+**The finals bracket** (`analytics/bracket.ts`). CAF pairs the four best thirds
+with group winners A–D by UEFA's Euro 2016 table, unchanged — it reproduces
+every round-of-16 tie of AFCON 2023 and 2025, which the tests pin. Each
+simulated run plays the bracket after the groups, using real results wherever a
+tie has been played (shoot-out winners come from match detail, which is now
+always fetched for ties decided on penalties). Unplayed ties are neutral unless
+a host is playing; extra time is thirty minutes at a third of the rate, and a
+shoot-out is a coin flip because shoot-out skill is not in the data. Group
+ranking inside the sampler stays points, goal difference, goals scored, then
+random — CAF's head-to-head step is applied to the displayed table only.

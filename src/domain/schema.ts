@@ -69,6 +69,7 @@ export const competitionSchema = z.object({
   priorSources: z.array(z.object({ fotmobId: z.number().int(), season: z.string().optional() })).optional(),
   neutralVenue: z.object({ hostsBySeason: z.record(z.string(), z.array(z.string())) }).optional(),
   nationalTeams: z.boolean().optional(),
+  knockout: z.enum(['six-groups-best-thirds']).optional(),
 });
 
 export const seasonSchema = z.object({

@@ -676,6 +676,9 @@ export const AFCON: Competition = {
     { kind: 'eliminated', fromRank: 4, toRank: 4, label: 'Eliminated', shortLabel: 'OUT' },
   ],
   qualification: { perGroup: 2, bestThirds: 4, prize: 'Round of 16' },
+  knockout: 'six-groups-best-thirds',
+  // The finals crown someone: the knockout is simulated, so this is a real title.
+  titleDecidedByPlayoff: false,
   neutralVenue: {
     hostsBySeason: { '2025': ['Morocco'], '2027': ['Kenya', 'Uganda', 'Tanzania'] },
   },
