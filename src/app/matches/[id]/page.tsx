@@ -92,6 +92,7 @@ function MatchDetail({
 }) {
   const isLive = match.status === 'LIVE' || match.status === 'HALFTIME';
   const played = match.homeScore !== null && match.awayScore !== null;
+  const liveShown = !played && isLive && match.liveScore ? match.liveScore : null;
   const homeStats = home ? match.teamStats[home.id] : undefined;
   const awayStats = away ? match.teamStats[away.id] : undefined;
   const hasShots = match.shots.length > 0;
@@ -193,6 +194,10 @@ function MatchDetail({
             {played ? (
               <Figure className="text-4xl font-bold leading-none sm:text-5xl">
                 {match.homeScore}–{match.awayScore}
+              </Figure>
+            ) : liveShown ? (
+              <Figure className="text-4xl font-bold leading-none text-brand sm:text-5xl">
+                {liveShown.home}–{liveShown.away}
               </Figure>
             ) : match.status === 'POSTPONED' || match.status === 'CANCELLED' ? (
               <Badge tone="warning">

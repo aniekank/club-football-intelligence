@@ -150,6 +150,7 @@ function Row({ d, suffix, featured }: { d: DayMatch; suffix: string; featured?: 
   const m = d.match;
   const isLive = m.status === 'LIVE' || m.status === 'HALFTIME';
   const played = m.homeScore !== null && m.awayScore !== null;
+  const shown = played ? { home: m.homeScore as number, away: m.awayScore as number } : isLive && m.liveScore ? m.liveScore : null;
 
   return (
     <Link
@@ -182,9 +183,9 @@ function Row({ d, suffix, featured }: { d: DayMatch; suffix: string; featured?: 
       </span>
 
       <span className="shrink-0 text-right">
-        {played ? (
-          <Figure className={cn('font-semibold', featured ? 'text-2xl' : 'text-base')}>
-            {m.homeScore}–{m.awayScore}
+        {shown ? (
+          <Figure className={cn('font-semibold', featured ? 'text-2xl' : 'text-base', isLive && 'text-brand')}>
+            {shown.home}–{shown.away}
           </Figure>
         ) : (
           <Figure tone="secondary" className={featured ? 'text-xl' : 'text-sm'}>

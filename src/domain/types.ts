@@ -493,6 +493,10 @@ export interface Match {
    *  draws, and how season aggregates quietly gain phantom clean sheets. */
   homeScore: number | null;
   awayScore: number | null;
+  /** The score so far while a match is LIVE or at HALFTIME. Kept apart from
+   *  homeScore/awayScore on purpose: those mean "a result", and every table,
+   *  form guide and aggregate counts a match as played the moment they are set. */
+  liveScore?: { home: number; away: number } | null;
   homeScoreHT: number | null;
   awayScoreHT: number | null;
   /**

@@ -36,6 +36,8 @@ export function MatchCard({
   const isDone = match.status === 'FINISHED';
   const isOff = match.status === 'POSTPONED' || match.status === 'CANCELLED';
   const played = match.homeScore !== null && match.awayScore !== null;
+  // Live: show the running score (kept out of homeScore/awayScore, which mean a result).
+  const shown = played ? { home: match.homeScore as number, away: match.awayScore as number } : isLive && match.liveScore ? match.liveScore : null;
 
   const homeXg = home ? match.teamStats[home.id]?.xG ?? null : null;
   const awayXg = away ? match.teamStats[away.id]?.xG ?? null : null;
@@ -77,14 +79,14 @@ export function MatchCard({
             <Badge tone="warning">
               {match.status === 'POSTPONED' ? 'Postponed' : 'Cancelled'}
             </Badge>
-          ) : played ? (
+          ) : shown ? (
             <Figure
               className={cn(
                 'text-2xl font-bold leading-none tabular-nums',
                 isLive && 'text-brand',
               )}
             >
-              {match.homeScore}–{match.awayScore}
+              {shown.home}–{shown.away}
             </Figure>
           ) : (
             <Figure tone="secondary" className="text-base leading-none">

@@ -212,6 +212,8 @@ interface FmMatchDetails {
     status?: {
       /** The club that LOST a shootout, by name. No score is published. */
       whoLostOnPenalties?: string | null;
+      /** "2 - 0" while in play and after. */
+      scoreStr?: string;
     };
   };
   general?: {
@@ -831,6 +833,8 @@ export async function buildSnapshot(
     .map((f): Match => {
       const { status, minute } = mapStatus(f.status);
       const score = status === 'FINISHED' ? parseScore(f.status.scoreStr) : { home: null, away: null };
+      // In play: the running score goes to liveScore, never to the result fields (see Match.liveScore).
+      const running = status === 'LIVE' || status === 'HALFTIME' ? parseScore(f.status.scoreStr) : { home: null, away: null };
       const { matchweek, roundLabel } = classifyRound(f, competition);
       return {
         id: String(f.id),
@@ -849,6 +853,7 @@ export async function buildSnapshot(
         awayTeamId: String(f.away.id),
         homeScore: score.home,
         awayScore: score.away,
+        liveScore: running.home !== null && running.away !== null ? { home: running.home, away: running.away } : null,
         // Filled from match detail below, where the events are.
         homeScoreHT: null,
         awayScoreHT: null,
@@ -973,6 +978,16 @@ export async function buildSnapshot(
       const firstHalf = target.events.filter(
         (e) => e.type === 'GOAL' && e.minute <= 45,
       );
+      // In play: the detail header has the running score (fresher than the fixture list);
+      // failing that, count the goal events.
+      if (target.status === 'LIVE' || target.status === 'HALFTIME') {
+        const hdr = parseScore(details.header?.status?.scoreStr);
+        if (hdr.home !== null && hdr.away !== null) target.liveScore = { home: hdr.home, away: hdr.away };
+        else if (!target.liveScore) {
+          const goals = target.events.filter((e) => e.type === 'GOAL');
+          target.liveScore = { home: goals.filter((e) => e.teamId === target.homeTeamId).length, away: goals.filter((e) => e.teamId === target.awayTeamId).length };
+        }
+      }
       if (target.status === 'FINISHED' || target.status === 'HALFTIME') {
         target.homeScoreHT = firstHalf.filter((e) => e.teamId === target.homeTeamId).length;
         target.awayScoreHT = firstHalf.filter((e) => e.teamId === target.awayTeamId).length;

@@ -576,3 +576,41 @@ describe('club colours', () => {
     expect(checkSnapshot(snap).errors).toEqual([]);
   });
 });
+
+describe('the running score of a live match', () => {
+  /**
+   * REGRESSION (2026-10-11, Liverpool 2-0 Man City): live matches were mapped with
+   * no score at all, so /api/talk printed "0-0" at 71' and Motion's Tapes showed it.
+   * The running score now goes to liveScore — never to homeScore/awayScore, which
+   * mean a RESULT and would make every table count the match as played.
+   */
+  const league = {
+    details: { id: 47, name: 'Premier League', selectedSeason: '2026/2027' },
+    table: [{ data: {
+      legend: [],
+      table: { all: [tableRow(10, 'Alpha', 1), tableRow(20, 'Beta', 2)] },
+      isCurrentSeason: true, selectedSeason: '2026/2027',
+    } }],
+    fixtures: {
+      allMatches: [{
+        ...fixture(9, [10, 'Alpha'], [20, 'Beta'], 3, 3, null),
+        status: { utcTime: '2026-09-16T19:00:00Z', started: true, finished: false, cancelled: false, scoreStr: '2 - 0', liveTime: { short: "71'" } },
+      }],
+    },
+  };
+
+  it('carries the running score without turning it into a result', async () => {
+    const snap = await buildSnapshot('epl', league, { maxDetailRequests: 0 });
+    const m = snap.matches.find((x) => x.id === '9')!;
+    expect(m.status).toBe('LIVE');
+    expect(m.liveScore).toEqual({ home: 2, away: 0 });
+    expect(m.homeScore).toBeNull();
+    expect(snap.standings.find((r) => r.teamId === '10')!.played).toBe(0);
+    expect(checkSnapshot(snap).errors).toEqual([]);
+  });
+
+  it('prefers the match detail header when it is fresher', async () => {
+    const snap = await buildSnapshot('epl', league, { maxDetailRequests: 5, fetchDetails: async () => ({ header: { status: { scoreStr: '3 - 0' } } }) });
+    expect(snap.matches.find((x) => x.id === '9')!.liveScore).toEqual({ home: 3, away: 0 });
+  });
+});

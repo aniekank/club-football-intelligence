@@ -73,7 +73,8 @@ export async function GET(req: Request) {
 
   // live
   for (const m of snapshot.matches.filter((x) => x.status === 'LIVE' || x.status === 'HALFTIME').slice(0, 3)) {
-    const score = `${m.homeScore ?? 0}-${m.awayScore ?? 0}`;
+    // The running score; a live match with no score yet reported is shown without one rather than as 0-0.
+    const score = m.liveScore ? `${m.liveScore.home}-${m.liveScore.away}` : m.homeScore !== null && m.awayScore !== null ? `${m.homeScore}-${m.awayScore}` : 'v';
     points.push({
       kind: 'live', home: name(m.homeTeamId), away: name(m.awayTeamId), score, minute: m.minute, ...logos(m),
       text: `${name(m.homeTeamId)} ${score} ${name(m.awayTeamId)}, ${m.status === 'HALFTIME' ? 'half-time' : `${m.minute}'`}`,

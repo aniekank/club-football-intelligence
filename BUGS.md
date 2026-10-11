@@ -516,3 +516,24 @@ guard was the missing half of the decision.
 Worth noting the guard itself needed two attempts: the first version sniffed
 each line for a leading `*` or `//`, which flagged a paragraph EXPLAINING the
 rule as a violation of it. Comment state has to be tracked, not sniffed.
+
+## CFI-016 — a live match read 0-0 everywhere
+
+**Status:** fixed · **Found:** Motion's Tapes showed Liverpool 0-0 Man City at 71' while it was 2-0 (2026-10-11) · **Severity:**
+high — the one number a live score exists to show
+
+**Symptom.** `/api/talk` published `"Liverpool 0-0 Man City, 71'"`. On CFI itself a live
+card showed the minute but no score at all.
+
+**Root cause.** The FotMob adapter set `homeScore`/`awayScore` only for FINISHED
+fixtures (correctly: those fields mean a *result*, and the standings, form guide,
+cross-league aggregates, season view and tour all treat a non-null score as
+"played"). Nothing carried the running score of a match in play, and the talk route
+filled the gap with `?? 0`.
+
+**Fix.** A separate `Match.liveScore` for LIVE/HALFTIME: from the fixture list's
+`scoreStr`, refreshed from the match-detail header (fresher), falling back to
+counting goal events. Result fields stay null until full time, so no table counts a
+match early. MatchCard, the matchday panel and the match page show the live score;
+`/api/talk` uses it and prints `v` rather than inventing 0-0 when none is reported.
+Regression tests in `fotmob.test.ts` ("the running score of a live match").
