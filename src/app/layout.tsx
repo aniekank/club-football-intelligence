@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import { Fraunces, Archivo, JetBrains_Mono } from 'next/font/google';
 import { themeScript } from '@/components/layout/ThemeToggle';
 import { railScript } from '@/components/layout/Rail';
@@ -134,6 +135,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         {children}
         <IntroSplash name={currentSite().fullName} />
+        {/* Cookieless analytics (Umami, free tier). Shares the one Umami website with
+            World Cup Intelligence + SongLab; split by hostname in the dashboard. The
+            id is public. data-domains keeps staging/local visits out of the numbers. */}
+        <Script
+          src={process.env.NEXT_PUBLIC_UMAMI_SRC ?? 'https://cloud.umami.is/script.js'}
+          data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ?? '95f1e3af-15e1-419d-a78d-05e1a37ae7bc'}
+          data-domains="club.taskintel.app,afcon.taskintel.app,club-football-intelligence.onrender.com"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
