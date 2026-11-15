@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import { originForHost } from '@/lib/origin';
 
 /**
  * Which front door the reader came through.
@@ -35,6 +36,25 @@ const AFCON: Site = {
   description:
     'The Africa Cup of Nations, modelled: qualifying groups, who goes through, the finals bracket and every team’s chance of lifting the trophy.',
 };
+
+/**
+ * The public origin for the address the reader came through.
+ *
+ * robots.txt and the sitemap used NEXT_PUBLIC_SITE_URL, which is unset in
+ * production, so both advertised http://localhost:3010. The Host header is the
+ * truth; the onrender.com address maps to the custom domain so crawlers learn
+ * one name for each page.
+ */
+export function siteOrigin(): string {
+  let host = '';
+  try {
+    const h = headers();
+    host = h.get('x-forwarded-host') ?? h.get('host') ?? '';
+  } catch {
+    // Outside a request (build, tests).
+  }
+  return originForHost(host);
+}
 
 export function currentSite(): Site {
   let host = '';

@@ -42,6 +42,7 @@ export function DivisionStrip({
             <Link
               key={d.id}
               href={hrefFor(d.id)}
+              rel="nofollow"
               aria-current={active ? 'page' : undefined}
               style={{ ['--comp-active' as string]: `var(--comp-${d.accentKey})` }}
               className={cn(

@@ -72,6 +72,7 @@ export function InternationalBar({
                   <Link
                     key={c.id}
                     href={hrefFor(c.id)}
+                    rel="nofollow"
                     aria-current={active ? 'page' : undefined}
                     title={c.name}
                     style={{ ['--comp-active' as string]: `var(--comp-${c.accentKey})` }}

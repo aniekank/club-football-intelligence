@@ -78,6 +78,7 @@ export function Header({
           {liveCount > 0 ? (
             <Link
               href="/?filter=live"
+              rel="nofollow"
               className="hidden items-center gap-2 rounded-pill bg-brand-faint px-3 py-1 text-2xs font-semibold uppercase tracking-caps text-brand lg:inline-flex"
             >
               <LiveDot />

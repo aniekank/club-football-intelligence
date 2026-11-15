@@ -43,6 +43,7 @@ export function SeasonPicker({
           <Link
             key={e.key}
             href={hrefFor(e)}
+            rel="nofollow"
             aria-current={active ? 'true' : undefined}
             title={e.blurb}
             className={cn(

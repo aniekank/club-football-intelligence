@@ -1,5 +1,8 @@
 import type { MetadataRoute } from 'next';
 import { COMPETITIONS } from '@/domain/competitions';
+import { siteOrigin } from '@/server/site';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * The sitemap, generated from the registry.
@@ -10,10 +13,10 @@ import { COMPETITIONS } from '@/domain/competitions';
  * crawler to spend its budget on pages that will be stale before it arrives.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3010';
+  const site = siteOrigin();
   const now = new Date();
 
-  const sections = ['', '/table', '/fixtures', '/players', '/explore', '/transfers', '/rankings', '/edge', '/ask'];
+  const sections = ['', '/table', '/fixtures', '/players', '/explore', '/transfers', '/rankings', '/edge'];
 
   return [
     ...sections.map((path) => ({

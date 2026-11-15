@@ -92,6 +92,7 @@ export function CountryRail({
           <Link
             key={country}
             href={hrefFor(target)}
+            rel="nofollow"
             aria-current={active ? 'page' : undefined}
             title={leagues.length > 1
               ? `${country} — ${leagues.length} divisions`
